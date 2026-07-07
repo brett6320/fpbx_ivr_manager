@@ -1,0 +1,56 @@
+# FusionPBX Closure Manager — least-privilege container deployment.
+#
+# Assumes the app runs on (or beside) the FusionPBX host. It reaches the host's
+# PostgreSQL and FreeSWITCH mod_xml_rpc over the host gateway, and — when using
+# 'local' recording storage — writes prompts into a bind-mounted recordings dir.
+#
+# Pull the published image instead of building by setting:
+#   image: ghcr.io/brett6320/fpbx_ivr_manager:latest
+services:
+  ivr-manager:
+    build:
+      context: .
+      args:
+        # Match APP_GID to the host 'freeswitch' group gid if you bind-mount the
+        # recordings dir with FPBX_RECORDING_STORAGE=local.
+        APP_GID: "${FREESWITCH_GID:-10001}"
+        # EXTRAS: "[ldap,passkey]"   # uncomment to bake in optional backends
+    image: ghcr.io/brett6320/fpbx_ivr_manager:latest
+    restart: unless-stopped
+    env_file:
+      - .env                       # chmod 600; never commit
+    # Publish ONLY to loopback; put TLS-terminating nginx in front.
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Reach host Postgres / xmlrpc via host.docker.internal (set FPBX_DB_HOST and
+    # FS_XMLRPC_URL host accordingly in .env).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # ---- least privilege ----
+    user: "10001:${FREESWITCH_GID:-10001}"
+    read_only: true                # immutable root filesystem
+    cap_drop: ["ALL"]              # drop all Linux capabilities
+    security_opt:
+      - "no-new-privileges:true"   # cannot gain privileges via setuid/etc.
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    volumes:
+      # Writable state (SQLite local-auth DB). Named volume, app-user owned.
+      - ivr_data:/app/data
+      # Only when FPBX_RECORDING_STORAGE=local: mount the host recordings dir.
+      # Prefer FPBX_RECORDING_STORAGE=db to avoid mounting host paths at all.
+      # - type: bind
+      #   source: /var/lib/freeswitch/storage/${FPBX_DOMAIN_NAME}/recordings
+      #   target: /recordings
+    mem_limit: 256m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  ivr_data:

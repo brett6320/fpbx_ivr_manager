@@ -1,0 +1,57 @@
+# Standalone (no Docker) systemd unit — hardened, least privilege.
+# Install to /etc/systemd/system/fpbx-ivr-manager.service
+#
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin \
+#        --gIn_group freeswitch ivrmgr      # member of freeswitch for recordings
+#   sudo systemctl daemon-reload && sudo systemctl enable --now fpbx-ivr-manager
+#
+# Env lives in /etc/fpbx-ivr-manager/env (chmod 600, root:ivrmgr). Set
+#   LOCAL_AUTH_DB=/var/lib/fpbx-ivr-manager/users.db
+[Unit]
+Description=FusionPBX Closure Manager
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ivrmgr
+Group=freeswitch
+WorkingDirectory=/opt/fpbx_ivr_manager
+EnvironmentFile=/etc/fpbx-ivr-manager/env
+ExecStart=/opt/fpbx_ivr_manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=3
+
+# ---- least privilege / sandboxing ----
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+# Writable state: managed by systemd (creates /var/lib/fpbx-ivr-manager, 0700).
+StateDirectory=fpbx-ivr-manager
+StateDirectoryMode=0700
+# Only needed when FPBX_RECORDING_STORAGE=local (writing greeting .wav files).
+# Remove this line entirely if you use FPBX_RECORDING_STORAGE=db.
+ReadWritePaths=/var/lib/freeswitch/storage
+
+[Install]
+WantedBy=multi-user.target

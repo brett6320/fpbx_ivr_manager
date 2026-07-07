@@ -22,6 +22,12 @@ remote = ["paramiko>=3.4"]  # only needed for non-co-located (SFTP) deployments
 ldap = ["ldap3>=2.9"]       # only needed for AUTH_BACKEND=ldap
 passkey = ["webauthn>=2.0"] # only needed for passkey (WebAuthn) MFA
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+"app.web" = ["templates/*.html"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 

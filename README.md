@@ -35,21 +35,28 @@ PostgreSQL; the only native runtime interconnect is FreeSWITCH `mod_xml_rpc`. So
 - partial window → "closed from 12:00 PM to 3:00 PM on …"
 - across days with times → "from … at … until … at …"
 
-## Run (co-located on the FusionPBX host)
+## Run (local dev)
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-cp .env.example .env         # DB/XMLRPC point at localhost; fill Entra + Google TTS
+cp .env.example .env         # DB/XMLRPC point at localhost; fill auth + Google TTS
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
-.venv/bin/pytest             # phrase logic unit tests (no live services needed)
+.venv/bin/pytest             # unit tests (no live services needed)
 ```
 
-Deployment notes:
-- Run the service as a user in the **`www-data`/`freeswitch` group** so it can
-  write `FS_RECORDINGS_DIR` and read the FusionPBX DB.
-- Put it behind the existing nginx (FusionPBX) on a subpath or vhost, TLS
-  terminated there; keep uvicorn bound to `127.0.0.1`.
-- Optional: add a FusionPBX menu item linking to `{APP_BASE_URL}` for a native feel.
+## Deploy
+
+Two supported paths, both least-privilege — see **[docs/deployment.md](docs/deployment.md)**:
+
+- **Docker** — `Dockerfile` + `compose.yaml` (non-root, read-only rootfs, all caps
+  dropped, loopback-only). Pull `ghcr.io/brett6320/fpbx_ivr_manager:latest`
+  (multi-arch amd64/arm64) or build locally.
+- **Standalone (systemd)** — hardened unit in `deploy/`, dedicated `ivrmgr` user.
+
+Both use a scoped PostgreSQL role (`sql/least_privilege_role.sql`) instead of the
+FusionPBX owner, sit behind nginx TLS (`deploy/nginx-fpbx-ivr-manager.conf`), and
+prefer `FPBX_RECORDING_STORAGE=db` to avoid host filesystem access. Images and
+versioned releases are published to GHCR on every merge to `main`.
 
 ## Authentication & authorization
 

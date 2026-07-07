@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from fastapi import Request
-from fastapi.responses import RedirectResponse
 from starlette.exceptions import HTTPException
 
 

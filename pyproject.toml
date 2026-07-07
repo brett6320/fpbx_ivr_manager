@@ -24,3 +24,15 @@ passkey = ["webauthn>=2.0"] # only needed for passkey (WebAuthn) MFA
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501", "B008"]  # long lines (SQL/HTML); B008 = FastAPI Depends() idiom
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]        # env setup before imports in conftest
+"app/config.py" = ["E402"]  # lazy urlparse imports inside properties

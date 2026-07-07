@@ -11,7 +11,6 @@ from fastapi.templating import Jinja2Templates
 from app.auth import authz, backend, entra, local
 from app.auth.authz import MANAGE_CLOSURES
 from app.config import settings
-from app.fpbx import extensions
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
 from app.models import ClosureRequest

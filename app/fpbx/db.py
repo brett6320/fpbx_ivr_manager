@@ -4,7 +4,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from functools import lru_cache
 
-import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 

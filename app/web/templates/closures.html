@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="topbar">
+  <h1>Planned closures</h1>
+  <span class="muted">{{ user.name }} · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p><a href="/closures/new"><button>+ New closure</button></a></p>
+
+{% if not closures %}
+  <p class="muted">No managed closures yet.</p>
+{% else %}
+<table style="width:100%; border-collapse:collapse;">
+  <thead>
+    <tr style="text-align:left; border-bottom:1px solid #d1d5db;">
+      <th>Ext</th><th>Label</th><th>Window</th><th>When closed</th><th>Open dest</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for c in closures %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td>{{ c.extension }}</td>
+      <td>{{ c.label }}{% if not c.enabled %} <span class="muted">(disabled)</span>{% endif %}</td>
+      <td class="muted">
+        {% if c.start and c.end %}
+          {{ c.start.strftime('%Y-%m-%d %H:%M') }} → {{ c.end.strftime('%Y-%m-%d %H:%M') }}
+        {% else %}?{% endif %}
+      </td>
+      <td>{{ c.closed_action }}</td>
+      <td>{{ c.open_destination or '?' }}</td>
+      <td style="white-space:nowrap;">
+        <a href="/closures/{{ c.extension }}/edit">Edit</a>
+        <form method="post" action="/closures/{{ c.extension }}/delete" style="display:inline;"
+              onsubmit="return confirm('Delete closure on {{ c.extension }}?');">
+          <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

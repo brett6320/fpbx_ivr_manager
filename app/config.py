@@ -1,0 +1,111 @@
+"""Application settings loaded from environment / .env."""
+from __future__ import annotations
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # web
+    app_secret_key: str = Field(alias="APP_SECRET_KEY")
+    app_base_url: str = Field(alias="APP_BASE_URL")
+    app_org_name: str = Field(alias="APP_ORG_NAME", default="Our office")
+
+    # auth backend: local (default) | entra | ldap
+    auth_backend: str = Field(alias="AUTH_BACKEND", default="local")
+
+    # local auth (default backend)
+    local_auth_db: str = Field(alias="LOCAL_AUTH_DB", default="data/users.db")
+    local_admin_user: str = Field(alias="LOCAL_ADMIN_USER", default="")
+    local_admin_password: str = Field(alias="LOCAL_ADMIN_PASSWORD", default="")
+    local_admin_group: str = Field(alias="LOCAL_ADMIN_GROUP", default="ivr-admins")
+
+    # entra (only required when AUTH_BACKEND=entra)
+    entra_tenant_id: str = Field(alias="ENTRA_TENANT_ID", default="")
+    entra_client_id: str = Field(alias="ENTRA_CLIENT_ID", default="")
+    entra_client_secret: str = Field(alias="ENTRA_CLIENT_SECRET", default="")
+    entra_allowed_group_id: str = Field(alias="ENTRA_ALLOWED_GROUP_ID", default="")
+
+    # ldap (only required when AUTH_BACKEND=ldap)
+    ldap_uri: str = Field(alias="LDAP_URI", default="")
+    ldap_bind_dn_template: str = Field(alias="LDAP_BIND_DN_TEMPLATE", default="")
+    ldap_base_dn: str = Field(alias="LDAP_BASE_DN", default="")
+    ldap_user_filter: str = Field(alias="LDAP_USER_FILTER", default="(uid={username})")
+    ldap_group_filter: str = Field(
+        alias="LDAP_GROUP_FILTER", default="(member={user_dn})"
+    )
+    ldap_group_base_dn: str = Field(alias="LDAP_GROUP_BASE_DN", default="")
+    ldap_start_tls: bool = Field(alias="LDAP_START_TLS", default=True)
+
+    # ---- Authorization: permissions are granted to GROUPS only, never to users.
+    # JSON mapping of group identifier -> list of permissions. The group identifier
+    # is: the group name (local), the group object-id or name in the token 'groups'
+    # claim (entra), or the group cn/dn (ldap).
+    # e.g. {"ivr-admins": ["manage_closures","manage_users"], "ivr-editors": ["manage_closures"]}
+    authz_group_permissions: str = Field(alias="AUTHZ_GROUP_PERMISSIONS", default="{}")
+
+    # fusionpbx db
+    fpbx_db_host: str = Field(alias="FPBX_DB_HOST")
+    fpbx_db_port: int = Field(alias="FPBX_DB_PORT", default=5432)
+    fpbx_db_name: str = Field(alias="FPBX_DB_NAME", default="fusionpbx")
+    fpbx_db_user: str = Field(alias="FPBX_DB_USER")
+    fpbx_db_password: str = Field(alias="FPBX_DB_PASSWORD")
+    fpbx_domain_name: str = Field(alias="FPBX_DOMAIN_NAME")
+
+    # freeswitch xmlrpc
+    fs_xmlrpc_url: str = Field(alias="FS_XMLRPC_URL")
+    fs_xmlrpc_user: str = Field(alias="FS_XMLRPC_USER", default="freeswitch")
+    fs_xmlrpc_password: str = Field(alias="FS_XMLRPC_PASSWORD", default="works")
+
+    # recording transport
+    fpbx_recording_storage: str = Field(alias="FPBX_RECORDING_STORAGE", default="local")
+    fs_ssh_host: str = Field(alias="FS_SSH_HOST", default="")
+    fs_ssh_port: int = Field(alias="FS_SSH_PORT", default=22)
+    fs_ssh_user: str = Field(alias="FS_SSH_USER", default="root")
+    fs_ssh_key_path: str = Field(alias="FS_SSH_KEY_PATH", default="")
+    fs_recordings_dir: str = Field(alias="FS_RECORDINGS_DIR", default="")
+
+    # google tts
+    google_tts_api_key: str = Field(alias="GOOGLE_TTS_API_KEY")
+    google_tts_voice: str = Field(alias="GOOGLE_TTS_VOICE", default="en-US-Neural2-C")
+    google_tts_language: str = Field(alias="GOOGLE_TTS_LANGUAGE", default="en-US")
+
+    # extension pool
+    ext_pool_start: int = Field(alias="EXT_POOL_START", default=9550)
+    ext_pool_end: int = Field(alias="EXT_POOL_END", default=9599)
+
+    @property
+    def webauthn_rp_id(self) -> str:
+        # the registrable domain: host of APP_BASE_URL without port
+        from urllib.parse import urlparse
+
+        return urlparse(self.app_base_url).hostname or "localhost"
+
+    @property
+    def webauthn_origin(self) -> str:
+        from urllib.parse import urlparse
+
+        u = urlparse(self.app_base_url)
+        return f"{u.scheme}://{u.netloc}"
+
+    @property
+    def mfa_issuer(self) -> str:
+        return self.app_org_name or "FusionPBX Closure Manager"
+
+    @property
+    def recordings_dir(self) -> str:
+        # allow ${FPBX_DOMAIN_NAME} placeholder in the configured path
+        return self.fs_recordings_dir.replace("${FPBX_DOMAIN_NAME}", self.fpbx_domain_name)
+
+    @property
+    def redirect_uri(self) -> str:
+        return f"{self.app_base_url.rstrip('/')}/auth/callback"
+
+    @property
+    def entra_authority(self) -> str:
+        return f"https://login.microsoftonline.com/{self.entra_tenant_id}"
+
+
+settings = Settings()  # type: ignore[call-arg]

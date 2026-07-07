@@ -1,0 +1,26 @@
+[project]
+name = "fpbx-ivr-manager"
+version = "0.1.0"
+description = "Web app to manage FusionPBX time conditions, prompts, and IVRs (ext 9550-9599) with Entra ID SSO and Google TTS"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "itsdangerous>=2.2",          # signed session cookies
+    "msal>=1.28",                 # Entra ID auth code flow
+    "httpx>=0.27",                # Google TTS REST + token calls
+    "psycopg[binary,pool]>=3.2",  # FusionPBX PostgreSQL (localhost when co-located)
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
+remote = ["paramiko>=3.4"]  # only needed for non-co-located (SFTP) deployments
+ldap = ["ldap3>=2.9"]       # only needed for AUTH_BACKEND=ldap
+passkey = ["webauthn>=2.0"] # only needed for passkey (WebAuthn) MFA
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

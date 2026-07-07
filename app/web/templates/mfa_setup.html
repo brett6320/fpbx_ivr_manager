@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Set up multi-factor authentication</h1>
+<p class="muted">Local administrators must enrol an MFA factor. Choose a passkey
+or an authenticator app (TOTP).</p>
+
+{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+
+<h2>Option A — Passkey (recommended)</h2>
+<p class="muted">Uses your device biometrics or security key.</p>
+<button type="button" onclick="passkeyRegister()">Register a passkey</button>
+
+<h2 style="margin-top:2rem;">Option B — Authenticator app (TOTP)</h2>
+<p class="muted">Scan this in Google Authenticator, Authy, 1Password, etc.</p>
+<p><strong>Secret:</strong> <code>{{ secret }}</code></p>
+<p class="muted" style="word-break:break-all;">otpauth URI: {{ otpauth_uri }}</p>
+<form method="post" action="/auth/mfa/totp/enroll">
+  <label>Enter the 6-digit code to confirm</label>
+  <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required>
+  <button type="submit">Confirm &amp; enable</button>
+</form>
+
+{% include "_passkey.html" %}
+{% endblock %}

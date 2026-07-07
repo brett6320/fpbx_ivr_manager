@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Verify your identity</h1>
+<p class="muted">This local administrator account requires a second factor.</p>
+
+{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+
+{% if has_passkey %}
+  <h2>Passkey</h2>
+  <button type="button" onclick="passkeyAuth()">Use a passkey</button>
+{% endif %}
+
+{% if has_totp %}
+  <h2 style="margin-top:2rem;">Authenticator code</h2>
+  <form method="post" action="/auth/mfa/totp/verify">
+    <label>6-digit code</label>
+    <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus>
+    <button type="submit">Verify</button>
+  </form>
+{% endif %}
+
+<p class="muted" style="margin-top:1.5rem;"><a href="/auth/logout">Cancel</a></p>
+{% include "_passkey.html" %}
+{% endblock %}

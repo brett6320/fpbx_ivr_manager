@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% set dt = '%Y-%m-%dT%H:%M' %}
+{% block body %}
+<div class="topbar">
+  <h1>{{ 'Edit closure' if c else 'Plan an office closure' }}</h1>
+  <span class="muted">{{ user.name }} · <a href="/">All closures</a> · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
+
+<form id="f" method="post" action="/apply">
+  <label>Label</label>
+  <input name="label" placeholder="July 4th Holiday" value="{{ c.label if c }}" required>
+
+  <div class="grid2">
+    <div>
+      <label>Closure start</label>
+      <input type="datetime-local" name="start" required
+             value="{{ c.start.strftime(dt) if c and c.start }}">
+    </div>
+    <div>
+      <label>Closure end</label>
+      <input type="datetime-local" name="end" required
+             value="{{ c.end.strftime(dt) if c and c.end }}">
+    </div>
+  </div>
+
+  <label>Reason (optional, folded into greeting)</label>
+  <input name="reason" placeholder="a company holiday">
+
+  <div class="grid2">
+    <div>
+      <label>Normal daytime destination (open)</label>
+      <input name="open_destination" placeholder="e.g. 2000 (main IVR)"
+             value="{{ c.open_destination if c }}" required>
+    </div>
+    <div>
+      <label>When closed</label>
+      <select name="closed_action">
+        <option value="voicemail" {{ 'selected' if c and c.closed_action == 'voicemail' }}>Play greeting, then voicemail</option>
+        <option value="hangup" {{ 'selected' if c and c.closed_action == 'hangup' }}>Play greeting, then hang up</option>
+      </select>
+    </div>
+  </div>
+
+  <label>Extension {{ '(fixed for edit)' if c else '(blank = auto-allocate from pool)' }}</label>
+  <input name="extension" placeholder="auto" value="{{ c.extension if c }}"
+         {{ 'readonly' if c }}>
+
+  <button type="button" onclick="preview()">Preview greeting</button>
+  <button type="submit">{{ 'Save changes' if c else 'Create closure' }}</button>
+</form>
+
+<div id="preview"></div>
+
+<script>
+async function preview() {
+  const res = await fetch('/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
+  document.getElementById('preview').innerHTML = await res.text();
+}
+</script>
+{% endblock %}

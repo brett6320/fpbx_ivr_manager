@@ -1,0 +1,104 @@
+"""Build a closure greeting from timing input.
+
+Greeting = OPENING + <closure description varying by timing> + CLOSING.
+
+The middle sentence is chosen from the shape of the closure window:
+  - full single day          -> "closed all day <weekday>, <date>"
+  - multiple full days       -> "closed from <date> through <date>"
+  - early close (same day)   -> "closing early at <time> on <date>"
+  - late open  (same day)    -> "opening late at <time> on <date>"
+  - partial window (same day)-> "closed from <time> to <time> on <date>"
+  - partial across days      -> "closed from <date> <time> until <date> <time>"
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, time
+
+# Business hours used to detect "full day" vs "early/late" partials.
+DAY_START = time(0, 0)
+DAY_END = time(23, 59)
+OPEN_TIME = time(9, 0)
+CLOSE_TIME = time(17, 0)
+
+
+@dataclass(frozen=True)
+class Phrase:
+    opening: str
+    closure: str
+    closing: str
+
+    @property
+    def text(self) -> str:
+        return " ".join(p.strip() for p in (self.opening, self.closure, self.closing) if p.strip())
+
+
+def _fmt_date(d: datetime) -> str:
+    # "Monday, July 7th"
+    day = d.day
+    suffix = "th" if 11 <= day % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return d.strftime(f"%A, %B {day}{suffix}")
+
+
+def _fmt_time(d: datetime) -> str:
+    # "3:00 PM" (no leading zero on hour)
+    return d.strftime("%I:%M %p").lstrip("0")
+
+
+def _is_midnight(t: time) -> bool:
+    return t == DAY_START
+
+
+def _is_end_of_day(t: time) -> bool:
+    return t >= DAY_END
+
+
+def describe_closure(start: datetime, end: datetime) -> str:
+    """Return the varying middle sentence for a closure window [start, end]."""
+    if end <= start:
+        raise ValueError("end must be after start")
+
+    same_day = start.date() == end.date()
+    full_start = _is_midnight(start.time())
+    full_end = _is_end_of_day(end.time())
+
+    if same_day:
+        if full_start and full_end:
+            return f"We are closed all day {_fmt_date(start)}."
+        if full_start and not full_end:
+            # opens the day closed, reopens later -> late open
+            return f"We are opening late at {_fmt_time(end)} on {_fmt_date(start)}."
+        if not full_start and full_end:
+            # open then close for the rest of the day -> early close
+            return f"We are closing early at {_fmt_time(start)} on {_fmt_date(start)}."
+        return (
+            f"We are closed from {_fmt_time(start)} to {_fmt_time(end)} "
+            f"on {_fmt_date(start)}."
+        )
+
+    # multi-day
+    if full_start and full_end:
+        return f"We are closed from {_fmt_date(start)} through {_fmt_date(end)}."
+    return (
+        f"We are closed from {_fmt_date(start)} at {_fmt_time(start)} "
+        f"until {_fmt_date(end)} at {_fmt_time(end)}."
+    )
+
+
+def build_phrase(
+    start: datetime,
+    end: datetime,
+    *,
+    org_name: str,
+    reason: str | None = None,
+) -> Phrase:
+    """Assemble opening + closure + closing greeting."""
+    opening = f"Thank you for calling {org_name}."
+    closure = describe_closure(start, end)
+    if reason:
+        closure = f"{closure} This closure is for {reason}."
+    closing = (
+        "We apologize for any inconvenience. Please call back during our "
+        "regular business hours, or stay on the line to leave a message. Goodbye."
+    )
+    return Phrase(opening=opening, closure=closure, closing=closing)

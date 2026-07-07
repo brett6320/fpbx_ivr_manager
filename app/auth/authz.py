@@ -1,0 +1,66 @@
+"""Group-based authorization.
+
+Permissions are bound to GROUPS, never to individual users. A user's effective
+permissions are the union of the permissions of every group they belong to.
+Group membership is supplied by the auth backend at login:
+  - local : internal groups (SQLite user_groups table)
+  - entra : the token 'groups' claim
+  - ldap  : the user's directory group memberships
+
+The group -> permission map lives in settings.authz_group_permissions (JSON).
+There is intentionally no user -> permission map anywhere in the code.
+"""
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+
+from fastapi import Request
+from starlette.exceptions import HTTPException
+
+from app.config import settings
+
+# Known permissions
+MANAGE_CLOSURES = "manage_closures"
+MANAGE_USERS = "manage_users"
+ALL_PERMISSIONS = {MANAGE_CLOSURES, MANAGE_USERS}
+
+
+@lru_cache(maxsize=1)
+def _group_map() -> dict[str, set[str]]:
+    raw = json.loads(settings.authz_group_permissions or "{}")
+    out: dict[str, set[str]] = {}
+    for group, perms in raw.items():
+        out[str(group)] = {str(p) for p in perms}
+    return out
+
+
+def permissions_for(groups: list[str] | None) -> set[str]:
+    """Union of permissions across the user's groups. No group -> no permission."""
+    gm = _group_map()
+    perms: set[str] = set()
+    for g in groups or []:
+        perms |= gm.get(str(g), set())
+    return perms
+
+
+def user_permissions(user: dict) -> set[str]:
+    return permissions_for(user.get("groups"))
+
+
+def has_permission(user: dict, permission: str) -> bool:
+    return permission in user_permissions(user)
+
+
+def require(permission: str):
+    """FastAPI dependency factory: 401 if not logged in, 403 if lacking permission."""
+
+    def _dep(request: Request) -> dict:
+        user = request.session.get("user")
+        if not user:
+            raise HTTPException(status_code=307, headers={"Location": "/auth/login"})
+        if not has_permission(user, permission):
+            raise HTTPException(status_code=403, detail=f"requires permission: {permission}")
+        return user
+
+    return _dep

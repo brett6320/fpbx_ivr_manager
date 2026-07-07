@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Closure created</h1>
+<p><strong>Extension:</strong> {{ r.extension }}</p>
+<p><strong>Label:</strong> {{ r.label }}</p>
+<p><strong>Recording:</strong> {{ r.recording_name }}</p>
+<p><strong>Time condition:</strong> {{ r.time_condition_name }}</p>
+<p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
+<div class="preview">{{ r.phrase_text }}</div>
+<p><a href="/">← Back to closures</a> · <a href="/closures/new">Plan another</a></p>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ org }} — Closure Manager</h1>
+
+{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+
+{% if sso %}
+  <p class="muted">Sign in with your organization account.</p>
+  <a href="/auth/login"><button>Sign in with Microsoft Entra ID</button></a>
+{% else %}
+  <p class="muted">Sign in to manage planned office closures.</p>
+  <form method="post" action="/auth/login">
+    <label>Username</label>
+    <input name="username" autocomplete="username" required autofocus>
+    <label>Password</label>
+    <input name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+  </form>
+{% endif %}
+
+{% if show_local_admin %}
+  <p class="muted" style="margin-top:1.5rem;">
+    <a href="/auth/local">Local administrator sign-in</a> (break-glass)
+  </p>
+{% endif %}
+{% endblock %}

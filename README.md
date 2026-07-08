@@ -15,9 +15,13 @@ and reloads FreeSWITCH.
 to the local FS, `reloadxml` over localhost. No remote DB/SSH exposure. (An SFTP
 mode still exists for non-co-located installs; needs `pip install '.[remote]'`.)
 
+**Supported FusionPBX: 4.5.x through 5.5 (current)** — every major version in
+between. Compatibility is enforced by a startup schema-capability check, not
+version branching; see [docs/compatibility.md](docs/compatibility.md).
+
 ## Why this shape
 
-FusionPBX 4.5.x has **no REST API** for IVRs / time conditions. Config lives in
+FusionPBX has **no REST API** for IVRs / time conditions. Config lives in
 PostgreSQL; the only native runtime interconnect is FreeSWITCH `mod_xml_rpc`. So:
 
 | Concern | Mechanism |
@@ -135,5 +139,7 @@ recording that a human or another app made:
 
 - IVR **menu** management (multi-option trees) is not built — the current flow
   builds time-condition greetings, not branching IVR menus.
-- Untested against a live FusionPBX box — DB column names verified against 4.5
-  schema but confirm on your instance before production use.
+- Untested against a live FusionPBX box — DB column names verified against the
+  4.5.x and current (5.5) schemas, and checked at startup (see
+  [docs/compatibility.md](docs/compatibility.md)); confirm on your instance
+  before production use.

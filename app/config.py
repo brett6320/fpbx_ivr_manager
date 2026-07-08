@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     fpbx_db_password: str = Field(alias="FPBX_DB_PASSWORD")
     fpbx_domain_name: str = Field(alias="FPBX_DOMAIN_NAME")
 
+    # startup schema-capability check: strict (fail boot) | warn (log) | off
+    fpbx_schema_check: str = Field(alias="FPBX_SCHEMA_CHECK", default="warn")
+
     # freeswitch xmlrpc
     fs_xmlrpc_url: str = Field(alias="FS_XMLRPC_URL")
     fs_xmlrpc_user: str = Field(alias="FS_XMLRPC_USER", default="freeswitch")

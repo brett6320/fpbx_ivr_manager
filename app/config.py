@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # (https -> Secure). Set false to allow login over plain HTTP.
     session_https_only_raw: str = Field(alias="SESSION_HTTPS_ONLY", default="")
 
-    # auth backend: local (default) | entra | ldap
+    # auth backend: local (default) | entra | ldap | fpbx
     auth_backend: str = Field(alias="AUTH_BACKEND", default="local")
 
     # local auth (default backend)

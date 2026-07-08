@@ -10,6 +10,7 @@ take effect.</p>
   <option value="local"{% if backend=='local' %} selected{% endif %}>Local users</option>
   <option value="entra"{% if backend=='entra' %} selected{% endif %}>Microsoft Entra ID (SSO)</option>
   <option value="ldap"{% if backend=='ldap' %} selected{% endif %}>LDAP</option>
+  <option value="fpbx"{% if backend=='fpbx' %} selected{% endif %}>FusionPBX users</option>
 </select>
 <p class="muted">Only one provider is active. Choose it here — the fields below
 change to match your selection.</p>
@@ -18,13 +19,30 @@ change to match your selection.</p>
 <textarea id="authz" rows="3">{{ authz }}</textarea>
 <p class="muted">Permissions are bound to groups only. Keys must match the group
 identifiers your provider returns (Entra: token <code>groups</code> claim; LDAP:
-group <code>cn</code>; Local: group name).</p>
+group <code>cn</code>; Local / FusionPBX: group name).</p>
 
 <hr>
 <div id="sec_local" class="backend-sec">
   <h2>Local users</h2>
   <p class="muted">Sign-in is handled by the built-in user store — no external
   provider to configure. Manage accounts under <a href="/admin/users">Users</a>.</p>
+</div>
+
+<div id="sec_fpbx" class="backend-sec">
+  <h2>FusionPBX users</h2>
+  <p class="muted">Authenticate against the FusionPBX user database
+  (<code>v_users</code>) for the configured domain — no extra connection to set
+  up (it reuses the app's database link). Users' FusionPBX <strong>groups</strong>
+  map to permissions via the JSON above. Requires the DB role to have
+  <code>SELECT</code> on <code>v_users</code>/<code>v_user_groups</code>/<code>v_groups</code>
+  and, for modern hashes, <code>pip install '.[fpbx]'</code>.</p>
+  <p class="muted">Test a FusionPBX login — credentials are used only for this test, never stored:</p>
+  <div class="grid2">
+    <div><label>Test username</label><input id="f_tuser" autocomplete="off"></div>
+    <div><label>Test password</label><input id="f_tpass" type="password" autocomplete="off"></div>
+  </div>
+  <button type="button" onclick="testFpbx()">Test FusionPBX login &amp; groups</button>
+  <div id="fpbx_result"></div>
 </div>
 
 <div id="sec_entra" class="backend-sec">
@@ -74,7 +92,7 @@ group <code>cn</code>; Local: group name).</p>
 <script>
 function showBackend(){
   const sel = document.getElementById('auth_backend').value;
-  ['local','entra','ldap'].forEach(b=>{
+  ['local','entra','ldap','fpbx'].forEach(b=>{
     document.getElementById('sec_'+b).style.display = (b===sel) ? '' : 'none';
   });
 }
@@ -106,6 +124,10 @@ async function testLdap(){
     {uri:l_uri.value, bind_dn_template:l_bind.value, base_dn:l_base.value, user_filter:l_userf.value,
      group_base_dn:l_gbase.value, group_filter:l_gfilter.value, start_tls:l_tls.checked,
      test_user:l_tuser.value, test_password:l_tpass.value, group_permissions:authz()}));
+}
+async function testFpbx(){
+  render('fpbx_result', await post('/admin/auth/test/fpbx',
+    {test_user:f_tuser.value, test_password:f_tpass.value, group_permissions:authz()}));
 }
 async function save(){
   const backend = document.getElementById('auth_backend').value;

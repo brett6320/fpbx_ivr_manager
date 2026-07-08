@@ -4,8 +4,9 @@ The app separates **authentication** (who are you?) from **authorization**
 (what may you do?).
 
 - **Authentication** is handled by a pluggable backend selected with
-  `AUTH_BACKEND`: `local` (default), `entra` (Microsoft Entra ID SSO), or
-  `ldap`. Each backend produces a session identity that includes the user's
+  `AUTH_BACKEND`: `local` (default), `entra` (Microsoft Entra ID SSO),
+  `ldap`, or `fpbx` (the FusionPBX user database — see [fpbx-auth.md](fpbx-auth.md)).
+  Each backend produces a session identity that includes the user's
   **group memberships**.
 - **Authorization** is entirely **group-based**. Permissions are attached to
   groups via `AUTHZ_GROUP_PERMISSIONS`; a user's effective permissions are the

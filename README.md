@@ -69,13 +69,14 @@ versioned releases are published to GHCR on every merge to `main`.
 
 ## Authentication & authorization
 
-Sign-in backend is pluggable via `AUTH_BACKEND` = `local` (default), `entra`, or
-`ldap`. **Authorization is group-based** — permissions attach to groups, never to
-individual users. Full setup guides:
+Sign-in backend is pluggable via `AUTH_BACKEND` = `local` (default), `entra`,
+`ldap`, or `fpbx` (the FusionPBX user database). **Authorization is group-based** —
+permissions attach to groups, never to individual users. Full setup guides:
 
 - [docs/authentication.md](docs/authentication.md) — model, local users, group→permission mapping
 - [docs/entra-sso.md](docs/entra-sso.md) — Entra ID app registration, groups claim, troubleshooting
 - [docs/ldap.md](docs/ldap.md) — LDAP/AD bind, group resolution, TLS
+- [docs/fpbx-auth.md](docs/fpbx-auth.md) — authenticate against FusionPBX `v_users` (bcrypt + legacy MD5)
 - [docs/mfa.md](docs/mfa.md) — MFA (passkey/TOTP) for local admins + break-glass access
 
 **Local admins are retained even under an external IdP** and must complete MFA

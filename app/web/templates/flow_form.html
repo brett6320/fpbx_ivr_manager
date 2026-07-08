@@ -15,8 +15,24 @@ Extensions auto-allocate from {{ pool }}.</p>
 <form method="post" action="/flow">
 
   <h2>1. Inbound number (Destination)</h2>
-  <label>Inbound DID (optional — leave blank to wire the inbound route yourself)</label>
-  <input name="inbound_number" placeholder="18005551234">
+  <label>Inbound DID (optional — pick an existing destination to point at this flow)</label>
+  <select name="inbound_number">
+    <option value="">— none (wire the inbound route yourself) —</option>
+    {% for r in inbound_destinations %}
+    <option value="{{ r.did }}">{{ r.did }}{% if r.name %} — {{ r.name }}{% endif %}
+      {%- if r.managed %} (managed){% else %} (existing route){% endif %}</option>
+    {% endfor %}
+  </select>
+  {% if inbound_destinations %}
+  <label class="muted" style="font-weight:400;">
+    <input type="checkbox" name="confirm_overwrite">
+    Replace the existing inbound route if the selected DID is not managed by this app</label>
+  <p class="muted">Without this, the app will refuse to overwrite a route it didn’t create,
+  and nothing else will change.</p>
+  {% else %}
+  <p class="muted">No inbound routes found in this domain. Create the destination in
+  FusionPBX first, or leave this as “none”.</p>
+  {% endif %}
 
   <h2 style="margin-top:1.5rem;">2. Time condition (schedule)</h2>
   <label>Label</label>

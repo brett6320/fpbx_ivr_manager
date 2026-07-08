@@ -55,15 +55,19 @@ Two ways:
 
 - **One-flow wizard (`/flow/new`)** — build the whole chain in one step: it
   creates the IVR, a time condition (schedule) whose open destination routes into
-  the IVR, and — if you give an inbound DID — an **inbound route** (Destinations
-  app, `public` context) that points the DID at the schedule. Result:
+  the IVR, and — if you pick an inbound DID — points that **inbound route**
+  (Destinations app, `public` context) at the schedule. Result:
   `inbound → time condition → IVR → option/timeout`.
 - **Piece by piece** — build an IVR here, then set a **schedule's open
   destination** to the IVR's extension, and point your inbound route at the
   schedule's extension yourself.
 
-Inbound routes are managed with the same ownership marker; the app refuses to
-overwrite an existing inbound route for a DID it didn't create.
+The inbound DID is a **selector of the domain's existing inbound routes** (each
+labelled *managed* or *existing route*), so you repurpose a real destination
+rather than typing a number. **Safeguard:** if the selected DID's route was not
+created by this app, the wizard **refuses to overwrite it** — and does not create
+anything — unless you tick *"replace the existing inbound route."* Managed routes
+are updated freely.
 
 ## Caveat
 

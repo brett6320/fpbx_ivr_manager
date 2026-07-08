@@ -39,9 +39,55 @@ def _is_managed(xml: str | None) -> bool:
     return bool(xml) and _MARKER_XML in xml
 
 
-def upsert_inbound(did: str, dest_number: str, name: str | None = None) -> str:
+def list_inbound_destinations() -> list[dict]:
+    """Existing inbound routes (public-context DIDs) in the domain, for selection.
+
+    Each carries `managed` (created by this app) so the UI can warn before an
+    overwrite would replace a route the app didn't create.
+    """
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT dialplan_number, dialplan_name, dialplan_enabled, dialplan_xml "
+            "FROM v_dialplans WHERE domain_uuid = %s AND dialplan_context = %s "
+            "AND dialplan_number IS NOT NULL AND dialplan_number <> '' "
+            "ORDER BY dialplan_number",
+            (d, PUBLIC_CONTEXT),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "did": r["dialplan_number"],
+            "name": r["dialplan_name"],
+            "enabled": r["dialplan_enabled"] == "true",
+            "managed": _is_managed(r["dialplan_xml"]),
+        }
+        for r in rows
+    ]
+
+
+def is_foreign_route(did: str) -> bool:
+    """True if an inbound route for this DID exists and was NOT created by us."""
+    with cursor() as cur:
+        cur.execute(
+            "SELECT dialplan_xml FROM v_dialplans "
+            "WHERE dialplan_context = %s AND dialplan_number = %s",
+            (PUBLIC_CONTEXT, did),
+        )
+        row = cur.fetchone()
+    return bool(row) and not _is_managed(row["dialplan_xml"])
+
+
+def upsert_inbound(
+    did: str, dest_number: str, name: str | None = None, *, confirm_overwrite: bool = False
+) -> str:
     """Create/replace a managed inbound route for `did` that transfers to
-    `dest_number` inside the domain. Returns the dialplan name."""
+    `dest_number` inside the domain. Returns the dialplan name.
+
+    Safeguard: if a route for `did` already exists and was NOT created by this
+    app, it is only replaced when `confirm_overwrite=True` — otherwise this
+    raises NotManaged rather than stomping on the existing route.
+    """
     d = domain_uuid()
     dom_name = settings.fpbx_domain_name
     name = name or f"inbound_{did}"
@@ -54,9 +100,10 @@ def upsert_inbound(did: str, dest_number: str, name: str | None = None) -> str:
             (PUBLIC_CONTEXT, did),
         )
         row = cur.fetchone()
-        if row and not _is_managed(row["dialplan_xml"]):
+        if row and not _is_managed(row["dialplan_xml"]) and not confirm_overwrite:
             raise NotManaged(
-                f"an inbound route for {did!r} already exists and was not created by this app"
+                f"an inbound route for {did!r} already exists and was not created by "
+                f"this app — confirm the overwrite to replace it"
             )
         if row:
             cur.execute(

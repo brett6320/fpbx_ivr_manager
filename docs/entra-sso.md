@@ -110,3 +110,11 @@ At startup the app validates that `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and
 | No `groups` in token | Groups claim not configured (step 3), or group-count overage (step 3 note). |
 | `invalid_client` | Wrong/expired client secret, or Secret **ID** used instead of the **Value**. |
 | Redirect loop | Cookie not returned — serve over HTTPS (cookies are `Secure`). |
+
+## Interactive testing
+
+Prefer the admin UI at **`/admin/auth`** (requires `manage_users`) to enter these
+values and **Test** them live — it validates the tenant discovery doc and your
+client credentials, shows the redirect URI to register, and can decode an ID
+token to confirm the `groups` claim maps to permissions. See
+[authentication.md](authentication.md#interactive-enablement--live-testing-admin-ui).

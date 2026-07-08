@@ -137,9 +137,10 @@ recording that a human or another app made:
 
 ## Business profile & prompt placeholders
 
-Admins set a **business name** and reusable **business-hours templates** at
-`/admin/business`. Prompts can reference `{business_name}`, `{hours.<Template>}`,
-and `{business_hours}` — plugged in when the greeting audio is generated. See
+Admins set a **business name** and reusable, named **templates** (a generic
+greeting, a closing line, hours, etc.) at `/admin/business`. Prompts reference
+`{business_name}` and `{<template>}` — plugged in when the greeting audio is
+generated, with nested templates resolved recursively. See
 [docs/business.md](docs/business.md).
 
 ## IVR menus

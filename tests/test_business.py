@@ -13,32 +13,43 @@ def store(tmp_path, monkeypatch):
 
 
 def test_save_load_roundtrip(store):
-    business.save("Acme Co", {"Standard": "Mon-Fri, 9 to 5", "": "ignored blank name"})
+    business.save("Acme Co", {"greeting": "Hi", "": "blank name ignored"})
     assert business.business_name() == "Acme Co"
-    assert business.hours_templates() == {"Standard": "Mon-Fri, 9 to 5"}
+    assert business.templates() == {"greeting": "Hi"}
 
 
 def test_business_name_falls_back(store):
-    assert business.business_name() == "Fallback Org"  # nothing saved yet
+    assert business.business_name() == "Fallback Org"
 
 
-def test_placeholder_substitution(store):
-    business.save("Acme Co", {"Standard": "Mon-Fri, 9 to 5", "Holiday": "Closed"})
-    text = "Thanks for calling {business_name}. Our hours are {hours.Standard}. {business_hours}. {unknown}"
-    out = business.render(text)
-    assert "Thanks for calling Acme Co." in out
-    assert "Our hours are Mon-Fri, 9 to 5." in out
-    assert "Mon-Fri, 9 to 5." in out          # {business_hours} = first template
-    assert "{unknown}" in out                  # unknown placeholders left intact
+def test_named_placeholder_substitution(store):
+    business.save("Acme Co", {"greeting": "Hello", "closing": "Have a nice day"})
+    out = business.render("{greeting}, thanks for calling {business_name}. {closing}. {unknown}")
+    assert out == "Hello, thanks for calling Acme Co. Have a nice day. {unknown}"
+
+
+def test_nested_templating(store):
+    business.save("Acme Co", {
+        "opener": "Thank you for calling {business_name}",
+        "closing": "Have a nice day",
+        "full": "{opener}. {closing}.",
+    })
+    assert business.render("{full}") == "Thank you for calling Acme Co. Have a nice day."
+
+
+def test_cycle_is_guarded(store):
+    business.save("Acme Co", {"a": "{b}", "b": "{a}"})
+    out = business.render("{a}")  # must not recurse forever
+    assert "{a}" in out or "{b}" in out
 
 
 def test_placeholder_keys(store):
-    business.save("Acme Co", {"Standard": "x"})
+    business.save("Acme Co", {"greeting": "x", "closing": "y"})
     keys = business.placeholder_keys()
-    assert "{business_name}" in keys and "{hours.Standard}" in keys and "{business_hours}" in keys
+    assert "{business_name}" in keys and "{greeting}" in keys and "{closing}" in keys
 
 
-# ---- route gating ----
+# ---- route gating + dynamic-row save ----
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "local_auth_db", str(tmp_path / "users.db"))
@@ -54,7 +65,7 @@ def client(tmp_path, monkeypatch):
     return TestClient(app, base_url="https://testserver")
 
 
-def test_admin_business_requires_manage_users(client):
+def test_admin_business_requires_manage_users_and_saves_dynamic_rows(client):
     local.create_user("ops", "pw")
     local.add_to_group("ops", "ops")
     local.create_user("ed", "pw")
@@ -65,11 +76,14 @@ def test_admin_business_requires_manage_users(client):
         c.cookies.clear()
         c.post("/auth/login", data={"username": "ops", "password": "pw"}, follow_redirects=False)
         r = c.get("/admin/business", follow_redirects=False)
-        assert r.status_code == 200
-        assert "Business profile" in r.text and "{business_name}" in r.text
-        # save via the form
-        r2 = c.post("/admin/business",
-                    data={"business_name": "Acme", "tmpl_name_0": "Standard", "tmpl_text_0": "9-5"},
-                    follow_redirects=False)
+        assert r.status_code == 200 and "Business profile" in r.text
+        # dynamically-added rows arrive with sparse indices
+        r2 = c.post(
+            "/admin/business",
+            data={"business_name": "Acme", "tmpl_name_0": "greeting", "tmpl_value_0": "Hi",
+                  "tmpl_name_5": "closing", "tmpl_value_5": "Bye"},
+            follow_redirects=False,
+        )
         assert r2.status_code == 303
         assert business.business_name() == "Acme"
+        assert business.templates() == {"greeting": "Hi", "closing": "Bye"}

@@ -1,31 +1,32 @@
-# Business profile & prompt placeholders
+# Business profile & prompt templates
 
-Admins (`manage_users`) set a **business name** and reusable **business-hours
-templates** at **`/admin/business`**. These become **placeholders** that can be
-dropped into any prompt (schedule reason, IVR greeting, call-flow greeting) and
-are plugged in when the audio is generated.
+Admins (`manage_users`) set a **business name** and any number of reusable, named
+**templates** at **`/admin/business`**. These become **placeholders** that can be
+dropped into any prompt (schedule reason, IVR greeting, call-flow greeting) — and
+into other templates — and are plugged in when the audio is generated.
 
 ## Placeholders
 
 | Placeholder | Value |
 |---|---|
 | `{business_name}` | The configured business name (falls back to `APP_ORG_NAME` if blank). |
-| `{hours.<Template>}` | The text of the named business-hours template, e.g. `{hours.Standard}`. |
-| `{business_hours}` | The first template's text (a convenient default). |
+| `{<template>}` | The value of a named template, e.g. `{greeting}`, `{closing}`, `{hours}`. |
 
-Unknown placeholders are left untouched.
+Templates are generic — a generic greeting, a closing line, business hours, a
+tagline, anything. Add and remove them dynamically on the admin page. Unknown
+placeholders are left untouched.
 
-### Example
+## Nested templating
 
-Business name `Acme Co`, template **Standard** = `Monday to Friday, 9 AM to 5 PM`.
+A template's value may reference other templates (and `{business_name}`), resolved
+recursively (cycles are left unresolved rather than looping). For example:
 
-IVR greeting:
+- `opener` = `Thank you for calling {business_name}`
+- `closing` = `Thank you for calling and have a nice day`
+- `full` = `{opener}. How may we direct your call? … {closing}`
 
-> `Thank you for calling {business_name}. Our normal hours are {hours.Standard}. For sales press 1, press 0 for the operator.`
-
-is synthesized as:
-
-> Thank you for calling Acme Co. Our normal hours are Monday to Friday, 9 AM to 5 PM. For sales press 1, press 0 for the operator.
+An IVR greeting of `{full}` then renders with the business name and both snippets
+substituted in.
 
 ## Where it applies
 
@@ -39,6 +40,5 @@ The greeting/reason forms list the available placeholders as a hint.
 
 ## Storage
 
-The profile is an app-managed JSON file in the writable state dir
-(`BUSINESS_CONFIG_FILE`, default `data/business.json`), written `0600` — no
-FusionPBX changes. Editing it is admin-only.
+App-managed JSON in the writable state dir (`BUSINESS_CONFIG_FILE`, default
+`data/business.json`), written `0600` — no FusionPBX changes; admin-only.

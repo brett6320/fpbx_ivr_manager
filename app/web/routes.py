@@ -650,16 +650,9 @@ async def flow_create(request: Request, user: dict = Depends(require_schedules))
     return templates.TemplateResponse(request, "flow_result.html", {"r": result})
 
 
-# ---- business profile: name + business-hours templates (admins) ----
-_TMPL_ROWS = 6
-
-
+# ---- business profile: name + reusable named templates (admins) ----
 @router.get("/admin/business", response_class=HTMLResponse)
 def admin_business(request: Request, user: dict = Depends(require_users), saved: int = 0):
-    tmpl = business.hours_templates()
-    rows = list(tmpl.items())
-    while len(rows) < _TMPL_ROWS:
-        rows.append(("", ""))
     return templates.TemplateResponse(
         request,
         "business.html",
@@ -667,7 +660,7 @@ def admin_business(request: Request, user: dict = Depends(require_users), saved:
             "user": user,
             "business_name": business.load().get("business_name", ""),
             "org_fallback": settings.app_org_name,
-            "rows": rows,
+            "rows": list(business.templates().items()),  # existing templates
             "placeholders": business.placeholder_keys(),
             "saved": bool(saved),
         },
@@ -678,13 +671,15 @@ def admin_business(request: Request, user: dict = Depends(require_users), saved:
 async def admin_business_save(request: Request, user: dict = Depends(require_users)):
     form = await request.form()
     name = (form.get("business_name") or "").strip()
+    # rows are added/removed dynamically, so indices may be sparse — pair each
+    # tmpl_name_<suffix> with its tmpl_value_<suffix>.
     tmpls: dict[str, str] = {}
-    i = 0
-    while form.get(f"tmpl_name_{i}") is not None:
-        k = (form.get(f"tmpl_name_{i}") or "").strip()
-        v = (form.get(f"tmpl_text_{i}") or "").strip()
-        if k:
-            tmpls[k] = v
-        i += 1
+    for key in form:
+        if not key.startswith("tmpl_name_"):
+            continue
+        suffix = key[len("tmpl_name_"):]
+        tname = (form.get(key) or "").strip()
+        if tname:
+            tmpls[tname] = (form.get(f"tmpl_value_{suffix}") or "").strip()
     business.save(name, tmpls)
     return RedirectResponse("/admin/business?saved=1", status_code=303)

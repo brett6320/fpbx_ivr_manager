@@ -26,12 +26,17 @@ XML) — the app never edits or deletes an IVR it didn't create.
 
 ## Greeting
 
-Two choices:
+Two choices — **using an existing phrase is the default** (when any recordings
+exist), so you reuse a pre-recorded prompt rather than generating a new one:
 
-- **Google TTS** — type the menu script; it's synthesized and stored as a
-  recording (same path as schedule greetings).
-- **Existing recording** — pick any recording already in the domain
+- **Existing phrase** (default) — pick any recording already in the domain
   (`v_recordings`).
+- **Google TTS** — type the menu script; it's synthesized and stored as a
+  recording.
+
+Phrases this app generates via TTS are named with the **`ivrmgr_`** prefix
+(e.g. `ivrmgr_ivr_9560_main_menu`, `ivrmgr_schedule_9550_holiday`) so they're
+easy to identify and filter in the phrase picker and in FusionPBX recordings.
 
 ## Destinations (options + timeout)
 

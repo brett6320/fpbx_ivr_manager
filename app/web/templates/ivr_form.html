@@ -18,12 +18,13 @@ digit to reach a destination, or are sent to the timeout destination.</p>
   <input name="name" placeholder="Main Menu" required>
 
   <label>Greeting</label>
-  <label class="muted"><input type="radio" name="greeting_mode" value="tts" checked onclick="gmode()"> Synthesize with Google TTS</label>
-  <label class="muted"><input type="radio" name="greeting_mode" value="recording" onclick="gmode()"> Use an existing recording</label>
-  <div id="g_tts">
+  {% set default_existing = recordings | length > 0 %}
+  <label class="muted"><input type="radio" name="greeting_mode" value="recording" {% if default_existing %}checked{% endif %} onclick="gmode()"> Use an existing phrase</label>
+  <label class="muted"><input type="radio" name="greeting_mode" value="tts" {% if not default_existing %}checked{% endif %} onclick="gmode()"> Synthesize a new one with Google TTS</label>
+  <div id="g_tts"{% if default_existing %} style="display:none;"{% endif %}>
     <textarea name="greeting_text" rows="3" placeholder="Thank you for calling. For sales press 1, for support press 2. Press zero for the operator."></textarea>
   </div>
-  <div id="g_rec" style="display:none;">
+  <div id="g_rec"{% if not default_existing %} style="display:none;"{% endif %}>
     <select name="greeting_recording">
       <option value="">— select a recording —</option>
       {% for r in recordings %}<option value="{{ r.filename }}">{{ r.name }}</option>{% endfor %}

@@ -5,61 +5,80 @@
 live, then save it. <strong>A restart is required</strong> for saved changes to
 take effect.</p>
 
-<label>Backend to enable</label>
-<select id="auth_backend">
-  <option value="local"{% if backend=='local' %} selected{% endif %}>local</option>
-  <option value="entra"{% if backend=='entra' %} selected{% endif %}>entra (SSO)</option>
-  <option value="ldap"{% if backend=='ldap' %} selected{% endif %}>ldap</option>
+<label>Authentication provider</label>
+<select id="auth_backend" onchange="showBackend()">
+  <option value="local"{% if backend=='local' %} selected{% endif %}>Local users</option>
+  <option value="entra"{% if backend=='entra' %} selected{% endif %}>Microsoft Entra ID (SSO)</option>
+  <option value="ldap"{% if backend=='ldap' %} selected{% endif %}>LDAP</option>
 </select>
+<p class="muted">Only one provider is active. Choose it here — the fields below
+change to match your selection.</p>
 
 <label>Group → permissions (JSON)</label>
 <textarea id="authz" rows="3">{{ authz }}</textarea>
 <p class="muted">Permissions are bound to groups only. Keys must match the group
-identifiers your IdP returns (Entra: token <code>groups</code> claim; LDAP: group <code>cn</code>).</p>
+identifiers your provider returns (Entra: token <code>groups</code> claim; LDAP:
+group <code>cn</code>; Local: group name).</p>
 
 <hr>
-<h2>Microsoft Entra ID (SSO)</h2>
-<p class="muted">Register redirect URI: <code>{{ redirect_uri }}</code></p>
-<label>Tenant ID</label><input id="e_tenant" value="{{ entra.tenant_id }}">
-<label>Client ID</label><input id="e_client" value="{{ entra.client_id }}">
-<label>Client secret {% if entra.has_secret %}<span class="muted">(leave blank to keep existing)</span>{% endif %}</label>
-<input id="e_secret" type="password" placeholder="{{ '••••••••' if entra.has_secret else '' }}">
-<button type="button" onclick="testEntra()">Test Entra connection</button>
-<div id="entra_result"></div>
+<div id="sec_local" class="backend-sec">
+  <h2>Local users</h2>
+  <p class="muted">Sign-in is handled by the built-in user store — no external
+  provider to configure. Manage accounts under <a href="/admin/users">Users</a>.</p>
+</div>
 
-<details style="margin-top:1rem;">
-  <summary>Optional: paste an ID token to inspect its groups claim</summary>
-  <textarea id="e_token" rows="3" placeholder="eyJ..."></textarea>
-  <button type="button" onclick="testToken()">Decode token</button>
-  <div id="token_result"></div>
-</details>
+<div id="sec_entra" class="backend-sec">
+  <h2>Microsoft Entra ID (SSO)</h2>
+  <p class="muted">Register redirect URI: <code>{{ redirect_uri }}</code></p>
+  <label>Tenant ID</label><input id="e_tenant" value="{{ entra.tenant_id }}">
+  <label>Client ID</label><input id="e_client" value="{{ entra.client_id }}">
+  <label>Client secret {% if entra.has_secret %}<span class="muted">(leave blank to keep existing)</span>{% endif %}</label>
+  <input id="e_secret" type="password" placeholder="{{ '••••••••' if entra.has_secret else '' }}">
+  <button type="button" onclick="testEntra()">Test Entra connection</button>
+  <div id="entra_result"></div>
 
-<hr>
-<h2>LDAP</h2>
-<label>LDAP URI</label><input id="l_uri" value="{{ ldap.uri }}" placeholder="ldaps://ldap.example.com">
-<label>Bind DN template</label><input id="l_bind" value="{{ ldap.bind_dn_template }}" placeholder="uid={username},ou=people,dc=example,dc=com">
-<div class="grid2">
-  <div><label>Base DN</label><input id="l_base" value="{{ ldap.base_dn }}"></div>
-  <div><label>User filter</label><input id="l_userf" value="{{ ldap.user_filter }}"></div>
+  <details style="margin-top:1rem;">
+    <summary>Optional: paste an ID token to inspect its groups claim</summary>
+    <textarea id="e_token" rows="3" placeholder="eyJ..."></textarea>
+    <button type="button" onclick="testToken()">Decode token</button>
+    <div id="token_result"></div>
+  </details>
 </div>
-<div class="grid2">
-  <div><label>Group base DN</label><input id="l_gbase" value="{{ ldap.group_base_dn }}"></div>
-  <div><label>Group filter</label><input id="l_gfilter" value="{{ ldap.group_filter }}"></div>
+
+<div id="sec_ldap" class="backend-sec">
+  <h2>LDAP</h2>
+  <label>LDAP URI</label><input id="l_uri" value="{{ ldap.uri }}" placeholder="ldaps://ldap.example.com">
+  <label>Bind DN template</label><input id="l_bind" value="{{ ldap.bind_dn_template }}" placeholder="uid={username},ou=people,dc=example,dc=com">
+  <div class="grid2">
+    <div><label>Base DN</label><input id="l_base" value="{{ ldap.base_dn }}"></div>
+    <div><label>User filter</label><input id="l_userf" value="{{ ldap.user_filter }}"></div>
+  </div>
+  <div class="grid2">
+    <div><label>Group base DN</label><input id="l_gbase" value="{{ ldap.group_base_dn }}"></div>
+    <div><label>Group filter</label><input id="l_gfilter" value="{{ ldap.group_filter }}"></div>
+  </div>
+  <label><input type="checkbox" id="l_tls" {% if ldap.start_tls %}checked{% endif %}> Use StartTLS</label>
+  <p class="muted">Test bind — credentials used only for this test, never stored:</p>
+  <div class="grid2">
+    <div><label>Test username</label><input id="l_tuser" autocomplete="off"></div>
+    <div><label>Test password</label><input id="l_tpass" type="password" autocomplete="off"></div>
+  </div>
+  <button type="button" onclick="testLdap()">Test LDAP bind &amp; groups</button>
+  <div id="ldap_result"></div>
 </div>
-<label><input type="checkbox" id="l_tls" {% if ldap.start_tls %}checked{% endif %}> Use StartTLS</label>
-<p class="muted">Test bind — credentials used only for this test, never stored:</p>
-<div class="grid2">
-  <div><label>Test username</label><input id="l_tuser" autocomplete="off"></div>
-  <div><label>Test password</label><input id="l_tpass" type="password" autocomplete="off"></div>
-</div>
-<button type="button" onclick="testLdap()">Test LDAP bind &amp; groups</button>
-<div id="ldap_result"></div>
 
 <hr>
 <button type="button" onclick="save()" style="font-weight:600;">Save configuration</button>
 <div id="save_result"></div>
 
 <script>
+function showBackend(){
+  const sel = document.getElementById('auth_backend').value;
+  ['local','entra','ldap'].forEach(b=>{
+    document.getElementById('sec_'+b).style.display = (b===sel) ? '' : 'none';
+  });
+}
+showBackend();  // show only the active provider on load
 function authz() { return document.getElementById('authz').value; }
 async function post(url, body){ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
 function render(el, res){

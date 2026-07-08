@@ -76,6 +76,22 @@ def _sftp_makedirs(sftp, remote_dir: str) -> None:
             sftp.mkdir(path)
 
 
+def list_recordings() -> list[dict]:
+    """Existing recordings in the domain, for the IVR 'existing recording' choice."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT recording_name, recording_filename FROM v_recordings "
+            "WHERE domain_uuid = %s AND recording_filename IS NOT NULL "
+            "ORDER BY recording_name",
+            (d,),
+        )
+        return [
+            {"name": r["recording_name"], "filename": r["recording_filename"]}
+            for r in cur.fetchall()
+        ]
+
+
 def upsert_recording(name: str, wav: bytes, description: str = "") -> str:
     """Create/replace a recording. Returns recording_filename to use in dialplan.
 

@@ -30,3 +30,32 @@ class ScheduleResult(BaseModel):
     recording_name: str
     time_condition_name: str
     reloaded: bool
+
+
+class IvrOption(BaseModel):
+    digits: str                  # e.g. "0"
+    destination: str             # FreeSWITCH action, e.g. "transfer 2000 XML domain"
+
+
+class IvrRequest(BaseModel):
+    name: str
+    extension: int | None = None            # None = auto-allocate from the pool
+    greeting_text: str | None = None        # synthesize via TTS
+    greeting_recording: str | None = None   # or an existing recording filename
+    timeout_destination: str                # action string for the IVR timeout/exit
+    options: list[IvrOption] = []
+
+    @field_validator("timeout_destination")
+    @classmethod
+    def _timeout_required(cls, v: str):
+        if not v or not v.strip():
+            raise ValueError("a timeout destination is required")
+        return v
+
+
+class IvrResult(BaseModel):
+    extension: int
+    name: str
+    ivr_menu_uuid: str
+    option_count: int
+    reloaded: bool

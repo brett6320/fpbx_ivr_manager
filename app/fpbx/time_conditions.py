@@ -192,11 +192,13 @@ def list_schedules() -> list[dict]:
     including adopted ones outside the extension pool, by extension number."""
     d = domain_uuid()
     with cursor() as cur:
+        # time-condition app_uuid keeps IVR-menu dialplans (which also carry our
+        # marker) out of the schedule list
         cur.execute(
             "SELECT dialplan_number, dialplan_name, dialplan_description, "
             "dialplan_enabled, dialplan_xml FROM v_dialplans "
-            "WHERE domain_uuid = %s ORDER BY dialplan_number",
-            (d,),
+            "WHERE domain_uuid = %s AND app_uuid = %s ORDER BY dialplan_number",
+            (d, TIME_CONDITIONS_APP_UUID),
         )
         rows = cur.fetchall()
     result = []

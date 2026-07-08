@@ -4,8 +4,14 @@ from __future__ import annotations
 import re
 
 from app.config import settings
-from app.fpbx import extensions, recordings, time_conditions, xmlrpc_client
-from app.models import ScheduleRequest, ScheduleResult
+from app.fpbx import (
+    extensions,
+    ivr_menus,
+    recordings,
+    time_conditions,
+    xmlrpc_client,
+)
+from app.models import IvrRequest, IvrResult, ScheduleRequest, ScheduleResult
 from app.phrases.builder import build_phrase
 from app.tts import google_tts
 
@@ -105,3 +111,51 @@ def delete_schedule(extension: int) -> bool:
     if deleted:
         xmlrpc_client.reloadxml()
     return deleted
+
+
+# ---- IVR menus ----
+def create_ivr(req: IvrRequest) -> IvrResult:
+    if req.extension:
+        ext = req.extension if ivr_menus.get_ivr(req.extension) else extensions.validate(req.extension)
+    else:
+        ext = extensions.allocate()
+
+    if req.greeting_text:
+        wav = google_tts.synthesize(req.greeting_text)
+        greet_filename = recordings.upsert_recording(
+            f"ivr_{ext}_{_slug(req.name)}", wav, description=req.name
+        )
+    elif req.greeting_recording:
+        greet_filename = req.greeting_recording
+    else:
+        raise ValueError("an IVR greeting (TTS text or an existing recording) is required")
+
+    options = [(o.digits, o.destination) for o in req.options]
+    ivr_uuid = ivr_menus.upsert_ivr(
+        ext, req.name, greet_filename, options, timeout_action=req.timeout_destination
+    )
+    reloaded = xmlrpc_client.reloadxml()
+    return IvrResult(
+        extension=ext, name=req.name, ivr_menu_uuid=ivr_uuid,
+        option_count=len(options), reloaded=reloaded,
+    )
+
+
+def list_ivrs() -> list[dict]:
+    return ivr_menus.list_ivrs()
+
+
+def delete_ivr(extension: int) -> bool:
+    deleted = ivr_menus.delete_ivr(extension)
+    if deleted:
+        xmlrpc_client.reloadxml()
+    return deleted
+
+
+def list_destinations() -> list[dict]:
+    from app.fpbx import destinations
+    return destinations.list_destinations()
+
+
+def list_recordings() -> list[dict]:
+    return recordings.list_recordings()

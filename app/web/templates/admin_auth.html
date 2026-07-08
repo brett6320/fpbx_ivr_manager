@@ -34,7 +34,7 @@ group <code>cn</code>; Local / FusionPBX: group name).</p>
   (<code>v_users</code>) for the configured domain — no extra connection to set
   up (it reuses the app's database link). Users' FusionPBX <strong>groups</strong>
   map to permissions via the JSON above. Requires the DB role to have
-  <code>SELECT</code> on <code>v_users</code>/<code>v_user_groups</code>/<code>v_groups</code>
+  <code>SELECT</code> on <code>v_users</code>/<code>v_group_users</code>/<code>v_groups</code>
   and, for modern hashes, <code>pip install '.[fpbx]'</code>.</p>
   <p class="muted">Test a FusionPBX login — credentials are used only for this test, never stored:</p>
   <div class="grid2">

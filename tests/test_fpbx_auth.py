@@ -89,6 +89,14 @@ def test_find_user_query_does_not_reference_user_email():
     assert "user_email" not in cur.sql
 
 
+def test_user_groups_uses_v_group_users_table():
+    # regression: the mapping table is v_group_users, not v_user_groups
+    cur = _Cur([{"group_name": "ivr-admins"}])
+    groups = fpbx_backend._user_groups(cur, "u-1", "dom-1")
+    assert groups == ["ivr-admins"]
+    assert "v_group_users" in cur.sql and "v_user_groups" not in cur.sql
+
+
 # ---- dispatcher wiring ----
 def test_backend_dispatch_fpbx(monkeypatch):
     from app.config import settings

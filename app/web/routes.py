@@ -524,19 +524,21 @@ async def admin_adopt_apply(request: Request, user: dict = Depends(require_users
 
 
 # ---- FusionPBX version/schema compatibility (admins) ----
-@router.get("/admin/compat")
+@router.get("/admin/compat", response_class=HTMLResponse)
 def admin_compat(request: Request, user: dict = Depends(require_users)):
     from app.fpbx import compat
 
     try:
         result = compat.check_schema()
+        error = None
     except Exception:  # noqa: BLE001 - report DB reachability to the admin, not a trace
         log.warning("schema check failed", exc_info=True)
-        return JSONResponse(
-            {"ok": False, "error": "could not query the database", "supported": compat.SUPPORTED_RANGE},
-            status_code=503,
-        )
-    return JSONResponse(result)
+        result = {"ok": False, "supported": compat.SUPPORTED_RANGE,
+                  "checked_tables": [], "missing_tables": [], "missing_columns": []}
+        error = "Could not query the database."
+    return templates.TemplateResponse(
+        request, "compat.html", {"user": user, "r": result, "error": error}
+    )
 
 
 # ---- IVR menus ----

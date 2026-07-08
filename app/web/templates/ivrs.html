@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="topbar">
+  <h1>IVR menus</h1>
+  <span class="muted">{{ user.name }} · <a href="/">Schedules</a> · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p><a href="/ivrs/new"><button>+ New IVR</button></a></p>
+
+{% if not ivrs %}
+  <p class="muted">No managed IVR menus yet.</p>
+{% else %}
+<table style="width:100%; border-collapse:collapse;">
+  <thead><tr style="text-align:left; border-bottom:1px solid #d1d5db;">
+    <th>Ext</th><th>Name</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for i in ivrs %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td>{{ i.extension }}</td>
+      <td>{{ i.name }}</td>
+      <td>{{ 'enabled' if i.enabled else 'disabled' }}</td>
+      <td>
+        <form method="post" action="/ivrs/{{ i.extension }}/delete" style="display:inline;"
+              onsubmit="return confirm('Delete IVR on {{ i.extension }}?');">
+          <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<p class="muted">Point a schedule's <em>open destination</em> at an IVR's extension to route
+callers into it (inbound route → time condition → IVR).</p>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="topbar">
+  <h1>New IVR menu</h1>
+  <span class="muted">{{ user.name }} · <a href="/ivrs">All IVRs</a> · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p class="muted">Managed extensions: {{ pool }}. Callers hear the greeting, press a
+digit to reach a destination, or are sent to the timeout destination.</p>
+
+{% macro dest_select(name, blank='— none —') %}
+<select name="{{ name }}">
+  <option value="">{{ blank }}</option>
+  {% for d in destinations %}
+    <option value="{{ d.value }}">{{ d.label }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+
+<form method="post" action="/ivrs">
+  <label>Name</label>
+  <input name="name" placeholder="Main Menu" required>
+
+  <label>Greeting</label>
+  <label class="muted"><input type="radio" name="greeting_mode" value="tts" checked onclick="gmode()"> Synthesize with Google TTS</label>
+  <label class="muted"><input type="radio" name="greeting_mode" value="recording" onclick="gmode()"> Use an existing recording</label>
+  <div id="g_tts">
+    <textarea name="greeting_text" rows="3" placeholder="Thank you for calling. For sales press 1, for support press 2. Press zero for the operator."></textarea>
+  </div>
+  <div id="g_rec" style="display:none;">
+    <select name="greeting_recording">
+      <option value="">— select a recording —</option>
+      {% for r in recordings %}<option value="{{ r.filename }}">{{ r.name }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <h2 style="margin-top:1.5rem;">Caller options</h2>
+  <p class="muted">Pick a destination for each digit you want to offer (e.g. 0 → after-hours ring group).</p>
+  <div class="grid2">
+    {% for d in digits %}
+      <div><label>Press {{ d }}</label>{{ dest_select('opt_' ~ d) }}</div>
+    {% endfor %}
+  </div>
+
+  <h2 style="margin-top:1.5rem;">Timeout destination</h2>
+  <p class="muted">Where callers go if they don't press anything (usually a voicemail box or answering service).</p>
+  <div class="grid2">
+    <div><label>Destination</label>{{ dest_select('timeout_dest', '— select —') }}</div>
+    <div><label>…or external/manual number</label><input name="timeout_manual" placeholder="e.g. 18005551234"></div>
+  </div>
+
+  <label>Extension (blank = auto-allocate from pool)</label>
+  <input name="extension" placeholder="auto">
+
+  <button type="submit">Create IVR</button>
+</form>
+
+<script>
+function gmode(){
+  const tts = document.querySelector('input[name=greeting_mode]:checked').value === 'tts';
+  document.getElementById('g_tts').style.display = tts ? '' : 'none';
+  document.getElementById('g_rec').style.display = tts ? 'none' : '';
+}
+</script>
+{% endblock %}

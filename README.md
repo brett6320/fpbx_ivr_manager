@@ -135,10 +135,18 @@ recording that a human or another app made:
 - `list_schedules()` surfaces only marker-carrying rows, so the UI never offers to
   edit a look-alike.
 
+## IVR menus
+
+Beyond time-condition greetings, the app builds native FusionPBX **IVR menus** —
+a greeting (TTS or existing recording), per-digit caller options routing to real
+FusionPBX destinations (extensions, ring groups, voicemail boxes), and a timeout
+destination. Flow: inbound route → time condition → IVR → option/timeout. See
+[docs/ivr.md](docs/ivr.md). Manage at `/ivrs`.
+
 ## Status / not yet done
 
-- IVR **menu** management (multi-option trees) is not built — the current flow
-  builds time-condition greetings, not branching IVR menus.
+- One-flow wizard that also auto-creates the **inbound route** (Destination) — the
+  IVR + time-condition pieces exist; inbound-route automation is the next step.
 - Untested against a live FusionPBX box — DB column names verified against the
   4.5.x and current (5.5) schemas, and checked at startup (see
   [docs/compatibility.md](docs/compatibility.md)); confirm on your instance

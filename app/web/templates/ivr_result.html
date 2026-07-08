@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>IVR created</h1>
+<p><strong>Extension:</strong> {{ r.extension }}</p>
+<p><strong>Name:</strong> {{ r.name }}</p>
+<p><strong>Options:</strong> {{ r.option_count }}</p>
+<p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
+<p class="muted">Route callers here by setting a schedule's open destination to
+extension {{ r.extension }} (inbound route → time condition → IVR).</p>
+<p><a href="/ivrs">← All IVRs</a> · <a href="/ivrs/new">Create another</a></p>
+{% endblock %}

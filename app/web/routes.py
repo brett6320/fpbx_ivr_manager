@@ -12,16 +12,22 @@ from fastapi.templating import Jinja2Templates
 from app.auth import authz, backend, config_store, entra, local, probe
 from app.auth.authz import MANAGE_SCHEDULES, MANAGE_USERS
 from app.config import settings
+from app.fpbx import destinations
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
-from app.models import ScheduleRequest
+from app.models import IvrOption, IvrRequest, ScheduleRequest
 from app.service import (
     adopt_schedule,
     apply_schedule,
+    create_ivr,
+    delete_ivr,
     delete_schedule,
     get_adoptable,
     get_schedule,
     list_adoptable,
+    list_destinations,
+    list_ivrs,
+    list_recordings,
     list_schedules,
     preview_phrase,
 )
@@ -523,3 +529,72 @@ def admin_compat(request: Request, user: dict = Depends(require_users)):
             status_code=503,
         )
     return JSONResponse(result)
+
+
+# ---- IVR menus ----
+_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#"]
+
+
+@router.get("/ivrs", response_class=HTMLResponse)
+def ivrs_list(request: Request, user: dict = Depends(require_schedules)):
+    return templates.TemplateResponse(
+        request, "ivrs.html", {"user": user, "ivrs": list_ivrs()}
+    )
+
+
+@router.get("/ivrs/new", response_class=HTMLResponse)
+def ivr_new(request: Request, user: dict = Depends(require_schedules)):
+    return templates.TemplateResponse(
+        request,
+        "ivr_form.html",
+        {
+            "user": user,
+            "org": settings.app_org_name,
+            "pool": f"{settings.ext_pool_start}-{settings.ext_pool_end}",
+            "digits": _DIGITS,
+            "destinations": list_destinations(),
+            "recordings": list_recordings(),
+        },
+    )
+
+
+def _parse_ivr(form) -> IvrRequest:
+    options = []
+    for d in _DIGITS:
+        dest = (form.get(f"opt_{d}") or "").strip()
+        if dest:
+            options.append(IvrOption(digits=d, destination=dest))
+
+    manual = (form.get("timeout_manual") or "").strip()
+    timeout = destinations.manual_destination(manual)["value"] if manual else (form.get("timeout_dest") or "").strip()
+
+    mode = form.get("greeting_mode", "tts")
+    return IvrRequest(
+        name=form["name"],
+        extension=int(form["extension"]) if form.get("extension") else None,
+        greeting_text=(form.get("greeting_text") or None) if mode == "tts" else None,
+        greeting_recording=(form.get("greeting_recording") or None) if mode == "recording" else None,
+        timeout_destination=timeout,
+        options=options,
+    )
+
+
+@router.post("/ivrs", response_class=HTMLResponse)
+async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
+    form = await request.form()
+    try:
+        req = _parse_ivr(form)
+        result = create_ivr(req)
+    except (ValueError, NotManaged) as e:
+        return HTMLResponse(f"Could not create IVR: {e}", status_code=400)
+    return templates.TemplateResponse(request, "ivr_result.html", {"r": result})
+
+
+@router.post("/ivrs/{ext}/delete")
+def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedules)):
+    try:
+        delete_ivr(ext)
+    except NotManaged:
+        log.warning("ivr delete refused", exc_info=True)
+        return HTMLResponse("Refused: that IVR was not created by this app.", status_code=409)
+    return RedirectResponse("/ivrs", status_code=303)

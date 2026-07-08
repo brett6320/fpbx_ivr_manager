@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Time conditions</h1>
-<p>{% if can_admin %}<a href="/flow/new"><button>+ New call flow</button></a> {% endif %}<a href="/schedules/new"><button>New time condition</button></a></p>
+<p><a href="/schedules/new"><button>New time condition</button></a></p>
 
 {% if not schedules %}
   <p class="muted">No managed time conditions yet.</p>

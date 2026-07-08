@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- builder: install into an isolated venv (no build tools in final image) ----
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 # Optional extras, e.g. EXTRAS="[ldap,passkey]" to include those backends.
 ARG EXTRAS=""
@@ -12,7 +12,7 @@ RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir ".${EXTRAS}"
 
 # ---- runtime: minimal, non-root, no shell login ----
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"

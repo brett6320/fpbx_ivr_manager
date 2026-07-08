@@ -91,6 +91,37 @@ def test_apply_schedule_merges_into_existing_closures(monkeypatch):
     assert {c.label for c in captured["closures"]} == {"Old", "New"}
 
 
+def test_summarize_closures_splits_active_and_upcoming():
+    from datetime import datetime as d
+    now = d(2026, 7, 7, 12, 0)
+    schedules = [
+        {"extension": 9550, "label": "TC-A", "closures": [
+            {"label": "Now", "start": d(2026, 7, 7, 0, 0), "end": d(2026, 7, 7, 23, 59)},   # active
+            {"label": "Later", "start": d(2026, 7, 20, 0, 0), "end": d(2026, 7, 20, 23, 59)},  # upcoming
+            {"label": "Past", "start": d(2026, 7, 1, 0, 0), "end": d(2026, 7, 2, 0, 0)},       # excluded
+        ]},
+        {"extension": 9551, "label": "TC-B", "closures": [{"label": "NoDates"}]},              # skipped
+    ]
+    s = service.summarize_closures(schedules, now=now)
+    assert [a["label"] for a in s["active"]] == ["Now"]
+    assert s["active"][0]["extension"] == 9550 and s["active"][0]["tc_label"] == "TC-A"
+    assert [u["label"] for u in s["upcoming"]] == ["Later"]
+    assert s["now"] == now
+
+
+def test_summarize_closures_sorts_and_defaults_now():
+    from datetime import datetime as d
+    now = d(2026, 1, 1, 0, 0)
+    schedules = [{"extension": 9550, "label": "T", "closures": [
+        {"label": "b", "start": d(2026, 3, 1, 0, 0), "end": d(2026, 3, 2, 0, 0)},
+        {"label": "a", "start": d(2026, 2, 1, 0, 0), "end": d(2026, 2, 2, 0, 0)},
+    ]}]
+    s = service.summarize_closures(schedules, now=now)
+    assert [u["label"] for u in s["upcoming"]] == ["a", "b"]   # soonest first
+    # default now doesn't raise
+    assert set(service.summarize_closures([]).keys()) == {"active", "upcoming", "now"}
+
+
 def test_slug_normalizes():
     assert _slug("July 4th Holiday!") == "july_4th_holiday"
     assert _slug("  Spaces  &  Symbols  ") == "spaces_symbols"

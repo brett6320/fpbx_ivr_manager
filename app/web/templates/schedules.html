@@ -3,6 +3,35 @@
 <h1>Time conditions</h1>
 <p><a href="/schedules/new"><button>New time condition</button></a></p>
 
+{% if summary %}
+<div class="grid2" style="margin-bottom:1.25rem;">
+  <div class="preview" style="border-left-color:var(--danger);">
+    <strong>Active now</strong>
+    {% if summary.active %}
+    <ul style="margin:.4rem 0 0; padding-left:1.1rem;">
+      {% for a in summary.active %}
+      <li><a href="/schedules/{{ a.extension }}/edit">{{ a.tc_label }}</a> —
+        {{ a.label }}, until {{ a.end.strftime('%b %-d, %-I:%M %p') }}
+        (ext {{ a.extension }})</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted" style="margin:.4rem 0 0;">No closures active right now — all lines open.</p>{% endif %}
+  </div>
+  <div class="preview" style="border-left-color:var(--warn);">
+    <strong>Upcoming</strong>
+    {% if summary.upcoming %}
+    <ul style="margin:.4rem 0 0; padding-left:1.1rem;">
+      {% for u in summary.upcoming[:5] %}
+      <li><a href="/schedules/{{ u.extension }}/edit">{{ u.tc_label }}</a> —
+        {{ u.label }}, {{ u.start.strftime('%b %-d, %-I:%M %p') }} → {{ u.end.strftime('%b %-d, %-I:%M %p') }}</li>
+      {% endfor %}
+    </ul>
+    {% if summary.upcoming|length > 5 %}<p class="muted" style="margin:.3rem 0 0;">+{{ summary.upcoming|length - 5 }} more</p>{% endif %}
+    {% else %}<p class="muted" style="margin:.4rem 0 0;">No upcoming closures scheduled.</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if not schedules %}
   <p class="muted">No managed time conditions yet.</p>
 {% else %}

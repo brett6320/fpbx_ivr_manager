@@ -41,6 +41,7 @@ from app.service import (
     preview_phrase,
     preview_phrase_text,
     recycle_ivr,
+    summarize_closures,
 )
 
 # every schedule route requires the manage_schedules permission (granted via groups)
@@ -322,12 +323,14 @@ def _form_ctx(user: dict, c: dict | None = None, adopt_uuid: str | None = None) 
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, user: dict = Depends(require_schedules)):
+    schedules = list_schedules()
     return templates.TemplateResponse(
         request,
         "schedules.html",
         {
             "user": user,
-            "schedules": list_schedules(),
+            "schedules": schedules,
+            "summary": summarize_closures(schedules),
             "can_admin": authz.has_permission(user, MANAGE_USERS),
         },
     )

@@ -79,7 +79,8 @@ class Settings(BaseSettings):
     fs_recordings_dir: str = Field(alias="FS_RECORDINGS_DIR", default="")
 
     # google tts
-    google_tts_api_key: str = Field(alias="GOOGLE_TTS_API_KEY")
+    # Path to the Google service-account JSON used for Text-to-Speech.
+    google_tts_credentials_file: str = Field(alias="GOOGLE_TTS_CREDENTIALS_FILE", default="")
     google_tts_voice: str = Field(alias="GOOGLE_TTS_VOICE", default="en-US-Neural2-C")
     google_tts_language: str = Field(alias="GOOGLE_TTS_LANGUAGE", default="en-US")
 

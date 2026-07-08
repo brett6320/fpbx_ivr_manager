@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from app.fpbx.time_conditions import _is_managed, _parse_xml, build_dialplan_xml
+from app.fpbx.time_conditions import (
+    TIME_CONDITIONS_APP_UUID,
+    _is_managed,
+    _parse_xml,
+    build_dialplan_xml,
+)
+
+
+def test_time_conditions_app_uuid_is_the_fusionpbx_constant():
+    # FusionPBX's fixed Time Conditions app_uuid — changing it would stop our
+    # records from appearing as native time conditions.
+    assert TIME_CONDITIONS_APP_UUID == "4b821450-926b-175a-af93-a03c441818b1"
 
 
 def test_xml_roundtrip_voicemail():

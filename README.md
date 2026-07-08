@@ -87,6 +87,20 @@ Per schedule, extension `95xx` gets a dialplan:
 
 Point your inbound route (or a time condition upstream) at the managed extension.
 
+### Scope & native Time Conditions
+
+Scope is defined by the **managed extension pool (9550–9599)** plus our
+**ownership marker** — the app manages only records it created; it does not adopt
+arbitrary GUI-created time conditions.
+
+Records are stamped with FusionPBX's Time Conditions `app_uuid`
+(`4b821450-926b-175a-af93-a03c441818b1`), so they appear as **native Time
+Conditions** in the FusionPBX GUI. Because the app writes `dialplan_xml` directly
+(not `v_dialplan_details`), **manage these through this app** — editing one in the
+FusionPBX Time Conditions GUI regenerates its XML from absent details and strips
+the marker, after which the app treats it as foreign and refuses to touch it
+(fail-safe, never destructive).
+
 ## Guardrails — we only touch what we created
 
 The app confines itself to the managed extension pool **and** proves ownership

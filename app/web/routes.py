@@ -507,3 +507,19 @@ async def admin_adopt_apply(request: Request, user: dict = Depends(require_users
             status_code=409,
         )
     return templates.TemplateResponse(request, "result.html", {"r": result})
+
+
+# ---- FusionPBX version/schema compatibility (admins) ----
+@router.get("/admin/compat")
+def admin_compat(request: Request, user: dict = Depends(require_users)):
+    from app.fpbx import compat
+
+    try:
+        result = compat.check_schema()
+    except Exception:  # noqa: BLE001 - report DB reachability to the admin, not a trace
+        log.warning("schema check failed", exc_info=True)
+        return JSONResponse(
+            {"ok": False, "error": "could not query the database", "supported": compat.SUPPORTED_RANGE},
+            status_code=503,
+        )
+    return JSONResponse(result)

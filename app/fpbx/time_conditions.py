@@ -29,6 +29,14 @@ FS_DT = "%Y-%m-%d %H:%M:%S"
 MARKER = "fpbx-ivr-manager:managed"
 _MARKER_XML = f"<!-- {MARKER} -->"
 
+# FusionPBX's fixed app_uuid for the Time Conditions app. Stamping our dialplans
+# with it makes them appear as native Time Conditions in the FusionPBX GUI.
+# NOTE: we write dialplan_xml directly (not v_dialplan_details), so these must be
+# managed through this app. Editing one in the FusionPBX Time Conditions GUI
+# regenerates the XML from (absent) details and strips our marker — after which
+# our guardrail treats it as foreign and refuses to touch it (fail-safe).
+TIME_CONDITIONS_APP_UUID = "4b821450-926b-175a-af93-a03c441818b1"
+
 
 class NotManaged(Exception):
     """Raised when a targeted construct was not created by this app."""
@@ -121,18 +129,19 @@ def upsert_time_condition(
             dp_uuid = row["dialplan_uuid"]
             cur.execute(
                 "UPDATE v_dialplans SET dialplan_number=%s, dialplan_xml=%s, "
-                "dialplan_description=%s, dialplan_enabled='true' WHERE dialplan_uuid=%s",
-                (str(extension), xml, label, dp_uuid),
+                "dialplan_description=%s, dialplan_enabled='true', app_uuid=%s "
+                "WHERE dialplan_uuid=%s",
+                (str(extension), xml, label, TIME_CONDITIONS_APP_UUID, dp_uuid),
             )
         else:
             dp_uuid = str(uuid.uuid4())
             cur.execute(
                 "INSERT INTO v_dialplans "
-                "(dialplan_uuid, domain_uuid, dialplan_context, dialplan_name, "
+                "(dialplan_uuid, app_uuid, domain_uuid, dialplan_context, dialplan_name, "
                 " dialplan_number, dialplan_order, dialplan_enabled, dialplan_xml, "
                 " dialplan_description) "
-                "VALUES (%s,%s,%s,%s,%s,%s,'true',%s,%s)",
-                (dp_uuid, d, ctx, name, str(extension), 300, xml, label),
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,'true',%s,%s)",
+                (dp_uuid, TIME_CONDITIONS_APP_UUID, d, ctx, name, str(extension), 300, xml, label),
             )
     return name
 

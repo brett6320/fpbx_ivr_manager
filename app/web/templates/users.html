@@ -30,6 +30,7 @@
       {% endif %}
       <form method="post" action="/admin/users/{{ u.username }}/delete" style="display:inline;"
             onsubmit="return confirm('Delete {{ u.username }}?');">
+        <input type="hidden" name="confirm" value="yes">
         <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button></form>
     </td>
   </tr>

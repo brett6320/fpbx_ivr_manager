@@ -339,8 +339,21 @@ def edit_schedule(request: Request, ext: int, user: dict = Depends(require_sched
     return templates.TemplateResponse(request, "schedule_form.html", _form_ctx(user, c))
 
 
+async def _require_delete_confirm(request: Request) -> None:
+    """Deletion of any resource requires an explicit affirmative confirmation
+    token in the request body; a request without it is refused server-side (not
+    just via the browser prompt)."""
+    form = await request.form()
+    if (form.get("confirm") or "").strip().lower() != "yes":
+        raise HTTPException(
+            status_code=400,
+            detail="Deletion requires confirmation. Retry from the app and confirm the prompt.",
+        )
+
+
 @router.post("/schedules/{ext}/delete")
-def remove_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
+async def remove_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
+    await _require_delete_confirm(request)
     try:
         delete_schedule(ext)
     except NotManaged:
@@ -610,7 +623,8 @@ async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
 
 
 @router.post("/ivrs/{ext}/delete")
-def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedules)):
+async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedules)):
+    await _require_delete_confirm(request)
     try:
         delete_ivr(ext)
     except NotManaged:
@@ -805,8 +819,9 @@ def user_mfa_reset(request: Request, username: str, user: dict = Depends(require
 
 
 @router.post("/admin/users/{username}/delete")
-def user_delete(request: Request, username: str, user: dict = Depends(require_users)):
+async def user_delete(request: Request, username: str, user: dict = Depends(require_users)):
     _require_local()
+    await _require_delete_confirm(request)
     if username == user.get("email"):
         raise HTTPException(status_code=400, detail="You cannot delete the account you are signed in as.")
     local.delete_user(username)

@@ -18,6 +18,7 @@
       <td>
         <form method="post" action="/ivrs/{{ i.extension }}/delete" style="display:inline;"
               onsubmit="return confirm('Delete IVR on {{ i.extension }}?');">
+          <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>
       </td>

@@ -14,7 +14,7 @@ _DEFAULTS = {
     "FPBX_DOMAIN_NAME": "pbx.test",
     "FS_XMLRPC_URL": "http://127.0.0.1:8787/RPC2",
     "FS_RECORDINGS_DIR": "/var/lib/freeswitch/storage/${FPBX_DOMAIN_NAME}/recordings",
-    "GOOGLE_TTS_API_KEY": "k",
+    "GOOGLE_TTS_CREDENTIALS_FILE": "",
     # tests have no live FusionPBX DB; skip the startup schema check so app
     # startup (TestClient) doesn't block on connection attempts
     "FPBX_SCHEMA_CHECK": "off",

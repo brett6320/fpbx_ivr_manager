@@ -29,7 +29,7 @@ PostgreSQL; the only native runtime interconnect is FreeSWITCH `mod_xml_rpc`. So
 | Create/replace time condition, recording row | direct PostgreSQL, localhost (`app/fpbx/db.py`) |
 | Get the `.wav` onto the FS host | local FS write (co-located); or db-base64 / SFTP (`recordings.py`) |
 | Make FreeSWITCH apply changes | `mod_xml_rpc` `reloadxml`, localhost (`xmlrpc_client.py`) |
-| Greeting audio | Google TTS REST, LINEAR16 @ 8 kHz mono (`tts/google_tts.py`) |
+| Greeting audio | Google TTS REST (service-account auth), LINEAR16 @ 8 kHz mono (`tts/google_tts.py`) |
 | Auth | Pluggable: **local** (default), Entra ID SSO, or LDAP (`auth/`) |
 | Authz | Group-based permissions, never per-user (`auth/authz.py`) |
 

@@ -37,6 +37,12 @@ Put config in an env file with `chmod 600`, owned by root (readable by the servi
 user). Never commit it. Generate `APP_SECRET_KEY` with
 `python -c 'import secrets;print(secrets.token_urlsafe(48))'`.
 
+**Google TTS uses a service account** (no API keys). Provide a service-account
+JSON with the *Cloud Text-to-Speech* role, `chmod 600`, and point
+`GOOGLE_TTS_CREDENTIALS_FILE` at it. In Docker, mount it read-only, e.g.
+`-v /etc/fpbx-ivr-manager/google-tts.json:/app/data/google-tts.json:ro` and set
+`GOOGLE_TTS_CREDENTIALS_FILE=/app/data/google-tts.json`.
+
 ### 5. TLS + hostname
 
 Serve over HTTPS behind nginx (`deploy/nginx-fpbx-ivr-manager.conf`). Set

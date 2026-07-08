@@ -117,12 +117,31 @@ group needed to write that one directory — nothing more.
 For hosts without Docker. Uses a dedicated system user and a hardened unit
 (`deploy/fpbx-ivr-manager.service`).
 
-### Install
+### Quick install (script)
+
+The interactive installer does everything below — prompts for the install
+location (default `/opt/ivr-manager`), creates the service user + venv + env
+file + systemd unit, and asks whether to start at boot:
 
 ```bash
-sudo mkdir -p /opt/fpbx_ivr_manager
-sudo git clone https://github.com/brett6320/fpbx_ivr_manager /opt/fpbx_ivr_manager
-cd /opt/fpbx_ivr_manager
+git clone https://github.com/brett6320/fpbx_ivr_manager
+cd fpbx_ivr_manager
+sudo ./deploy/install.sh
+# then edit the generated /etc/fpbx-ivr-manager/env and start the service
+```
+
+It auto-detects the `freeswitch` group (for local recording storage) and falls
+back to a private group + db storage when it's absent. Non-interactive:
+`sudo INSTALL_DIR=/srv/ivr START_AT_BOOT=no EXTRAS=fpbx ASSUME_YES=1 ./deploy/install.sh`.
+
+The manual steps below are equivalent, if you'd rather do it by hand.
+
+### Install (manual)
+
+```bash
+sudo mkdir -p /opt/ivr-manager
+sudo git clone https://github.com/brett6320/fpbx_ivr_manager /opt/ivr-manager
+cd /opt/ivr-manager
 
 # Dedicated, unprivileged service account (declarative via systemd-sysusers).
 # The sample adds ivrmgr to 'freeswitch' — remove that line if you use db storage.
@@ -134,7 +153,7 @@ sudo systemd-sysusers
 # Isolated virtualenv (add [ldap]/[passkey] extras as needed).
 sudo python3 -m venv .venv
 sudo .venv/bin/pip install '.[ldap,passkey]'   # or just '.' for local/TOTP only
-sudo chown -R root:root /opt/fpbx_ivr_manager   # app code owned by root, run read-only
+sudo chown -R root:root /opt/ivr-manager   # app code owned by root, run read-only
 ```
 
 ### Configure

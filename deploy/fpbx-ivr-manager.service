@@ -16,9 +16,9 @@ Wants=network-online.target
 Type=simple
 User=ivrmgr
 Group=freeswitch
-WorkingDirectory=/opt/fpbx_ivr_manager
+WorkingDirectory=/opt/ivr-manager
 EnvironmentFile=/etc/fpbx-ivr-manager/env
-ExecStart=/opt/fpbx_ivr_manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+ExecStart=/opt/ivr-manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
 Restart=on-failure
 RestartSec=3
 

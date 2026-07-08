@@ -2,12 +2,21 @@
 {% set dt = '%Y-%m-%dT%H:%M' %}
 {% block body %}
 <div class="topbar">
-  <h1>{{ 'Edit schedule' if c else 'Plan an IVR schedule' }}</h1>
+  <h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit schedule' if c else 'Plan an IVR schedule') }}</h1>
   <span class="muted">{{ user.name }} · <a href="/">All schedules</a> · <a href="/auth/logout">Sign out</a></span>
 </div>
 <p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
 
-<form id="f" method="post" action="/apply">
+{% if adopt_uuid %}
+<div class="preview" style="border-color:#d97706;">
+  <strong>Adopting extension {{ c.extension }}.</strong> This replaces the existing
+  time condition's routing with an app-managed schedule and takes ownership of it.
+  The original routing is overwritten.
+</div>
+{% endif %}
+
+<form id="f" method="post" action="{{ '/admin/adopt' if adopt_uuid else '/apply' }}">
+  {% if adopt_uuid %}<input type="hidden" name="adopt_uuid" value="{{ adopt_uuid }}">{% endif %}
   <label>Label</label>
   <input name="label" placeholder="July 4th Holiday" value="{{ c.label if c }}" required>
 
@@ -42,12 +51,12 @@
     </div>
   </div>
 
-  <label>Extension {{ '(fixed for edit)' if c else '(blank = auto-allocate from pool)' }}</label>
+  <label>Extension {{ '(existing time condition)' if adopt_uuid else ('(fixed for edit)' if c else '(blank = auto-allocate from pool)') }}</label>
   <input name="extension" placeholder="auto" value="{{ c.extension if c }}"
          {{ 'readonly' if c }}>
 
   <button type="button" onclick="preview()">Preview greeting</button>
-  <button type="submit">{{ 'Save changes' if c else 'Create schedule' }}</button>
+  <button type="submit">{{ 'Adopt &amp; manage' if adopt_uuid else ('Save changes' if c else 'Create schedule') }}</button>
 </form>
 
 <div id="preview"></div>

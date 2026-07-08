@@ -89,9 +89,18 @@ Point your inbound route (or a time condition upstream) at the managed extension
 
 ### Scope & native Time Conditions
 
-Scope is defined by the **managed extension pool (9550–9599)** plus our
-**ownership marker** — the app manages only records it created; it does not adopt
-arbitrary GUI-created time conditions.
+Scope is defined by our **ownership marker** — the app manages only records it
+created, plus any existing time conditions an **admin manually adopts**. New
+schedules auto-allocate from the **managed extension pool (9550–9599)**; adopted
+ones keep their own extension (which may be outside the pool).
+
+**Manual adoption (admins only, `manage_users`).** `/admin/adopt` lists existing
+FusionPBX Time Conditions in the domain not yet managed by the app (by
+`app_uuid`). Adopting one converts it into an app-managed schedule **on its
+existing extension**, stamping our marker and **replacing its routing** with the
+schedule model. This is a deliberate, per-record admin action — the app never
+auto-adopts. Identity is the marker + extension number, so adopted records
+(arbitrary names, any number) list/edit/delete like pool-created ones.
 
 Records are stamped with FusionPBX's Time Conditions `app_uuid`
 (`4b821450-926b-175a-af93-a03c441818b1`), so they appear as **native Time

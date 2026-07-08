@@ -2,7 +2,7 @@
 {% block body %}
 <div class="topbar">
   <h1>IVR schedules</h1>
-  <span class="muted">{{ user.name }} ·{% if can_admin %} <a href="/admin/auth">Auth config</a> ·{% endif %} <a href="/auth/logout">Sign out</a></span>
+  <span class="muted">{{ user.name }} ·{% if can_admin %} <a href="/admin/adopt">Adopt</a> · <a href="/admin/auth">Auth config</a> ·{% endif %} <a href="/auth/logout">Sign out</a></span>
 </div>
 <p><a href="/schedules/new"><button>+ New schedule</button></a></p>
 
@@ -18,7 +18,7 @@
   <tbody>
   {% for c in schedules %}
     <tr style="border-bottom:1px solid #eee;">
-      <td>{{ c.extension }}</td>
+      <td>{{ c.extension }}{% if not c.in_pool %} <span class="muted" title="Adopted; outside the managed pool">(adopted)</span>{% endif %}</td>
       <td>{{ c.label }}{% if not c.enabled %} <span class="muted">(disabled)</span>{% endif %}</td>
       <td class="muted">
         {% if c.start and c.end %}

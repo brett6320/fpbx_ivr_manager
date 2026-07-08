@@ -54,6 +54,19 @@ def test_preview_phrase_uses_org_and_reason():
     assert "This closure is for a company holiday." in text
 
 
+def test_preview_phrase_uses_configured_closure_message(monkeypatch):
+    monkeypatch.setattr(service.business, "business_name", lambda: "Acme")
+    monkeypatch.setattr(service.business, "closure_opening",
+                        lambda: "You've reached {business_name}.")
+    monkeypatch.setattr(service.business, "closure_closing", lambda: "Take care.")
+    req = ScheduleRequest(
+        label="Holiday", start=datetime(2026, 7, 7, 0, 0), end=datetime(2026, 7, 7, 23, 59),
+    )
+    text = preview_phrase(req)
+    assert text.startswith("You've reached Acme.")   # {business_name} resolved
+    assert text.rstrip().endswith("Take care.")
+
+
 def test_schedule_request_rejects_end_before_start():
     import pytest
 

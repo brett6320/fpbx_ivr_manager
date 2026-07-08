@@ -50,3 +50,15 @@ def test_build_phrase_assembles_three_parts():
     assert "closed all day Tuesday, July 7th" in p.text
     assert "This closure is for a holiday." in p.text
     assert p.text.rstrip().endswith("Goodbye.")
+
+
+def test_build_phrase_honors_custom_opening_and_closing():
+    p = build_phrase(
+        d(2026, 7, 7, 0, 0), d(2026, 7, 7, 23, 59), org_name="Acme",
+        opening="Hello, you have reached us.", closing="So long.",
+    )
+    assert p.opening == "Hello, you have reached us."
+    assert p.closing == "So long."
+    # the varying body is still inserted between them
+    assert "closed all day Tuesday, July 7th" in p.text
+    assert p.text.rstrip().endswith("So long.")

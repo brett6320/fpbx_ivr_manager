@@ -17,6 +17,7 @@ from app.fpbx import destinations
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
 from app.models import IvrOption, IvrRequest, ScheduleRequest
+from app.phrases import builder
 from app.service import (
     adopt_schedule,
     apply_schedule,
@@ -675,6 +676,10 @@ def admin_business(request: Request, user: dict = Depends(require_users), saved:
             "business_name": business.load().get("business_name", ""),
             "org_fallback": settings.app_org_name,
             "rows": list(business.templates().items()),  # existing templates
+            "closure_opening": business.closure_opening(),
+            "closure_closing": business.closure_closing(),
+            "default_opening": builder.DEFAULT_OPENING,
+            "default_closing": builder.DEFAULT_CLOSING,
             "placeholders": business.placeholder_keys(),
             "saved": bool(saved),
         },
@@ -695,7 +700,11 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
         tname = (form.get(key) or "").strip()
         if tname:
             tmpls[tname] = (form.get(f"tmpl_value_{suffix}") or "").strip()
-    business.save(name, tmpls)
+    business.save(
+        name, tmpls,
+        closure_opening=(form.get("closure_opening") or "").strip(),
+        closure_closing=(form.get("closure_closing") or "").strip(),
+    )
     return RedirectResponse("/admin/business?saved=1", status_code=303)
 
 

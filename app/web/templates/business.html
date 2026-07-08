@@ -9,6 +9,16 @@
   <p class="muted">Referenced in prompts as <code>{business_name}</code>. Falls back to
   “{{ org_fallback }}” if blank.</p>
 
+  <h2 style="margin-top:1.5rem;">Closure message</h2>
+  <p class="muted">The fixed opening and closing lines of the schedule (closure)
+  greeting. Between them, the app inserts the sentence describing the closure
+  window (and reason). Leave blank to use the defaults. You may use
+  <code>{business_name}</code> and any template placeholder.</p>
+  <label>Opening line</label>
+  <textarea name="closure_opening" rows="2" placeholder="{{ default_opening.replace('{org}', '{business_name}') }}">{{ closure_opening }}</textarea>
+  <label>Closing line</label>
+  <textarea name="closure_closing" rows="2" placeholder="{{ default_closing }}">{{ closure_closing }}</textarea>
+
   <h2 style="margin-top:1.5rem;">Templates</h2>
   <p class="muted">Reusable named snippets — a generic greeting, a closing line, hours,
   anything. Reference one in a prompt (or in another template) as <code>{name}</code>.

@@ -36,12 +36,20 @@ def load() -> dict:
         return {}
 
 
-def save(business_name: str, templates: dict[str, str]) -> None:
+def save(
+    business_name: str,
+    templates: dict[str, str],
+    *,
+    closure_opening: str = "",
+    closure_closing: str = "",
+) -> None:
     path = _path()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     payload = {
         "business_name": (business_name or "").strip(),
         "templates": {k.strip(): v.strip() for k, v in templates.items() if k.strip()},
+        "closure_opening": (closure_opening or "").strip(),
+        "closure_closing": (closure_closing or "").strip(),
     }
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
@@ -50,6 +58,18 @@ def save(business_name: str, templates: dict[str, str]) -> None:
 
 def business_name() -> str:
     return load().get("business_name") or settings.app_org_name
+
+
+def closure_opening() -> str:
+    """Admin-configured opening line of the closure greeting (empty = default)."""
+    v = load().get("closure_opening")
+    return v.strip() if isinstance(v, str) else ""
+
+
+def closure_closing() -> str:
+    """Admin-configured closing line of the closure greeting (empty = default)."""
+    v = load().get("closure_closing")
+    return v.strip() if isinstance(v, str) else ""
 
 
 def templates() -> dict[str, str]:

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="topbar">
+  <h1>Adopt existing time conditions</h1>
+  <span class="muted">{{ user.name }} · <a href="/">All schedules</a> · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p class="muted">Admin-only. These are FusionPBX Time Conditions in this domain not
+yet managed by the app. Adopting one converts it into an app-managed schedule on
+its existing extension and <strong>replaces its routing</strong>.</p>
+
+{% if not candidates %}
+  <p class="muted">No unmanaged time conditions found.</p>
+{% else %}
+<table style="width:100%; border-collapse:collapse;">
+  <thead>
+    <tr style="text-align:left; border-bottom:1px solid #d1d5db;">
+      <th>Ext</th><th>Name</th><th>Description</th><th>Status</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in candidates %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td>{{ t.extension }}</td>
+      <td>{{ t.name }}</td>
+      <td class="muted">{{ t.description }}</td>
+      <td>{{ 'enabled' if t.enabled else 'disabled' }}</td>
+      <td><a href="/admin/adopt/{{ t.dialplan_uuid }}">Adopt →</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

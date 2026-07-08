@@ -111,29 +111,20 @@ def upsert_time_condition(
     )
 
     with cursor() as cur:
-        # Guardrail 1: nothing foreign may occupy this pool number.
-        _assert_number_free_or_owned(cur, d, extension)
-
-        # Guardrail 2: if a row already carries our name, it must be one of ours.
-        cur.execute(
-            "SELECT dialplan_uuid, dialplan_xml FROM v_dialplans "
-            "WHERE domain_uuid = %s AND dialplan_name = %s",
-            (d, name),
-        )
-        row = cur.fetchone()
-        if row:
-            if not _is_managed(row["dialplan_xml"]):
-                raise NotManaged(
-                    f"dialplan {name!r} exists but was not created by this app; refusing to overwrite"
-                )
-            dp_uuid = row["dialplan_uuid"]
+        # Identity is (our marker + extension number), independent of the dialplan
+        # name — so adopted records (any name) update in place too.
+        existing = _find_managed_by_number(cur, d, extension)
+        if existing:
             cur.execute(
                 "UPDATE v_dialplans SET dialplan_number=%s, dialplan_xml=%s, "
                 "dialplan_description=%s, dialplan_enabled='true', app_uuid=%s "
                 "WHERE dialplan_uuid=%s",
-                (str(extension), xml, label, TIME_CONDITIONS_APP_UUID, dp_uuid),
+                (str(extension), xml, label, TIME_CONDITIONS_APP_UUID, existing["dialplan_uuid"]),
             )
+            name = existing["dialplan_name"]
         else:
+            # new record: refuse if anything foreign already occupies the number
+            _assert_number_free_or_owned(cur, d, extension)
             dp_uuid = str(uuid.uuid4())
             cur.execute(
                 "INSERT INTO v_dialplans "
@@ -150,8 +141,21 @@ def _is_managed(xml: str | None) -> bool:
     return bool(xml) and _MARKER_XML in xml
 
 
+def _find_managed_by_number(cur, d: str, extension: int) -> dict | None:
+    """Return our managed dialplan on this number (marker present), or None."""
+    cur.execute(
+        "SELECT dialplan_uuid, dialplan_name, dialplan_xml FROM v_dialplans "
+        "WHERE domain_uuid = %s AND dialplan_number = %s",
+        (d, str(extension)),
+    )
+    for r in cur.fetchall():
+        if _is_managed(r["dialplan_xml"]):
+            return r
+    return None
+
+
 def _assert_number_free_or_owned(cur, d: str, extension: int) -> None:
-    """Refuse if any *foreign* dialplan already lives on this pool number."""
+    """Refuse if any *foreign* dialplan already lives on this number."""
     cur.execute(
         "SELECT dialplan_name, dialplan_xml FROM v_dialplans "
         "WHERE domain_uuid = %s AND dialplan_number = %s",
@@ -184,33 +188,120 @@ def _parse_xml(xml: str) -> dict:
 
 
 def list_schedules() -> list[dict]:
-    """All managed schedule dialplans in the domain, newest extension first."""
+    """All managed schedules in the domain (identified by our ownership marker),
+    including adopted ones outside the extension pool, by extension number."""
     d = domain_uuid()
     with cursor() as cur:
         cur.execute(
             "SELECT dialplan_number, dialplan_name, dialplan_description, "
             "dialplan_enabled, dialplan_xml FROM v_dialplans "
-            "WHERE domain_uuid = %s AND dialplan_name LIKE 'schedule_%%' "
-            "ORDER BY dialplan_number",
+            "WHERE domain_uuid = %s ORDER BY dialplan_number",
             (d,),
         )
         rows = cur.fetchall()
     result = []
     for row in rows:
-        # defense in depth: only surface rows carrying our ownership marker,
-        # so we never offer to edit/delete a look-alike we didn't create.
+        # the ownership marker is the authoritative scope signal
         if not _is_managed(row["dialplan_xml"]):
             continue
         parsed = _parse_xml(row["dialplan_xml"] or "")
+        ext = int(row["dialplan_number"])
         result.append(
             {
-                "extension": int(row["dialplan_number"]),
+                "extension": ext,
                 "label": row["dialplan_description"] or row["dialplan_name"],
                 "enabled": row["dialplan_enabled"] == "true",
+                # adopted records may sit outside the managed pool; flag for the UI
+                "in_pool": settings.ext_pool_start <= ext <= settings.ext_pool_end,
                 **parsed,
             }
         )
     return result
+
+
+def list_adoptable() -> list[dict]:
+    """Existing FusionPBX Time Conditions in the domain not yet managed by us —
+    candidates an admin can manually adopt."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT dialplan_uuid, dialplan_number, dialplan_name, dialplan_description, "
+            "dialplan_enabled, dialplan_xml FROM v_dialplans "
+            "WHERE domain_uuid = %s AND app_uuid = %s ORDER BY dialplan_number",
+            (d, TIME_CONDITIONS_APP_UUID),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "dialplan_uuid": r["dialplan_uuid"],
+            "extension": int(r["dialplan_number"]) if str(r["dialplan_number"]).isdigit() else r["dialplan_number"],
+            "name": r["dialplan_name"],
+            "description": r["dialplan_description"] or "",
+            "enabled": r["dialplan_enabled"] == "true",
+        }
+        for r in rows
+        if not _is_managed(r["dialplan_xml"])  # exclude ones already ours
+    ]
+
+
+def get_time_condition(dialplan_uuid: str) -> dict:
+    """Fetch an adoptable time condition by uuid; raise NotManaged if it isn't a
+    FusionPBX time condition or is already managed by us."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT dialplan_uuid, app_uuid, dialplan_number, dialplan_name, "
+            "dialplan_description, dialplan_xml FROM v_dialplans "
+            "WHERE domain_uuid = %s AND dialplan_uuid = %s",
+            (d, dialplan_uuid),
+        )
+        row = cur.fetchone()
+    if not row:
+        raise NotManaged("time condition not found in this domain")
+    if row["app_uuid"] != TIME_CONDITIONS_APP_UUID:
+        raise NotManaged("selected dialplan is not a FusionPBX time condition")
+    if _is_managed(row["dialplan_xml"]):
+        raise NotManaged("this time condition is already managed by the app")
+    return {
+        "dialplan_uuid": row["dialplan_uuid"],
+        "extension": int(row["dialplan_number"]),
+        "name": row["dialplan_name"],
+        "description": row["dialplan_description"] or "",
+    }
+
+
+def adopt_time_condition(
+    dialplan_uuid: str,
+    label: str,
+    ranges: tuple[datetime, datetime],
+    recording_filename: str,
+    *,
+    closed_action: str,
+    open_destination: str,
+) -> int:
+    """Convert an existing time condition into an app-managed schedule in place.
+
+    Overwrites the record's dialplan_xml with our schedule model on its own
+    extension number. Returns the extension. Admin-gated at the route layer.
+    """
+    tc = get_time_condition(dialplan_uuid)  # verifies TC + not already managed
+    extension = tc["extension"]
+    ctx = settings.fpbx_domain_name
+    xml = build_dialplan_xml(
+        extension,
+        ranges,
+        recording_filename,
+        closed_action=closed_action,
+        open_destination=open_destination,
+        domain=ctx,
+    )
+    with cursor() as cur:
+        cur.execute(
+            "UPDATE v_dialplans SET dialplan_xml=%s, dialplan_description=%s, "
+            "dialplan_enabled='true', app_uuid=%s WHERE dialplan_uuid=%s",
+            (xml, label, TIME_CONDITIONS_APP_UUID, dialplan_uuid),
+        )
+    return extension
 
 
 def get_schedule(extension: int) -> dict | None:
@@ -222,20 +313,12 @@ def get_schedule(extension: int) -> dict | None:
 
 def delete_time_condition(extension: int) -> bool:
     d = domain_uuid()
-    name = f"schedule_{extension}"
     with cursor() as cur:
-        cur.execute(
-            "SELECT dialplan_uuid, dialplan_xml FROM v_dialplans "
-            "WHERE domain_uuid=%s AND dialplan_name=%s",
-            (d, name),
-        )
-        row = cur.fetchone()
+        row = _find_managed_by_number(cur, d, extension)
         if not row:
+            # nothing of ours on that number — refuse rather than touch a foreign row
+            _assert_number_free_or_owned(cur, d, extension)
             return False
-        if not _is_managed(row["dialplan_xml"]):
-            raise NotManaged(
-                f"dialplan {name!r} was not created by this app; refusing to delete"
-            )
         cur.execute(
             "DELETE FROM v_dialplans WHERE dialplan_uuid=%s", (row["dialplan_uuid"],)
         )

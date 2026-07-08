@@ -5,7 +5,7 @@ import logging
 import secrets
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -135,7 +135,7 @@ async def local_login_submit(request: Request):
 @router.get("/auth/callback")
 def callback(request: Request, code: str = "", state: str = ""):
     if not code or state != request.session.get("oauth_state"):
-        return HTMLResponse("Invalid auth state", status_code=400)
+        raise HTTPException(status_code=400, detail="Invalid authentication state. Please try signing in again.")
     result = entra.redeem_code(code)
     user = entra.user_from_claims(result["id_token_claims"])
     request.session["user"] = user
@@ -330,7 +330,7 @@ def new_schedule(request: Request, user: dict = Depends(require_schedules)):
 def edit_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
     c = get_schedule(ext)
     if not c:
-        return HTMLResponse("schedule not found", status_code=404)
+        raise HTTPException(status_code=404, detail="Schedule not found.")
     return templates.TemplateResponse(request, "schedule_form.html", _form_ctx(user, c))
 
 
@@ -340,11 +340,11 @@ def remove_schedule(request: Request, ext: int, user: dict = Depends(require_sch
         delete_schedule(ext)
     except NotManaged:
         log.warning("guardrail refused operation", exc_info=True)
-        return HTMLResponse(
-            "Refused: the target extension or dialplan was not created by this app "
-            "(see server logs for details).",
+        raise HTTPException(
             status_code=409,
-        )
+            detail="Refused: the target extension or dialplan was not created by this app "
+            "(see server logs for details).",
+        ) from None
     return RedirectResponse("/", status_code=303)
 
 
@@ -372,16 +372,16 @@ async def apply(request: Request, user: dict = Depends(require_schedules)):
     req = _parse(form)
     open_dest = form.get("open_destination", "").strip()
     if not open_dest:
-        return HTMLResponse("open_destination is required", status_code=400)
+        raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
     try:
         result = apply_schedule(req, open_dest)
     except NotManaged:
         log.warning("guardrail refused operation", exc_info=True)
-        return HTMLResponse(
-            "Refused: the target extension or dialplan was not created by this app "
-            "(see server logs for details).",
+        raise HTTPException(
             status_code=409,
-        )
+            detail="Refused: the target extension or dialplan was not created by this app "
+            "(see server logs for details).",
+        ) from None
     return templates.TemplateResponse(request, "result.html", {"r": result})
 
 
@@ -486,7 +486,7 @@ def admin_adopt_form(request: Request, dialplan_uuid: str, user: dict = Depends(
     try:
         tc = get_adoptable(dialplan_uuid)
     except NotManaged:
-        return HTMLResponse("This time condition cannot be adopted.", status_code=409)
+        raise HTTPException(status_code=409, detail="This time condition cannot be adopted (it may already be managed by this app).") from None
     c = {
         "extension": tc["extension"],
         "label": tc["description"] or tc["name"],
@@ -505,19 +505,19 @@ async def admin_adopt_apply(request: Request, user: dict = Depends(require_users
     form = await request.form()
     adopt_uuid = (form.get("adopt_uuid") or "").strip()
     if not adopt_uuid:
-        return HTMLResponse("adopt_uuid is required", status_code=400)
+        raise HTTPException(status_code=400, detail="No time condition was selected to adopt.")
     open_dest = (form.get("open_destination") or "").strip()
     if not open_dest:
-        return HTMLResponse("open_destination is required", status_code=400)
+        raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
     req = _parse(form)
     try:
         result = adopt_schedule(adopt_uuid, req, open_dest)
     except NotManaged:
         log.warning("adopt refused", exc_info=True)
-        return HTMLResponse(
-            "Refused: the selected time condition is not adoptable (see server logs).",
+        raise HTTPException(
             status_code=409,
-        )
+            detail="Refused: the selected time condition is not adoptable (see server logs).",
+        ) from None
     return templates.TemplateResponse(request, "result.html", {"r": result})
 
 
@@ -593,11 +593,11 @@ async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
         result = create_ivr(req)
     except (ValueError, NotManaged):
         log.warning("IVR create rejected", exc_info=True)
-        return HTMLResponse(
-            "Could not create IVR: check the greeting, options, timeout, and extension "
-            "(see server logs for details).",
+        raise HTTPException(
             status_code=400,
-        )
+            detail="Could not create IVR: check the greeting, options, timeout, and extension "
+            "(see server logs for details).",
+        ) from None
     return templates.TemplateResponse(request, "ivr_result.html", {"r": result})
 
 
@@ -607,7 +607,7 @@ def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedule
         delete_ivr(ext)
     except NotManaged:
         log.warning("ivr delete refused", exc_info=True)
-        return HTMLResponse("Refused: that IVR was not created by this app.", status_code=409)
+        raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
     return RedirectResponse("/ivrs", status_code=303)
 
 
@@ -638,9 +638,9 @@ async def flow_create(request: Request, user: dict = Depends(require_schedules))
         result = build_call_flow(did or None, schedule_req, ivr_req)
     except (ValueError, NotManaged):
         log.warning("call flow build rejected", exc_info=True)
-        return HTMLResponse(
-            "Could not build call flow: check the inbound number, schedule window, and "
-            "IVR fields (see server logs for details).",
+        raise HTTPException(
             status_code=400,
-        )
+            detail="Could not build call flow: check the inbound number, schedule window, and "
+            "IVR fields (see server logs for details).",
+        ) from None
     return templates.TemplateResponse(request, "flow_result.html", {"r": result})

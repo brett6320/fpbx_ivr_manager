@@ -14,7 +14,7 @@ import uuid
 from xml.sax.saxutils import escape
 
 from app.config import settings
-from app.fpbx.db import cursor, domain_uuid
+from app.fpbx.db import cursor, domain_uuid, insert_row
 from app.fpbx.time_conditions import MARKER, NotManaged
 
 # FusionPBX fixed app_uuid for the IVR Menus app (dialplan appears natively).
@@ -117,29 +117,40 @@ def upsert_ivr(
             )
             cur.execute("DELETE FROM v_ivr_menu_options WHERE ivr_menu_uuid=%s", (ivr_uuid,))
         else:
-            cur.execute(
-                "INSERT INTO v_ivr_menus "
-                "(ivr_menu_uuid, domain_uuid, dialplan_uuid, ivr_menu_name, ivr_menu_extension, "
-                " ivr_menu_greet_long, ivr_menu_timeout, ivr_menu_inter_digit_timeout, "
-                " ivr_menu_max_failures, ivr_menu_max_timeouts, ivr_menu_digit_len, "
-                " ivr_menu_exit_app, ivr_menu_exit_data, ivr_menu_direct_dial, ivr_menu_context, "
-                " ivr_menu_enabled, ivr_menu_description) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'false',%s,'true',%s)",
-                (ivr_uuid, d, dp_uuid, name, str(extension), greet_long, timeout_ms,
-                 DEFAULT_INTER_DIGIT_TIMEOUT, DEFAULT_MAX_FAILURES, DEFAULT_MAX_TIMEOUTS,
-                 DEFAULT_DIGIT_LEN, exit_app, exit_data, ctx, description),
-            )
+            # insert only columns this FusionPBX version actually has (e.g. some
+            # schemas lack ivr_menu_context) — see db.insert_row
+            insert_row(cur, "v_ivr_menus", {
+                "ivr_menu_uuid": ivr_uuid,
+                "domain_uuid": d,
+                "dialplan_uuid": dp_uuid,
+                "ivr_menu_name": name,
+                "ivr_menu_extension": str(extension),
+                "ivr_menu_greet_long": greet_long,
+                "ivr_menu_timeout": timeout_ms,
+                "ivr_menu_inter_digit_timeout": DEFAULT_INTER_DIGIT_TIMEOUT,
+                "ivr_menu_max_failures": DEFAULT_MAX_FAILURES,
+                "ivr_menu_max_timeouts": DEFAULT_MAX_TIMEOUTS,
+                "ivr_menu_digit_len": DEFAULT_DIGIT_LEN,
+                "ivr_menu_exit_app": exit_app,
+                "ivr_menu_exit_data": exit_data,
+                "ivr_menu_direct_dial": "false",
+                "ivr_menu_context": ctx,
+                "ivr_menu_enabled": "true",
+                "ivr_menu_description": description,
+            })
 
         # options
         for order, (digits, action) in enumerate(options, start=1):
-            cur.execute(
-                "INSERT INTO v_ivr_menu_options "
-                "(ivr_menu_option_uuid, ivr_menu_uuid, domain_uuid, ivr_menu_option_digits, "
-                " ivr_menu_option_action, ivr_menu_option_param, ivr_menu_option_order, "
-                " ivr_menu_option_enabled) "
-                "VALUES (%s,%s,%s,%s,'menu-exec-app',%s,%s,'true')",
-                (str(uuid.uuid4()), ivr_uuid, d, digits, action, order),
-            )
+            insert_row(cur, "v_ivr_menu_options", {
+                "ivr_menu_option_uuid": str(uuid.uuid4()),
+                "ivr_menu_uuid": ivr_uuid,
+                "domain_uuid": d,
+                "ivr_menu_option_digits": digits,
+                "ivr_menu_option_action": "menu-exec-app",
+                "ivr_menu_option_param": action,
+                "ivr_menu_option_order": order,
+                "ivr_menu_option_enabled": "true",
+            })
     return ivr_uuid
 
 

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Import results</h1>
+{% if not results %}
+  <p class="muted">Nothing was selected to import.</p>
+{% else %}
+<ul>
+  {% for r in results %}
+  <li style="margin:.3rem 0;">{{ '✓' if r.ok else '✗' }} <strong>{{ r.label }}</strong> — {{ r.message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p class="muted" style="margin-top:1rem;"><a href="/admin/import">← Import / export</a> · <a href="/">Home</a></p>
+{% endblock %}

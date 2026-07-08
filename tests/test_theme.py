@@ -25,5 +25,7 @@ def test_templates_use_theme_variables_not_hardcoded_light_colors():
     html = _T.env.get_template("schedules.html").render(
         request=None, user={"name": "A"}, schedules=[], can_admin=True
     )
-    assert "var(--border" in html
-    assert "#d1d5db" not in html  # swept to variables
+    # the table borders use the theme variable (base's light-dark palette still
+    # names the hex once, so only assert the swept structural style is present)
+    assert "1px solid var(--border)" in html
+    assert "1px solid #d1d5db" not in html

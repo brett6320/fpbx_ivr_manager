@@ -92,6 +92,87 @@ def list_recordings() -> list[dict]:
         ]
 
 
+def list_managed() -> list[dict]:
+    """Recordings this app created (carry our ownership tag). These are the
+    'phrases' the IVR manager surfaces and lets admins delete. They also appear
+    natively under FusionPBX → Apps → Recordings (they are real v_recordings)."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT recording_name, recording_filename, recording_description "
+            "FROM v_recordings WHERE domain_uuid = %s AND recording_description LIKE %s "
+            "ORDER BY recording_name",
+            (d, f"%{_REC_TAG}%"),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "name": r["recording_name"],
+            "filename": r["recording_filename"],
+            "description": (r["recording_description"] or "").replace(_REC_TAG, "").strip(),
+        }
+        for r in rows
+    ]
+
+
+def _delete_file(filename: str | None) -> None:
+    """Best-effort removal of the stored audio (the DB row is the source of
+    truth; an orphaned file is harmless and never blocks the delete)."""
+    if not filename:
+        return
+    storage = settings.fpbx_recording_storage
+    try:
+        if storage == "local":
+            path = os.path.join(settings.recordings_dir, filename)
+            if os.path.exists(path):
+                os.remove(path)
+        elif storage == "sftp":
+            _sftp_remove(filename)
+    except OSError:
+        pass
+
+
+def _sftp_remove(filename: str) -> None:
+    import paramiko
+
+    key = paramiko.Ed25519Key.from_private_key_file(settings.fs_ssh_key_path)
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.connect(settings.fs_ssh_host, port=settings.fs_ssh_port,
+                   username=settings.fs_ssh_user, pkey=key)
+    try:
+        sftp = client.open_sftp()
+        try:
+            sftp.remove(posixpath.join(settings.fs_recordings_dir, filename))
+        except FileNotFoundError:
+            pass
+    finally:
+        client.close()
+
+
+def delete_recording(name: str) -> bool:
+    """Delete a managed recording (DB row + stored audio). Refuses to delete a
+    recording that lacks our ownership tag. Returns False if it doesn't exist."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT recording_uuid, recording_filename, recording_description "
+            "FROM v_recordings WHERE domain_uuid = %s AND recording_name = %s",
+            (d, name),
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+        if _REC_TAG not in (row["recording_description"] or ""):
+            raise NotManaged(
+                f"recording {name!r} was not created by this app; refusing to delete"
+            )
+        cur.execute("DELETE FROM v_recordings WHERE recording_uuid = %s", (row["recording_uuid"],))
+    _delete_file(row["recording_filename"])
+    return True
+
+
 def upsert_recording(name: str, wav: bytes, description: str = "") -> str:
     """Create/replace a recording. Returns recording_filename to use in dialplan.
 

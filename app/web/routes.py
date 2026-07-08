@@ -24,6 +24,7 @@ from app.service import (
     build_call_flow,
     create_ivr,
     delete_ivr,
+    delete_phrase,
     delete_schedule,
     get_adoptable,
     get_schedule,
@@ -31,6 +32,7 @@ from app.service import (
     list_destinations,
     list_inbound_destinations,
     list_ivrs,
+    list_phrases,
     list_recordings,
     list_recycled,
     list_schedules,
@@ -664,6 +666,29 @@ async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_sc
         log.warning("ivr delete refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
     return RedirectResponse("/ivrs", status_code=303)
+
+
+@router.get("/phrases", response_class=HTMLResponse)
+def phrases_list(request: Request, user: dict = Depends(require_schedules)):
+    return templates.TemplateResponse(
+        request, "phrases.html",
+        {"user": user, "phrases": list_phrases(),
+         "can_admin": authz.has_permission(user, MANAGE_USERS)},
+    )
+
+
+@router.post("/phrases/{name}/delete")
+async def phrase_delete(request: Request, name: str, user: dict = Depends(require_users)):
+    await _require_delete_confirm(request)
+    try:
+        if not delete_phrase(name):
+            raise HTTPException(status_code=404, detail="Phrase not found.")
+    except NotManaged:
+        log.warning("phrase delete refused", exc_info=True)
+        raise HTTPException(
+            status_code=409, detail="Refused: that phrase was not created by this app.",
+        ) from None
+    return RedirectResponse("/phrases", status_code=303)
 
 
 @router.post("/ivrs/{ext}/recycle")

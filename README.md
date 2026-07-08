@@ -165,6 +165,15 @@ step — inbound route → time condition → IVR → option/timeout — creatin
 inbound route (Destinations app), the time condition, and the IVR together. See
 [docs/ivr.md](docs/ivr.md). Manage IVRs at `/ivrs`.
 
+## Phrases
+
+Greetings/prompts the app generates (or adopts) are real **`v_recordings`** rows,
+so they appear natively in **FusionPBX → Apps → Recordings**. The app also lists
+them at **`/phrases`** — any signed-in user can view the managed phrases;
+**admins can delete** one there (with confirmation; deleting removes the DB row
+and the stored `.wav`). Generated phrases are named with the `ivrmgr_` prefix so
+they're easy to spot in either place.
+
 ## Status / not yet done
 
 - Multi-level / nested IVR trees (sub-menus) — the current IVR is a single menu.

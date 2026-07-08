@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Phrases</h1>
+<p class="muted">Greeting/prompt recordings this app created. They also appear
+natively in FusionPBX under <strong>Apps → Recordings</strong>.
+{% if can_admin %}Admins can delete a managed phrase here.{% endif %}</p>
+
+{% if not phrases %}
+  <p class="muted">No managed phrases yet — they're created when you generate a
+  schedule greeting or an IVR greeting via text-to-speech.</p>
+{% else %}
+<table style="width:100%; border-collapse:collapse;">
+  <thead>
+    <tr style="text-align:left; border-bottom:1px solid var(--border);">
+      <th>Name</th><th>Description</th><th>Source</th>{% if can_admin %}<th></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in phrases %}
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td>{{ p.name }}</td>
+      <td class="muted">{{ p.description or '—' }}</td>
+      <td class="muted">{{ 'generated (TTS)' if p.generated else 'managed' }}</td>
+      {% if can_admin %}
+      <td style="white-space:nowrap;">
+        <form method="post" action="/phrases/{{ p.name | urlencode }}/delete" style="display:inline;"
+              onsubmit="return confirm('Delete phrase {{ p.name }}? Any schedule or IVR still using it will lose its audio.');">
+          <input type="hidden" name="confirm" value="yes">
+          <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

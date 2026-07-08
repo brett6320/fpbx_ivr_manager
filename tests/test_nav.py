@@ -36,8 +36,9 @@ def test_nav_shows_main_sections(client):
         _login(c, "ed")
         html = c.get("/schedules/new", follow_redirects=False).text  # no DB needed
         assert '<nav class="nav">' in html
-        for link in ("Schedules", "IVRs", "Sign&nbsp;out"):
+        for link in ("Schedules", "IVRs", "Phrases", "Sign&nbsp;out"):
             assert link in html
+        assert 'href="/phrases"' in html   # non-admins can view phrases
         # editor lacks manage_users -> no admin links, and Call flow is admin-only
         assert 'href="/admin/adopt"' not in html
         assert 'href="/flow/new"' not in html

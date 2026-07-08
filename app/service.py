@@ -282,6 +282,20 @@ def list_recordings() -> list[dict]:
     return recordings.list_recordings()
 
 
+def list_phrases() -> list[dict]:
+    """Managed greeting/phrase recordings, flagged for whether the app generated
+    them via TTS (GENERATED_PREFIX) vs. an adopted/other managed recording."""
+    items = recordings.list_managed()
+    for it in items:
+        it["generated"] = it["name"].startswith(GENERATED_PREFIX)
+    return items
+
+
+def delete_phrase(name: str) -> bool:
+    """Admin: delete a managed phrase recording (and its stored audio)."""
+    return recordings.delete_recording(name)
+
+
 def list_inbound_destinations() -> list[dict]:
     return inbound_routes.list_inbound_destinations()
 

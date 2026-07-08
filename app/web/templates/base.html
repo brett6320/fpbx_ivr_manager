@@ -62,6 +62,7 @@
     <a class="brand" href="/">IVR&nbsp;Manager</a>
     <a href="/"{% if path == '/' %} class="active"{% endif %}>Schedules</a>
     <a href="/ivrs"{% if path.startswith('/ivrs') %} class="active"{% endif %}>IVRs</a>
+    <a href="/phrases"{% if path.startswith('/phrases') %} class="active"{% endif %}>Phrases</a>
     {% if nav_can_admin is defined and nav_can_admin(nav_user) %}
     <a href="/flow/new"{% if path.startswith('/flow') %} class="active"{% endif %}>Call&nbsp;flow</a>
     <a href="/admin/adopt"{% if path.startswith('/admin/adopt') %} class="active"{% endif %}>Adopt</a>

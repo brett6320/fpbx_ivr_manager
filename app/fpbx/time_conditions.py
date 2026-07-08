@@ -165,7 +165,7 @@ def _parse_xml(xml: str) -> dict:
             out["start"] = datetime.strptime(m.group(1), FS_DT)
             out["end"] = datetime.strptime(m.group(2), FS_DT)
         except ValueError:
-            pass
+            pass  # unparseable date-time in stored XML: leave start/end as None
     t = _RE_TRANSFER.search(xml)
     if t:
         out["open_destination"] = unescape(t.group(1))

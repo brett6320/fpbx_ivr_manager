@@ -12,8 +12,15 @@ def authenticate(username: str, password: str) -> dict | None:
     if not password:  # never allow anonymous/unauthenticated bind
         return None
     import ldap3  # optional dep
+    from ldap3.utils.conv import escape_filter_chars
+    from ldap3.utils.dn import escape_rdn
 
-    user_dn = settings.ldap_bind_dn_template.format(username=username)
+    # Sanitize the username before it enters a DN or an LDAP search filter to
+    # prevent LDAP injection.
+    dn_user = escape_rdn(username)
+    filter_user = escape_filter_chars(username)
+
+    user_dn = settings.ldap_bind_dn_template.format(username=dn_user)
     server = ldap3.Server(settings.ldap_uri, get_info=ldap3.NONE)
     try:
         conn = ldap3.Connection(
@@ -31,7 +38,7 @@ def authenticate(username: str, password: str) -> dict | None:
         if settings.ldap_base_dn:
             conn.search(
                 settings.ldap_base_dn,
-                settings.ldap_user_filter.format(username=username),
+                settings.ldap_user_filter.format(username=filter_user),
                 attributes=["cn", "displayName", "mail", "memberOf"],
             )
             if conn.entries:
@@ -44,7 +51,9 @@ def authenticate(username: str, password: str) -> dict | None:
         if not groups and group_base:
             conn.search(
                 group_base,
-                settings.ldap_group_filter.format(user_dn=user_dn, username=username),
+                settings.ldap_group_filter.format(
+                    user_dn=escape_filter_chars(user_dn), username=filter_user
+                ),
                 attributes=["cn"],
             )
             groups.extend(str(g.cn) for g in conn.entries if g.cn)

@@ -35,7 +35,7 @@ def _add_if_int(acc: set[int], val) -> None:
     try:
         acc.add(int(val))
     except (TypeError, ValueError):
-        pass
+        pass  # non-numeric extension/dialplan number: ignore, it cannot collide
 
 
 def allocate() -> int:

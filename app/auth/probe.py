@@ -45,7 +45,14 @@ def ldap_probe(
     if not test_user or not test_password:
         return {"ok": False, "steps": [_step("inputs", False, "test username and password required")], "groups": []}
 
-    user_dn = bind_dn_template.format(username=test_user)
+    from ldap3.utils.conv import escape_filter_chars
+    from ldap3.utils.dn import escape_rdn
+
+    # sanitize against LDAP injection before use in a DN / search filter
+    dn_user = escape_rdn(test_user)
+    filter_user = escape_filter_chars(test_user)
+
+    user_dn = bind_dn_template.format(username=dn_user)
     server = ldap3.Server(uri, get_info=ldap3.NONE)
     steps.append(_step("resolve bind DN", True, user_dn))
 
@@ -64,13 +71,13 @@ def ldap_probe(
 
     try:
         if base_dn:
-            conn.search(base_dn, user_filter.format(username=test_user), attributes=["cn", "memberOf"])
+            conn.search(base_dn, user_filter.format(username=filter_user), attributes=["cn", "memberOf"])
             if conn.entries:
                 groups += [_cn(str(dn)) for dn in (conn.entries[0].memberOf or [])]
         if not groups and (group_base_dn or base_dn):
             conn.search(
                 group_base_dn or base_dn,
-                group_filter.format(user_dn=user_dn, username=test_user),
+                group_filter.format(user_dn=escape_filter_chars(user_dn), username=filter_user),
                 attributes=["cn"],
             )
             groups += [str(g.cn) for g in conn.entries if g.cn]

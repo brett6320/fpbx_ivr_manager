@@ -1,6 +1,7 @@
 """HTTP routes: auth flow + schedule management UI/API."""
 from __future__ import annotations
 
+import logging
 import secrets
 from pathlib import Path
 
@@ -26,6 +27,8 @@ from app.service import (
 require_schedules = authz.require(MANAGE_SCHEDULES)
 # auth administration requires the manage_users permission
 require_users = authz.require(MANAGE_USERS)
+
+log = logging.getLogger("fpbx_ivr_manager")
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -249,8 +252,9 @@ async def passkey_register(request: Request):
     body = (await request.body()).decode()
     try:
         _passkey().verify_registration(ctx["user"]["email"], body, challenge, label="passkey")
-    except Exception as e:  # noqa: BLE001 - surface verification failure to client
-        return JSONResponse({"error": f"registration failed: {e}"}, status_code=400)
+    except Exception:  # noqa: BLE001 - verification failure; detail to logs, not client
+        log.warning("passkey registration failed", exc_info=True)
+        return JSONResponse({"error": "registration failed"}, status_code=400)
     _finish_mfa(request)
     return JSONResponse({"ok": True, "redirect": "/"})
 
@@ -318,8 +322,13 @@ def edit_schedule(request: Request, ext: int, user: dict = Depends(require_sched
 def remove_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
     try:
         delete_schedule(ext)
-    except NotManaged as e:
-        return HTMLResponse(f"Refused: {e}", status_code=409)
+    except NotManaged:
+        log.warning("guardrail refused operation", exc_info=True)
+        return HTMLResponse(
+            "Refused: the target extension or dialplan was not created by this app "
+            "(see server logs for details).",
+            status_code=409,
+        )
     return RedirectResponse("/", status_code=303)
 
 
@@ -350,8 +359,13 @@ async def apply(request: Request, user: dict = Depends(require_schedules)):
         return HTMLResponse("open_destination is required", status_code=400)
     try:
         result = apply_schedule(req, open_dest)
-    except NotManaged as e:
-        return HTMLResponse(f"Refused: {e}", status_code=409)
+    except NotManaged:
+        log.warning("guardrail refused operation", exc_info=True)
+        return HTMLResponse(
+            "Refused: the target extension or dialplan was not created by this app "
+            "(see server logs for details).",
+            status_code=409,
+        )
     return templates.TemplateResponse(request, "result.html", {"r": result})
 
 
@@ -432,8 +446,11 @@ async def admin_save(request: Request, user: dict = Depends(require_users)):
             updates.pop(sk)
     try:
         written = config_store.write_managed(updates)
-    except ValueError as e:
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    except ValueError:
+        log.warning("rejected non-managed auth config keys", exc_info=True)
+        return JSONResponse(
+            {"ok": False, "error": "one or more keys are not permitted"}, status_code=400
+        )
     return JSONResponse(
         {"ok": True, "written": written, "restart_required": True,
          "note": "Saved. Restart the service to apply the new auth configuration."}

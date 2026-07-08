@@ -36,7 +36,8 @@ def _local_put(filename: str, data: bytes) -> None:
     path = os.path.join(settings.recordings_dir, filename)
     with open(path, "wb") as f:
         f.write(data)
-    os.chmod(path, 0o644)
+    # group-readable (FreeSWITCH runs in the shared group), not world-readable
+    os.chmod(path, 0o640)
 
 
 def _sftp_put(filename: str, data: bytes) -> None:
@@ -44,7 +45,10 @@ def _sftp_put(filename: str, data: bytes) -> None:
 
     key = paramiko.Ed25519Key.from_private_key_file(settings.fs_ssh_key_path)
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Validate the host key against known_hosts; reject unknown hosts (no MITM).
+    # The operator must add the FreeSWITCH host to known_hosts before first use.
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(
         settings.fs_ssh_host,
         port=settings.fs_ssh_port,
@@ -56,7 +60,7 @@ def _sftp_put(filename: str, data: bytes) -> None:
         remote = posixpath.join(settings.fs_recordings_dir, filename)
         _sftp_makedirs(sftp, settings.fs_recordings_dir)
         sftp.putfo(io.BytesIO(data), remote)
-        sftp.chmod(remote, 0o644)
+        sftp.chmod(remote, 0o640)
     finally:
         client.close()
 

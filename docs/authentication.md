@@ -73,14 +73,21 @@ Backend-specific setup:
 Users live in a SQLite DB (`LOCAL_AUTH_DB`, default `data/users.db`); passwords
 are PBKDF2-HMAC-SHA256. Internal groups live in a `user_groups` table.
 
-Seed an initial admin (only applied when the user table is empty):
+Seed an initial admin (only applied when the user table is empty). Use the
+**`admin@local`** convention so the app's local admin is clearly distinct from
+FusionPBX's own `admin` user:
 
 ```env
 AUTH_BACKEND=local
-LOCAL_ADMIN_USER=admin
+LOCAL_ADMIN_USER=admin@local
 LOCAL_ADMIN_PASSWORD=change-me
 LOCAL_ADMIN_GROUP=ivr-admins        # seed admin is placed in this group
 ```
+
+> **Upgrade note:** a local user previously seeded as **`admin`** is renamed to
+> **`admin@local`** automatically the first time the user DB is opened (its
+> groups, permissions, admin flag and MFA carry over). Sign in as `admin@local`
+> afterwards. The rename is skipped if an `admin@local` user already exists.
 
 Admins (`manage_users`) manage local users in the UI at **`/admin/users`**
 (the **Users** nav link, shown only for the local backend): create/edit/delete

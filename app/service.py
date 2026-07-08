@@ -22,6 +22,10 @@ from app.models import (
 from app.phrases.builder import build_phrase
 from app.tts import google_tts
 
+# Prefix on recordings this app generates via TTS, so they're easy to identify
+# and filter (in the "existing phrase" picker and in FusionPBX recordings).
+GENERATED_PREFIX = "ivrmgr_"
+
 
 def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_") or "schedule"
@@ -43,7 +47,7 @@ def _synthesize_recording(ext: int, req: ScheduleRequest):
         reason=business.render(req.reason),
     )
     wav = google_tts.synthesize(phrase.text)
-    rec_name = f"schedule_{ext}_{_slug(req.label)}"
+    rec_name = f"{GENERATED_PREFIX}schedule_{ext}_{_slug(req.label)}"
     rec_filename = recordings.upsert_recording(rec_name, wav, description=req.label)
     return phrase, rec_name, rec_filename
 
@@ -136,7 +140,7 @@ def create_ivr(req: IvrRequest) -> IvrResult:
     if req.greeting_text:
         wav = google_tts.synthesize(business.render(req.greeting_text))
         greet_filename = recordings.upsert_recording(
-            f"ivr_{ext}_{_slug(req.name)}", wav, description=req.name
+            f"{GENERATED_PREFIX}ivr_{ext}_{_slug(req.name)}", wav, description=req.name
         )
     elif req.greeting_recording:
         greet_filename = req.greeting_recording

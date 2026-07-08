@@ -67,6 +67,15 @@ FusionPBX owner, sit behind nginx TLS (`deploy/nginx-fpbx-ivr-manager.conf`), an
 prefer `FPBX_RECORDING_STORAGE=db` to avoid host filesystem access. Images and
 versioned releases are published to GHCR on every merge to `main`.
 
+### Native FusionPBX PHP app (alternate)
+
+If you'd rather not run a separate service — or your host's Python is too old
+(e.g. Debian 10) — there's a **native FusionPBX PHP app** in
+[`fusionpbx-app/ivr_manager/`](fusionpbx-app/ivr_manager/) that runs inside
+FusionPBX (its PHP, auth, DB), compatible with **FusionPBX 4.x → 5.x**. It covers
+the core time-condition manager today (IVR/TTS are being ported). See its
+[README](fusionpbx-app/ivr_manager/README.md).
+
 ## Authentication & authorization
 
 Sign-in backend is pluggable via `AUTH_BACKEND` = `local` (default), `entra`,

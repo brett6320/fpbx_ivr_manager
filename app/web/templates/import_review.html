@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Review import</h1>
+<p class="muted">Check the items you want to import and edit any item's fields before
+committing. Unchecked items are ignored — nothing is committed until you submit.</p>
+
+<form method="post" action="/admin/import/commit">
+  <input type="hidden" name="count" value="{{ rows | length }}">
+  {% for r in rows %}
+  <div style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.8rem;">
+    <label style="font-weight:600;">
+      <input type="checkbox" name="include_{{ loop.index0 }}" checked>
+      {{ r.label }} <span class="muted">({{ r.type }})</span></label>
+    <input type="hidden" name="type_{{ loop.index0 }}" value="{{ r.type }}">
+    <input type="hidden" name="label_{{ loop.index0 }}" value="{{ r.label }}">
+    <textarea name="data_{{ loop.index0 }}" rows="8" style="font-family:monospace;">{{ r.json }}</textarea>
+  </div>
+  {% endfor %}
+  <button type="submit">Commit selected</button>
+  <a href="/admin/import"><button type="button">Cancel</button></a>
+</form>
+{% endblock %}

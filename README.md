@@ -143,6 +143,12 @@ greeting, a closing line, hours, etc.) at `/admin/business`. Prompts reference
 generated, with nested templates resolved recursively. See
 [docs/business.md](docs/business.md).
 
+## Export & import
+
+Admins can export the managed items (business profile, schedules, IVRs) and
+import them elsewhere. Import is **reviewed item by item** — each item is editable
+and nothing commits until you check it in. See [docs/portability.md](docs/portability.md).
+
 ## IVR menus
 
 Beyond time-condition greetings, the app builds native FusionPBX **IVR menus** —

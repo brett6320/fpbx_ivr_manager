@@ -791,3 +791,67 @@ def user_delete(request: Request, username: str, user: dict = Depends(require_us
         raise HTTPException(status_code=400, detail="You cannot delete the account you are signed in as.")
     local.delete_user(username)
     return RedirectResponse("/admin/users", status_code=303)
+
+
+# ---- export / import of managed items (admins) ----
+@router.get("/admin/export")
+def admin_export(request: Request, user: dict = Depends(require_users)):
+    from app import portability
+
+    return JSONResponse(
+        portability.export_document(),
+        headers={"Content-Disposition": 'attachment; filename="fpbx-ivr-manager-export.json"'},
+    )
+
+
+@router.get("/admin/import", response_class=HTMLResponse)
+def admin_import(request: Request, user: dict = Depends(require_users)):
+    return templates.TemplateResponse(request, "import_upload.html", {"user": user})
+
+
+@router.post("/admin/import", response_class=HTMLResponse)
+async def admin_import_review(request: Request, user: dict = Depends(require_users)):
+    import json
+
+    from app import portability
+
+    form = await request.form()
+    upload = form.get("file")
+    if upload is None or not hasattr(upload, "read"):
+        raise HTTPException(status_code=400, detail="Choose an export file to import.")
+    try:
+        doc = json.loads((await upload.read()).decode())
+        items = portability.to_review_items(doc)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail="That file is not a valid export document.") from None
+    if not items:
+        raise HTTPException(status_code=400, detail="No importable items found in that file.")
+    # pretty JSON per item for the editable review textareas
+    rows = [{"type": it["type"], "label": it["label"],
+             "json": json.dumps(it["data"], indent=2)} for it in items]
+    return templates.TemplateResponse(request, "import_review.html", {"user": user, "rows": rows})
+
+
+@router.post("/admin/import/commit", response_class=HTMLResponse)
+async def admin_import_commit(request: Request, user: dict = Depends(require_users)):
+    import json
+
+    from app import portability
+
+    form = await request.form()
+    count = int(form.get("count") or 0)
+    results = []
+    for i in range(count):
+        if not form.get(f"include_{i}"):
+            continue
+        item_type = form.get(f"type_{i}") or ""
+        label = form.get(f"label_{i}") or item_type
+        try:
+            data = json.loads(form.get(f"data_{i}") or "{}")
+            msg = portability.commit_item(item_type, data)
+            results.append({"label": label, "ok": True, "message": msg})
+        except Exception:  # noqa: BLE001 - report per-item, keep going
+            log.warning("import commit failed for %s", label, exc_info=True)
+            results.append({"label": label, "ok": False,
+                            "message": "failed — check the item's fields (see server logs)"})
+    return templates.TemplateResponse(request, "import_result.html", {"user": user, "results": results})

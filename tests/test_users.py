@@ -82,8 +82,11 @@ def test_full_user_crud_flow(client):
         assert u["is_admin"] is False and u["groups"] == ["ivr-editors"]
         assert u["display_name"] == "Carol C"
         assert local.authenticate("carol", "pw") is not None  # password unchanged
-        # delete
-        assert c.post("/admin/users/carol/delete", follow_redirects=False).status_code == 303
+        # delete requires affirmative confirmation
+        assert c.post("/admin/users/carol/delete", follow_redirects=False).status_code == 400
+        assert local.get_user("carol") is not None
+        assert c.post("/admin/users/carol/delete", data={"confirm": "yes"},
+                      follow_redirects=False).status_code == 303
         assert local.get_user("carol") is None
 
 
@@ -92,6 +95,7 @@ def test_cannot_delete_self(client):
     local.add_to_group("ops", "ops")
     with client as c:
         _login(c, "ops")
-        r = c.post("/admin/users/ops/delete", headers={"accept": "text/html"}, follow_redirects=False)
+        r = c.post("/admin/users/ops/delete", data={"confirm": "yes"},
+                   headers={"accept": "text/html"}, follow_redirects=False)
         assert r.status_code == 400
         assert local.get_user("ops") is not None

@@ -28,6 +28,7 @@
         <a href="/schedules/{{ c.extension }}/edit">Edit</a>
         <form method="post" action="/schedules/{{ c.extension }}/delete" style="display:inline;"
               onsubmit="return confirm('Delete schedule on {{ c.extension }}?');">
+          <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>
       </td>

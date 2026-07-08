@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # App-writable JSON store for the business profile (name + hours templates),
     # managed via the admin UI. Lives in the app's state dir.
     business_config_file: str = Field(alias="BUSINESS_CONFIG_FILE", default="data/business.json")
+    # App-writable JSON ledger recording extensions recycled (freed) from prior
+    # IVR use, so the previous use is logged before the number is reused.
+    recycle_log_file: str = Field(alias="RECYCLE_LOG_FILE", default="data/recycled.json")
     # Dev mode relaxes security for local development (e.g. does NOT force MFA
     # enrollment for local admins). Never enable in production.
     dev_mode: bool = Field(alias="DEV_MODE", default=False)

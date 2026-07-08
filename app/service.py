@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from app import business
+from app import business, recycle
 from app.fpbx import (
     extensions,
     inbound_routes,
@@ -179,6 +179,34 @@ def delete_ivr(extension: int) -> bool:
     if deleted:
         xmlrpc_client.reloadxml()
     return deleted
+
+
+def recycle_ivr(extension: int, *, actor: str) -> str | None:
+    """Free an IVR's extension for reuse, logging its previous use first.
+
+    Records the extension's prior IVR name/use in the recycle ledger, then
+    deletes the IVR (removing its dialplan so the pool number frees up). Returns
+    the previous IVR name, or None if there was no managed IVR on that number."""
+    ivr = ivr_menus.get_ivr(extension)
+    if not ivr:
+        return None
+    # log the previous use BEFORE freeing, so the record survives even if the
+    # number is immediately reallocated
+    recycle.record(extension, kind="ivr", name=ivr["name"], actor=actor)
+    ivr_menus.delete_ivr(extension)  # frees the dialplan
+    xmlrpc_client.reloadxml()
+    return ivr["name"]
+
+
+def list_recycled() -> list[dict]:
+    """Recycle-ledger entries (newest first), flagged with whether the extension
+    is currently free to reuse."""
+    free = _free_pool_numbers()
+    return [{**e, "available": e["extension"] in free} for e in recycle.entries()]
+
+
+def _free_pool_numbers() -> set[int]:
+    return set(extensions.POOL) - extensions.used_extensions()
 
 
 def list_destinations() -> list[dict]:

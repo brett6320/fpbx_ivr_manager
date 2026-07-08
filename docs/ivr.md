@@ -74,6 +74,22 @@ created by this app, the wizard **refuses to overwrite it** — and does not cre
 anything — unless you tick *"replace the existing inbound route."* Managed routes
 are updated freely.
 
+## Recycling an extension
+
+On the IVRs list each row offers two removals:
+
+- **Recycle** — logs the extension's **previous use** (name, timestamp, who) to
+  an app-side ledger, then frees it in the dialplan (removes the IVR) so the pool
+  number can be handed back out. The **Recycled extensions** table on the same
+  page shows the history and flags each number *available for reuse* or *in use
+  again*. Auto-allocation (`/ivrs/new`, `/flow/new`) picks up freed numbers
+  automatically.
+- **Delete** — removes the IVR and frees the number too, but keeps no history.
+
+Both require confirmation. The ledger is app-managed JSON in the writable state
+dir (`RECYCLE_LOG_FILE`, default `data/recycled.json`, `0600`) — no FusionPBX
+changes.
+
 ## Caveat
 
 As with schedules, manage IVRs **through this app**. The dialplan is written

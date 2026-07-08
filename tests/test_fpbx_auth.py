@@ -40,12 +40,13 @@ def test_authenticate_success_maps_groups(monkeypatch):
     monkeypatch.setattr(fpbx_backend, "domain_uuid", lambda: "dom-1")
     monkeypatch.setattr(fpbx_backend, "_find_user", lambda cur, u, d: {
         "user_uuid": "u-1", "username": u, "password": stored, "salt": "",
-        "user_email": "a@x", "user_enabled": "true", "domain_uuid": d})
+        "user_enabled": "true", "domain_uuid": d})
     monkeypatch.setattr(fpbx_backend, "_user_groups", lambda cur, uid, d: ["ivr-admins"])
     monkeypatch.setattr(fpbx_backend, "cursor", _fake_cursor)
 
     user = fpbx_backend.authenticate("alice", "pw")
-    assert user == {"name": "alice", "email": "a@x", "oid": "u-1", "groups": ["ivr-admins"]}
+    # email falls back to the FusionPBX username (v_users has no email column)
+    assert user == {"name": "alice", "email": "alice", "oid": "u-1", "groups": ["ivr-admins"]}
 
 
 def test_authenticate_wrong_password_returns_none(monkeypatch):
@@ -81,6 +82,13 @@ def test_find_user_prefers_domain_and_requires_enabled():
     assert fpbx_backend._find_user(disabled, "a", "dom-1") is None
 
 
+def test_find_user_query_does_not_reference_user_email():
+    # regression: v_users has no email column on many FusionPBX schemas
+    cur = _Cur([])
+    fpbx_backend._find_user(cur, "a", "dom-1")
+    assert "user_email" not in cur.sql
+
+
 # ---- dispatcher wiring ----
 def test_backend_dispatch_fpbx(monkeypatch):
     from app.config import settings
@@ -98,9 +106,10 @@ def test_backend_dispatch_fpbx(monkeypatch):
 class _Cur:
     def __init__(self, rows):
         self._rows = rows
+        self.sql = ""
 
-    def execute(self, *a, **k):
-        pass
+    def execute(self, sql, *a, **k):
+        self.sql = sql
 
     def fetchall(self):
         return list(self._rows)

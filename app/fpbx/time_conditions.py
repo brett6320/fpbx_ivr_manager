@@ -64,9 +64,7 @@ class NotManaged(Exception):
     """Raised when a targeted construct was not created by this app."""
 
 
-_RE_DT = re.compile(r'date-time="([^"~]+)~([^"]+)"')
 _RE_TRANSFER = re.compile(r'transfer" data="([^ ]+) XML')
-_RE_VOICEMAIL = re.compile(r'application="voicemail"')
 # one closure = its metadata comment immediately followed by its date-time condition
 _RE_CLOSURE_META = re.compile(
     r'<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)" -->'

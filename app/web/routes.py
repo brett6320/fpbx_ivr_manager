@@ -499,6 +499,18 @@ async def admin_test_entra(request: Request, user: dict = Depends(require_users)
     return JSONResponse(result)
 
 
+@router.post("/admin/auth/test/fpbx")
+async def admin_test_fpbx(request: Request, user: dict = Depends(require_users)):
+    b = await request.json()
+    from app.auth import fpbx_backend
+    try:
+        result = fpbx_backend.probe(b.get("test_user", ""), b.get("test_password", ""))
+    except Exception:
+        log.warning("fpbx auth probe failed", exc_info=True)
+        result = {"error": "Could not reach or query the FusionPBX user database (see server logs)."}
+    return JSONResponse(result)
+
+
 @router.post("/admin/auth/test/token")
 async def admin_test_token(request: Request, user: dict = Depends(require_users)):
     b = await request.json()

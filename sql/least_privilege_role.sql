@@ -30,6 +30,13 @@ GRANT SELECT                         ON v_extensions TO ivr_manager;
 GRANT SELECT, INSERT, UPDATE, DELETE ON v_dialplans  TO ivr_manager;
 --    Greeting recordings (create/replace):
 GRANT SELECT, INSERT, UPDATE         ON v_recordings TO ivr_manager;
+--    ONLY if you use AUTH_BACKEND=fpbx (authenticate against the FusionPBX user
+--    database). NOTE: v_users holds password hashes — granting SELECT lets the
+--    app read them to verify logins. Omit these three grants if you don't use
+--    the fpbx auth backend.
+GRANT SELECT                         ON v_users       TO ivr_manager;
+GRANT SELECT                         ON v_user_groups TO ivr_manager;
+GRANT SELECT                         ON v_groups      TO ivr_manager;
 
 -- 4. Explicitly deny broad defaults: no privileges on any other table are
 --    granted, and the role owns nothing. Revoke the public CREATE on schema so

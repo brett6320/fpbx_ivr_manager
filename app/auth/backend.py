@@ -1,15 +1,15 @@
 """Auth backend dispatcher.
 
-Selected by settings.auth_backend: 'local' (default) | 'entra' | 'ldap'.
+Selected by settings.auth_backend: 'local' (default) | 'entra' | 'ldap' | 'fpbx'.
 
-  - local / ldap  -> password login (form-based, `password_login`)
-  - entra         -> SSO redirect flow (see app/auth/entra.py)
+  - local / ldap / fpbx  -> password login (form-based, `password_login`)
+  - entra                -> SSO redirect flow (see app/auth/entra.py)
 """
 from __future__ import annotations
 
 from app.config import settings
 
-VALID = {"local", "entra", "ldap"}
+VALID = {"local", "entra", "ldap", "fpbx"}
 
 
 def kind() -> str:
@@ -47,4 +47,7 @@ def password_login(username: str, password: str) -> dict | None:
     if b == "ldap":
         from app.auth import ldap_backend
         return ldap_backend.authenticate(username, password)
+    if b == "fpbx":
+        from app.auth import fpbx_backend
+        return fpbx_backend.authenticate(username, password)
     raise RuntimeError(f"password_login not supported for backend {b!r}")

@@ -69,4 +69,6 @@ def test_admin_compat_requires_manage_users(client, monkeypatch):
         c.post("/auth/login", data={"username": "ops", "password": "pw"}, follow_redirects=False)
         r = c.get("/admin/compat", follow_redirects=False)
         assert r.status_code == 200
-        assert r.json()["ok"] is True
+        assert "text/html" in r.headers["content-type"]          # styled page, not JSON
+        assert "Schema check passed" in r.text
+        assert 'class="nav"' in r.text                            # rendered in the app shell

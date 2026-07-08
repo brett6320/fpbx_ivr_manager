@@ -42,6 +42,10 @@ log = logging.getLogger("fpbx_ivr_manager")
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# used by the shared top nav to show admin-only links
+templates.env.globals["nav_can_admin"] = (
+    lambda u: bool(u) and authz.has_permission(u, MANAGE_USERS)
+)
 
 
 # ---- auth ----

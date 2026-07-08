@@ -26,9 +26,19 @@
       --ok:      light-dark(#16a34a, #34d399);
       --warn:    light-dark(#d97706, #fbbf24);
     }
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem;
-           background: var(--bg); color: var(--fg); }
+    body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--fg); }
+    .content { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
     a { color: var(--accent); }
+    /* top nav */
+    .nav { border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 10; }
+    .nav-inner { max-width: 900px; margin: 0 auto; padding: .55rem 1rem; display: flex; gap: 1.1rem;
+                 align-items: center; flex-wrap: wrap; }
+    .nav a { text-decoration: none; color: var(--fg); }
+    .nav a:hover { color: var(--accent); }
+    .nav .brand { font-weight: 700; }
+    .nav a.active { color: var(--accent); font-weight: 600; }
+    .nav .sep { flex: 1; }
+    .nav .who { color: var(--muted); font-size: .9rem; }
     label { display: block; margin: .75rem 0 .25rem; font-weight: 600; }
     input, select, textarea { width: 100%; padding: .5rem; box-sizing: border-box;
            background: var(--field-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; }
@@ -44,7 +54,29 @@
   </style>
 </head>
 <body>
+{% set nav_user = (request.session.get('user') if request else None) %}
+{% set path = (request.url.path if request else '') %}
+{% if nav_user %}
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">IVR&nbsp;Manager</a>
+    <a href="/"{% if path == '/' %} class="active"{% endif %}>Schedules</a>
+    <a href="/flow/new"{% if path.startswith('/flow') %} class="active"{% endif %}>Call&nbsp;flow</a>
+    <a href="/ivrs"{% if path.startswith('/ivrs') %} class="active"{% endif %}>IVRs</a>
+    {% if nav_can_admin is defined and nav_can_admin(nav_user) %}
+    <a href="/admin/adopt"{% if path.startswith('/admin/adopt') %} class="active"{% endif %}>Adopt</a>
+    <a href="/admin/auth"{% if path.startswith('/admin/auth') %} class="active"{% endif %}>Auth</a>
+    <a href="/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
+    {% endif %}
+    <span class="sep"></span>
+    <span class="who">{{ nav_user.name }}</span>
+    <a href="/auth/logout">Sign&nbsp;out</a>
+  </div>
+</nav>
+{% endif %}
+<main class="content">
 {% block body %}{% endblock %}
+</main>
 <div class="theme-switch muted">
   <label style="display:inline; font-weight:400;">Theme
     <select id="themeSel" onchange="setTheme(this.value)">

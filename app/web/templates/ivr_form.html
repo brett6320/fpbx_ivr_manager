@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>New IVR menu</h1>
-  <span class="muted">{{ user.name }} · <a href="/ivrs">All IVRs</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>New IVR menu</h1>
 <p class="muted">Managed extensions: {{ pool }}. Callers hear the greeting, press a
 digit to reach a destination, or are sent to the timeout destination.</p>
 

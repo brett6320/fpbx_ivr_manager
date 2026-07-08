@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>IVR menus</h1>
-  <span class="muted">{{ user.name }} · <a href="/">Schedules</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>IVR menus</h1>
 <p><a href="/ivrs/new"><button>+ New IVR</button></a></p>
 
 {% if not ivrs %}

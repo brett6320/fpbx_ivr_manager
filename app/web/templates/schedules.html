@@ -1,10 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>IVR schedules</h1>
-  <span class="muted">{{ user.name }} ·{% if can_admin %} <a href="/admin/adopt">Adopt</a> · <a href="/admin/auth">Auth config</a> · <a href="/admin/compat">Compatibility</a> ·{% endif %} <a href="/auth/logout">Sign out</a></span>
-</div>
-<p><a href="/flow/new"><button>+ New call flow</button></a> <a href="/schedules/new"><button>New schedule</button></a> <a href="/ivrs"><button>IVR menus</button></a></p>
+<h1>IVR schedules</h1>
+<p><a href="/flow/new"><button>+ New call flow</button></a> <a href="/schedules/new"><button>New schedule</button></a></p>
 
 {% if not schedules %}
   <p class="muted">No managed schedules yet.</p>

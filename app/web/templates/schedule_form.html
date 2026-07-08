@@ -1,10 +1,7 @@
 {% extends "base.html" %}
 {% set dt = '%Y-%m-%dT%H:%M' %}
 {% block body %}
-<div class="topbar">
-  <h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit schedule' if c else 'Plan an IVR schedule') }}</h1>
-  <span class="muted">{{ user.name }} · <a href="/">All schedules</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit schedule' if c else 'Plan an IVR schedule') }}</h1>
 <p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
 
 {% if adopt_uuid %}

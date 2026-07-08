@@ -174,18 +174,32 @@ def list_recordings() -> list[dict]:
     return recordings.list_recordings()
 
 
+def list_inbound_destinations() -> list[dict]:
+    return inbound_routes.list_inbound_destinations()
+
+
 # ---- one-flow call flow: inbound route -> time condition -> IVR ----
 def build_call_flow(
-    inbound_did: str | None, schedule_req: ScheduleRequest, ivr_req: IvrRequest
+    inbound_did: str | None, schedule_req: ScheduleRequest, ivr_req: IvrRequest,
+    *, confirm_overwrite: bool = False,
 ) -> CallFlowResult:
     """Create the IVR, a schedule whose open destination routes into it, and
-    (optionally) an inbound route for the DID that points at the schedule."""
+    (optionally) point an existing inbound route (DID) at the schedule."""
+    # safeguard first, before creating anything, so a refused overwrite doesn't
+    # leave an orphaned IVR/schedule behind
+    if inbound_did and not confirm_overwrite and inbound_routes.is_foreign_route(inbound_did):
+        raise time_conditions.NotManaged(
+            f"inbound route for {inbound_did!r} exists and is not managed by this app"
+        )
+
     ivr = create_ivr(ivr_req)                                  # -> IVR extension
     sched = apply_schedule(schedule_req, str(ivr.extension))   # open dest = IVR
     inbound_name = None
     reloaded = sched.reloaded
     if inbound_did:
-        inbound_name = inbound_routes.upsert_inbound(inbound_did, str(sched.extension))
+        inbound_name = inbound_routes.upsert_inbound(
+            inbound_did, str(sched.extension), confirm_overwrite=confirm_overwrite
+        )
         reloaded = xmlrpc_client.reloadxml()
     return CallFlowResult(
         inbound_number=inbound_did or None,

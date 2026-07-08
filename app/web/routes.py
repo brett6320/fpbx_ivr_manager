@@ -28,6 +28,7 @@ from app.service import (
     get_schedule,
     list_adoptable,
     list_destinations,
+    list_inbound_destinations,
     list_ivrs,
     list_recordings,
     list_schedules,
@@ -629,6 +630,7 @@ def flow_new(request: Request, user: dict = Depends(require_schedules)):
             "pool": f"{settings.ext_pool_start}-{settings.ext_pool_end}",
             "digits": _DIGITS,
             "destinations": list_destinations(),
+            "inbound_destinations": list_inbound_destinations(),
             "recordings": list_recordings(),
             "placeholders": business.placeholder_keys(),
         },
@@ -639,16 +641,25 @@ def flow_new(request: Request, user: dict = Depends(require_schedules)):
 async def flow_create(request: Request, user: dict = Depends(require_schedules)):
     form = await request.form()
     did = (form.get("inbound_number") or "").strip()
+    confirm = bool(form.get("confirm_overwrite"))
     try:
         schedule_req = _parse(form)     # label/start/end/reason/closed_action
         ivr_req = _parse_ivr(form)      # name/greeting/options/timeout
-        result = build_call_flow(did or None, schedule_req, ivr_req)
-    except (ValueError, NotManaged):
+        result = build_call_flow(did or None, schedule_req, ivr_req, confirm_overwrite=confirm)
+    except NotManaged:
+        log.warning("call flow refused (inbound overwrite)", exc_info=True)
+        raise HTTPException(
+            status_code=409,
+            detail="The selected inbound DID already has a route that this app did not "
+            "create. Nothing was changed. Tick “replace the existing inbound route” to "
+            "overwrite it, or choose a different DID.",
+        ) from None
+    except ValueError:
         log.warning("call flow build rejected", exc_info=True)
         raise HTTPException(
             status_code=400,
-            detail="Could not build call flow: check the inbound number, schedule window, and "
-            "IVR fields (see server logs for details).",
+            detail="Could not build call flow: check the schedule window and IVR fields "
+            "(see server logs for details).",
         ) from None
     return templates.TemplateResponse(request, "flow_result.html", {"r": result})
 

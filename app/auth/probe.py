@@ -8,8 +8,16 @@ never echoed back.
 from __future__ import annotations
 
 import json
+import logging
+import re
 
 import httpx
+
+log = logging.getLogger("fpbx_ivr_manager")
+
+# Strict allowlists — reject values before they reach an LDAP DN/filter or a URL.
+_USERNAME_RE = re.compile(r"[A-Za-z0-9._@\-]{1,256}")
+_TENANT_RE = re.compile(r"[A-Za-z0-9.\-]{1,128}")
 
 
 def _step(name: str, ok: bool, detail: str = "") -> dict:
@@ -44,11 +52,13 @@ def ldap_probe(
 
     if not test_user or not test_password:
         return {"ok": False, "steps": [_step("inputs", False, "test username and password required")], "groups": []}
+    if not _USERNAME_RE.fullmatch(test_user):
+        return {"ok": False, "steps": [_step("validate username", False, "disallowed characters")], "groups": []}
 
     from ldap3.utils.conv import escape_filter_chars
     from ldap3.utils.dn import escape_rdn
 
-    # sanitize against LDAP injection before use in a DN / search filter
+    # validated above; escape again as defense in depth before DN / search filter
     dn_user = escape_rdn(test_user)
     filter_user = escape_filter_chars(test_user)
 
@@ -65,8 +75,9 @@ def ldap_probe(
         )
         steps.append(_step("StartTLS" if start_tls else "connect", True, uri))
         steps.append(_step("bind as test user", True, "authentication succeeded"))
-    except Exception as e:  # noqa: BLE001 - report any failure to the operator
-        steps.append(_step("bind as test user", False, str(e)))
+    except Exception as e:  # noqa: BLE001 - report failure class to the operator
+        log.warning("ldap probe bind failed", exc_info=True)
+        steps.append(_step("bind as test user", False, type(e).__name__))
         return {"ok": False, "steps": steps, "groups": []}
 
     try:
@@ -101,6 +112,8 @@ def entra_probe(*, tenant_id: str, client_id: str, client_secret: str, redirect_
     steps: list[dict] = []
     if not (tenant_id and client_id and client_secret):
         return {"ok": False, "steps": [_step("inputs", False, "tenant, client id and secret required")]}
+    if not _TENANT_RE.fullmatch(tenant_id):
+        return {"ok": False, "steps": [_step("validate tenant", False, "invalid tenant id/domain")]}
 
     disco_url = f"https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration"
     try:
@@ -109,7 +122,8 @@ def entra_probe(*, tenant_id: str, client_id: str, client_secret: str, redirect_
         token_endpoint = disco.json()["token_endpoint"]
         steps.append(_step("fetch OIDC discovery", True, "tenant reachable"))
     except Exception as e:  # noqa: BLE001
-        return {"ok": False, "steps": [_step("fetch OIDC discovery", False, str(e))]}
+        log.warning("entra discovery failed", exc_info=True)
+        return {"ok": False, "steps": [_step("fetch OIDC discovery", False, type(e).__name__)]}
 
     try:
         resp = httpx.post(
@@ -130,7 +144,8 @@ def entra_probe(*, tenant_id: str, client_id: str, client_secret: str, redirect_
             steps.append(_step("validate client credentials", False, err))
             ok = False
     except Exception as e:  # noqa: BLE001
-        steps.append(_step("validate client credentials", False, str(e)))
+        log.warning("entra token request failed", exc_info=True)
+        steps.append(_step("validate client credentials", False, type(e).__name__))
         ok = False
 
     if redirect_uri:
@@ -147,7 +162,7 @@ def entra_decode_token(id_token: str, group_permissions: str | dict = "{}") -> d
         payload += "=" * ((-len(payload)) % 4)
         claims = json.loads(base64.urlsafe_b64decode(payload))
     except Exception as e:  # noqa: BLE001
-        return {"ok": False, "steps": [_step("decode token", False, str(e))]}
+        return {"ok": False, "steps": [_step("decode token", False, f"malformed token ({type(e).__name__})")]}
 
     groups = claims.get("groups", [])
     if isinstance(groups, str):

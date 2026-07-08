@@ -5,18 +5,24 @@ extra: pip install '.[ldap]'.
 """
 from __future__ import annotations
 
+import re
+
 from app.config import settings
+
+# Reject usernames outside a strict allowlist before they reach a DN/filter.
+_USERNAME_RE = re.compile(r"[A-Za-z0-9._@\-]{1,256}")
 
 
 def authenticate(username: str, password: str) -> dict | None:
     if not password:  # never allow anonymous/unauthenticated bind
         return None
+    if not _USERNAME_RE.fullmatch(username):  # guard against LDAP injection
+        return None
     import ldap3  # optional dep
     from ldap3.utils.conv import escape_filter_chars
     from ldap3.utils.dn import escape_rdn
 
-    # Sanitize the username before it enters a DN or an LDAP search filter to
-    # prevent LDAP injection.
+    # validated above; escape again as defense in depth before DN / search filter
     dn_user = escape_rdn(username)
     filter_user = escape_filter_chars(username)
 

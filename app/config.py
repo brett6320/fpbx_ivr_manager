@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(alias="APP_SECRET_KEY")
     app_base_url: str = Field(alias="APP_BASE_URL")
     app_org_name: str = Field(alias="APP_ORG_NAME", default="Our office")
+    # App-writable JSON store for the business profile (name + hours templates),
+    # managed via the admin UI. Lives in the app's state dir.
+    business_config_file: str = Field(alias="BUSINESS_CONFIG_FILE", default="data/business.json")
     # Dev mode relaxes security for local development (e.g. does NOT force MFA
     # enrollment for local admins). Never enable in production.
     dev_mode: bool = Field(alias="DEV_MODE", default=False)

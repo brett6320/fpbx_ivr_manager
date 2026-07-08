@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Business profile</h1>
+{% if saved %}<div class="preview" style="border-left-color:var(--ok);">Saved. New greetings will use these values.</div>{% endif %}
+
+<form method="post" action="/admin/business">
+  <label>Business name</label>
+  <input name="business_name" value="{{ business_name }}" placeholder="{{ org_fallback }}">
+  <p class="muted">Referenced in prompts as <code>{business_name}</code>. Falls back to
+  “{{ org_fallback }}” if blank.</p>
+
+  <h2 style="margin-top:1.5rem;">Business-hours templates</h2>
+  <p class="muted">Reusable hours descriptions. Reference one in a prompt as
+  <code>{hours.Name}</code> (or <code>{business_hours}</code> for the first).</p>
+  {% for name, text in rows %}
+  <div class="grid2">
+    <div><label>Template name</label>
+      <input name="tmpl_name_{{ loop.index0 }}" value="{{ name }}" placeholder="Standard"></div>
+    <div><label>Hours text</label>
+      <input name="tmpl_text_{{ loop.index0 }}" value="{{ text }}"
+             placeholder="Monday to Friday, 9 AM to 5 PM"></div>
+  </div>
+  {% endfor %}
+
+  <button type="submit">Save</button>
+</form>
+
+<h2 style="margin-top:1.5rem;">Available placeholders</h2>
+<p class="muted">Paste any of these into a greeting or reason; they are plugged in when the
+audio is generated:</p>
+<ul class="muted">{% for k in placeholders %}<li><code>{{ k }}</code></li>{% endfor %}</ul>
+{% endblock %}

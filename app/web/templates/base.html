@@ -66,6 +66,7 @@
     {% if nav_can_admin is defined and nav_can_admin(nav_user) %}
     <a href="/admin/adopt"{% if path.startswith('/admin/adopt') %} class="active"{% endif %}>Adopt</a>
     <a href="/admin/auth"{% if path.startswith('/admin/auth') %} class="active"{% endif %}>Auth</a>
+    <a href="/admin/business"{% if path.startswith('/admin/business') %} class="active"{% endif %}>Business</a>
     <a href="/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
     {% endif %}
     <span class="sep"></span>

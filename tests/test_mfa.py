@@ -63,7 +63,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "auth_backend", "local")
     # keep the admin-designating group distinct from the permission group
     monkeypatch.setattr(settings, "local_admin_group", "local-admins")
-    monkeypatch.setattr(settings, "authz_group_permissions", '{"ivr-admins":["manage_closures"]}')
+    monkeypatch.setattr(settings, "authz_group_permissions", '{"ivr-admins":["manage_schedules"]}')
     authz._group_map.cache_clear()
     from app.main import app
     return TestClient(app, base_url="https://testserver")
@@ -80,7 +80,7 @@ def test_local_admin_must_enrol_then_verify_mfa(client):
         # password ok -> not logged in yet, sent to MFA enrolment
         r = c.post("/auth/login", data={"username": "admin", "password": "pw"}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/auth/mfa"
-        assert c.get("/closures/new", follow_redirects=False).status_code == 307  # no full session
+        assert c.get("/schedules/new", follow_redirects=False).status_code == 307  # no full session
 
         secret = _secret_from_setup(c.get("/auth/mfa/setup").text)
         # wrong code rejected
@@ -89,7 +89,7 @@ def test_local_admin_must_enrol_then_verify_mfa(client):
         # correct code completes login
         r = c.post("/auth/mfa/totp/enroll", data={"code": totp.now_code(secret)}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/"
-        assert c.get("/closures/new", follow_redirects=False).status_code == 200
+        assert c.get("/schedules/new", follow_redirects=False).status_code == 200
 
         # subsequent login -> verify stage (already enrolled)
         c.cookies.clear()
@@ -98,7 +98,7 @@ def test_local_admin_must_enrol_then_verify_mfa(client):
         assert "Authenticator code" in c.get("/auth/mfa").text
         r = c.post("/auth/mfa/totp/verify", data={"code": totp.now_code(secret)}, follow_redirects=False)
         assert r.headers["location"] == "/"
-        assert c.get("/closures/new", follow_redirects=False).status_code == 200
+        assert c.get("/schedules/new", follow_redirects=False).status_code == 200
 
 
 def test_non_admin_local_user_skips_mfa(client):

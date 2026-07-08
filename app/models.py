@@ -6,7 +6,7 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator
 
 
-class ClosureRequest(BaseModel):
+class ScheduleRequest(BaseModel):
     label: str                    # human name e.g. "July 4th Holiday"
     start: datetime               # local time of the FusionPBX domain
     end: datetime
@@ -23,7 +23,7 @@ class ClosureRequest(BaseModel):
         return v
 
 
-class ClosureResult(BaseModel):
+class ScheduleResult(BaseModel):
     extension: int
     label: str
     phrase_text: str

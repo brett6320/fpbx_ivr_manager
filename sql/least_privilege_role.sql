@@ -1,4 +1,4 @@
--- Least-privilege PostgreSQL role for the FusionPBX Closure Manager.
+-- Least-privilege PostgreSQL role for the FusionPBX IVR Manager.
 --
 -- The app touches only a handful of FusionPBX tables. Create a dedicated role
 -- with exactly the rights it needs — do NOT reuse the 'fusionpbx' superuser/owner
@@ -26,7 +26,7 @@ GRANT USAGE ON SCHEMA public TO ivr_manager;
 --    Read-only reference data:
 GRANT SELECT                         ON v_domains    TO ivr_manager;
 GRANT SELECT                         ON v_extensions TO ivr_manager;
---    Managed closure dialplans (create/replace/remove):
+--    Managed schedule dialplans (create/replace/remove):
 GRANT SELECT, INSERT, UPDATE, DELETE ON v_dialplans  TO ivr_manager;
 --    Greeting recordings (create/replace):
 GRANT SELECT, INSERT, UPDATE         ON v_recordings TO ivr_manager;

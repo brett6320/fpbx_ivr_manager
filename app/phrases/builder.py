@@ -1,8 +1,8 @@
-"""Build a closure greeting from timing input.
+"""Build a schedule greeting from timing input.
 
-Greeting = OPENING + <closure description varying by timing> + CLOSING.
-
-The middle sentence is chosen from the shape of the closure window:
+Greeting = OPENING + <body describing the window, varying by timing> + CLOSING.
+The body is closure-oriented announcement wording (the app schedules office
+closures), assembled from the shape of the time window:
   - full single day          -> "closed all day <weekday>, <date>"
   - multiple full days       -> "closed from <date> through <date>"
   - early close (same day)   -> "closing early at <time> on <date>"
@@ -25,12 +25,12 @@ CLOSE_TIME = time(17, 0)
 @dataclass(frozen=True)
 class Phrase:
     opening: str
-    closure: str
+    body: str
     closing: str
 
     @property
     def text(self) -> str:
-        return " ".join(p.strip() for p in (self.opening, self.closure, self.closing) if p.strip())
+        return " ".join(p.strip() for p in (self.opening, self.body, self.closing) if p.strip())
 
 
 def _fmt_date(d: datetime) -> str:
@@ -53,8 +53,8 @@ def _is_end_of_day(t: time) -> bool:
     return t >= DAY_END
 
 
-def describe_closure(start: datetime, end: datetime) -> str:
-    """Return the varying middle sentence for a closure window [start, end]."""
+def describe_window(start: datetime, end: datetime) -> str:
+    """Return the varying middle sentence for a time window [start, end]."""
     if end <= start:
         raise ValueError("end must be after start")
 
@@ -92,13 +92,13 @@ def build_phrase(
     org_name: str,
     reason: str | None = None,
 ) -> Phrase:
-    """Assemble opening + closure + closing greeting."""
+    """Assemble opening + body + closing greeting."""
     opening = f"Thank you for calling {org_name}."
-    closure = describe_closure(start, end)
+    body = describe_window(start, end)
     if reason:
-        closure = f"{closure} This closure is for {reason}."
+        body = f"{body} This closure is for {reason}."
     closing = (
         "We apologize for any inconvenience. Please call back during our "
         "regular business hours, or stay on the line to leave a message. Goodbye."
     )
-    return Phrase(opening=opening, closure=closure, closing=closing)
+    return Phrase(opening=opening, body=body, closing=closing)

@@ -7,7 +7,7 @@ def test_xml_roundtrip_voicemail():
     start = datetime(2026, 7, 7, 0, 0, 0)
     end = datetime(2026, 7, 9, 23, 59, 0)
     xml = build_dialplan_xml(
-        9550, (start, end), "closure_9550_july.wav",
+        9550, (start, end), "schedule_9550_july.wav",
         closed_action="voicemail", open_destination="2000", domain="pbx.test",
     )
     p = _parse_xml(xml)
@@ -36,7 +36,7 @@ def test_generated_xml_is_owned():
 
 
 def test_foreign_xml_not_owned():
-    foreign = '<extension name="closure_9550"><condition/></extension>'
+    foreign = '<extension name="schedule_9550"><condition/></extension>'
     assert _is_managed(foreign) is False
     assert _is_managed(None) is False
     assert _is_managed("") is False

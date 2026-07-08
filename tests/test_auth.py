@@ -32,7 +32,7 @@ def test_permissions_from_groups_only(monkeypatch):
     monkeypatch.setattr(
         settings,
         "authz_group_permissions",
-        '{"ivr-admins":["manage_closures","manage_users"],"ivr-editors":["manage_closures"]}',
+        '{"ivr-admins":["manage_schedules","manage_users"],"ivr-editors":["manage_schedules"]}',
     )
     authz._group_map.cache_clear()
 
@@ -41,9 +41,9 @@ def test_permissions_from_groups_only(monkeypatch):
     nobody = {"groups": []}
     unknown = {"groups": ["random-group"]}
 
-    assert authz.has_permission(editor, authz.MANAGE_CLOSURES) is True
+    assert authz.has_permission(editor, authz.MANAGE_SCHEDULES) is True
     assert authz.has_permission(editor, authz.MANAGE_USERS) is False
-    assert authz.user_permissions(admin) == {"manage_closures", "manage_users"}
+    assert authz.user_permissions(admin) == {"manage_schedules", "manage_users"}
     assert authz.user_permissions(nobody) == set()
     assert authz.user_permissions(unknown) == set()  # unmapped group grants nothing
 

@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # JSON mapping of group identifier -> list of permissions. The group identifier
     # is: the group name (local), the group object-id or name in the token 'groups'
     # claim (entra), or the group cn/dn (ldap).
-    # e.g. {"ivr-admins": ["manage_closures","manage_users"], "ivr-editors": ["manage_closures"]}
+    # e.g. {"ivr-admins": ["manage_schedules","manage_users"], "ivr-editors": ["manage_schedules"]}
     authz_group_permissions: str = Field(alias="AUTHZ_GROUP_PERMISSIONS", default="{}")
 
     # fusionpbx db
@@ -92,7 +92,7 @@ class Settings(BaseSettings):
 
     @property
     def mfa_issuer(self) -> str:
-        return self.app_org_name or "FusionPBX Closure Manager"
+        return self.app_org_name or "FusionPBX IVR Manager"
 
     @property
     def recordings_dir(self) -> str:

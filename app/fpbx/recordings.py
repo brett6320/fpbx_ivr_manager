@@ -1,4 +1,4 @@
-"""Manage FusionPBX recordings (v_recordings) for closure greetings.
+"""Manage FusionPBX recordings (v_recordings) for schedule greetings.
 
 Storage modes (settings.fpbx_recording_storage):
   - 'local': write the .wav directly into the FS recordings dir (app runs ON the

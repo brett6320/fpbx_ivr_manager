@@ -2,8 +2,8 @@
 {% set dt = '%Y-%m-%dT%H:%M' %}
 {% block body %}
 <div class="topbar">
-  <h1>{{ 'Edit closure' if c else 'Plan an office closure' }}</h1>
-  <span class="muted">{{ user.name }} · <a href="/">All closures</a> · <a href="/auth/logout">Sign out</a></span>
+  <h1>{{ 'Edit schedule' if c else 'Plan an IVR schedule' }}</h1>
+  <span class="muted">{{ user.name }} · <a href="/">All schedules</a> · <a href="/auth/logout">Sign out</a></span>
 </div>
 <p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
 
@@ -13,12 +13,12 @@
 
   <div class="grid2">
     <div>
-      <label>Closure start</label>
+      <label>Schedule start</label>
       <input type="datetime-local" name="start" required
              value="{{ c.start.strftime(dt) if c and c.start }}">
     </div>
     <div>
-      <label>Closure end</label>
+      <label>Schedule end</label>
       <input type="datetime-local" name="end" required
              value="{{ c.end.strftime(dt) if c and c.end }}">
     </div>
@@ -47,7 +47,7 @@
          {{ 'readonly' if c }}>
 
   <button type="button" onclick="preview()">Preview greeting</button>
-  <button type="submit">{{ 'Save changes' if c else 'Create closure' }}</button>
+  <button type="submit">{{ 'Save changes' if c else 'Create schedule' }}</button>
 </form>
 
 <div id="preview"></div>

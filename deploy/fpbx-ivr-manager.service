@@ -8,7 +8,7 @@
 # Env lives in /etc/fpbx-ivr-manager/env (chmod 600, root:ivrmgr). Set
 #   LOCAL_AUTH_DB=/var/lib/fpbx-ivr-manager/users.db
 [Unit]
-Description=FusionPBX Closure Manager
+Description=FusionPBX IVR Manager
 After=network-online.target postgresql.service
 Wants=network-online.target
 

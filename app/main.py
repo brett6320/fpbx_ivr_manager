@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FusionPBX IVR / Closure Manager", lifespan=lifespan)
+app = FastAPI(title="FusionPBX IVR Manager", lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret_key,

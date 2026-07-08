@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Your account</h1>
+
+{% if saved %}<div class="preview" style="border-left-color:var(--ok);">Saved.</div>{% endif %}
+{% if error %}<div class="preview" style="border-left-color:var(--danger);">{{ error }}</div>{% endif %}
+
+{% if is_local %}
+<p class="muted">Your account lives in the app's <strong>{{ source }}</strong>. Update
+your display name or password below.</p>
+
+<form method="post" action="/account">
+  <label>Display name</label>
+  <input name="display_name" value="{{ profile.name }}" required>
+
+  <label>Username / email</label>
+  <input value="{{ profile.email }}" readonly>
+  <p class="muted">Your sign-in username can't be changed here.</p>
+
+  <h2 style="margin-top:1.25rem;">Change password</h2>
+  <p class="muted">Leave these blank to keep your current password.</p>
+  <label>Current password</label>
+  <input type="password" name="current_password" autocomplete="current-password">
+  <div class="grid2">
+    <div><label>New password</label><input type="password" name="new_password" autocomplete="new-password"></div>
+    <div><label>Confirm new password</label><input type="password" name="confirm_password" autocomplete="new-password"></div>
+  </div>
+
+  <button type="submit">Save changes</button>
+</form>
+
+<h2 style="margin-top:1.5rem;">Groups</h2>
+{% if profile.groups %}
+<p class="muted">{% for g in profile.groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% else %}<p class="muted">No groups.</p>{% endif %}
+
+{% else %}
+<p class="muted">Your identity is provided by <strong>{{ source }}</strong>, so these
+details are read-only here — change them in that system.</p>
+
+<table style="width:100%; border-collapse:collapse;">
+  <tbody>
+    <tr style="border-bottom:1px solid var(--border-light);"><th style="text-align:left; width:12rem;">Name</th><td>{{ profile.name or '—' }}</td></tr>
+    <tr style="border-bottom:1px solid var(--border-light);"><th style="text-align:left;">Email / username</th><td>{{ profile.email or '—' }}</td></tr>
+    <tr style="border-bottom:1px solid var(--border-light);"><th style="text-align:left;">Groups</th>
+      <td>{% if profile.groups %}{% for g in profile.groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</td></tr>
+    <tr><th style="text-align:left;">Source</th><td>{{ source }}</td></tr>
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

@@ -89,7 +89,7 @@
     <a href="/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
     {% endif %}
     <span class="sep"></span>
-    <span class="who">{{ nav_user.name }}</span>
+    <a href="/account"{% if path.startswith('/account') %} class="active"{% endif %} title="Your account">{{ nav_user.name }}</a>
     <a href="/auth/logout">Sign&nbsp;out</a>
   </div>
 </nav>

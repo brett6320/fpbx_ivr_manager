@@ -49,6 +49,23 @@ require_schedules = authz.require(MANAGE_SCHEDULES)
 # auth administration requires the manage_users permission
 require_users = authz.require(MANAGE_USERS)
 
+
+def require_login(request: Request) -> dict:
+    """Any authenticated user (no specific permission needed), e.g. own account."""
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=307, headers={"Location": "/auth/login"})
+    return user
+
+
+# how a user's identity is sourced, for the read-only account view
+_SOURCE_LABELS = {
+    "local": "Local database",
+    "entra": "Microsoft Entra ID (SSO)",
+    "ldap": "LDAP directory",
+    "fpbx": "FusionPBX users",
+}
+
 log = logging.getLogger("fpbx_ivr_manager")
 
 router = APIRouter()
@@ -165,6 +182,63 @@ def callback(request: Request, code: str = "", state: str = ""):
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
+
+
+# ---- self-service account (own name/password if local; else read-only identity) ----
+def _account_ctx(request: Request, user: dict, *, saved: bool = False, error: str | None = None) -> dict:
+    username = user.get("email")
+    local_user = local.get_user(username) if username else None
+    is_local = local_user is not None
+    return {
+        "user": user,
+        "is_local": is_local,
+        "source": "Local database" if is_local else _SOURCE_LABELS.get(backend.kind(), backend.kind()),
+        "profile": {
+            "name": local_user["display_name"] if is_local else user.get("name"),
+            "email": user.get("email"),
+            "groups": user.get("groups") or [],
+        },
+        "saved": saved,
+        "error": error,
+    }
+
+
+@router.get("/account", response_class=HTMLResponse)
+def account(request: Request, user: dict = Depends(require_login), saved: int = 0):
+    return templates.TemplateResponse(
+        request, "account.html", _account_ctx(request, user, saved=bool(saved))
+    )
+
+
+@router.post("/account")
+async def account_update(request: Request, user: dict = Depends(require_login)):
+    username = user.get("email")
+    if not (username and local.get_user(username)):
+        # external-identity users can't edit here; their profile is read-only
+        raise HTTPException(status_code=403, detail="Your profile is managed by your identity provider.")
+    form = await request.form()
+    display_name = (form.get("display_name") or "").strip()
+    new_password = form.get("new_password") or ""
+    confirm = form.get("confirm_password") or ""
+    current = form.get("current_password") or ""
+
+    def _err(msg: str):
+        return templates.TemplateResponse(
+            request, "account.html", _account_ctx(request, user, error=msg), status_code=400
+        )
+
+    if new_password:
+        if not local.authenticate(username, current):
+            return _err("Current password is incorrect.")
+        if new_password != confirm:
+            return _err("New passwords do not match.")
+        local.set_password(username, new_password)
+
+    if display_name and display_name != local.get_user(username)["display_name"]:
+        local.set_display_name(username, display_name)
+        request.session["user"] = {**user, "name": display_name}  # reflect in the nav
+
+    return RedirectResponse("/account?saved=1", status_code=303)
 
 
 # ---- MFA (local admins) ----

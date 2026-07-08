@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(alias="APP_SECRET_KEY")
     app_base_url: str = Field(alias="APP_BASE_URL")
     app_org_name: str = Field(alias="APP_ORG_NAME", default="Our office")
+    # Mark the session cookie Secure? Empty = derive from APP_BASE_URL scheme
+    # (https -> Secure). Set false to allow login over plain HTTP.
+    session_https_only_raw: str = Field(alias="SESSION_HTTPS_ONLY", default="")
 
     # auth backend: local (default) | entra | ldap
     auth_backend: str = Field(alias="AUTH_BACKEND", default="local")
@@ -110,6 +113,17 @@ class Settings(BaseSettings):
     def recordings_dir(self) -> str:
         # allow ${FPBX_DOMAIN_NAME} placeholder in the configured path
         return self.fs_recordings_dir.replace("${FPBX_DOMAIN_NAME}", self.fpbx_domain_name)
+
+    @property
+    def session_https_only(self) -> bool:
+        """Whether the session cookie is marked Secure. A Secure cookie is not
+        sent over plain HTTP, so serving the app over http:// with this on causes
+        an endless redirect back to login. Derive from the APP_BASE_URL scheme
+        unless explicitly overridden."""
+        raw = self.session_https_only_raw.strip().lower()
+        if raw:
+            return raw in ("1", "true", "yes", "on")
+        return self.app_base_url.lower().startswith("https")
 
     @property
     def redirect_uri(self) -> str:

@@ -58,7 +58,7 @@ app = FastAPI(title="FusionPBX IVR Manager", lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret_key,
-    https_only=True,
+    https_only=settings.session_https_only,
     same_site="lax",
 )
 app.include_router(router)

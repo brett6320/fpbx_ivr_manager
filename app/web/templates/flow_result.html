@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Call flow created</h1>
+<div class="preview">
+  {% if r.inbound_number %}Inbound <strong>{{ r.inbound_number }}</strong> →{% endif %}
+  Time condition <strong>{{ r.schedule_extension }}</strong> →
+  IVR <strong>{{ r.ivr_extension }}</strong> ({{ r.ivr_name }}, {{ r.option_count }} options) → option / timeout
+</div>
+<p><strong>Schedule extension:</strong> {{ r.schedule_extension }}</p>
+<p><strong>IVR extension:</strong> {{ r.ivr_extension }}</p>
+{% if r.inbound_number %}<p><strong>Inbound route:</strong> {{ r.inbound_number }} → {{ r.schedule_extension }}</p>
+{% else %}<p class="muted">No inbound DID given — point your inbound route at extension {{ r.schedule_extension }}.</p>{% endif %}
+<p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
+<p><a href="/">← Schedules</a> · <a href="/ivrs">IVRs</a> · <a href="/flow/new">Build another</a></p>
+{% endblock %}

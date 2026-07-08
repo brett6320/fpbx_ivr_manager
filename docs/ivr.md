@@ -51,14 +51,19 @@ off-box answering service.
 
 ## Wiring into the flow
 
-To send callers into an IVR, set a **schedule's open destination** to the IVR's
-extension — that's the Time Condition → IVR link. Point your inbound route at the
-schedule's extension to complete `inbound → time condition → IVR → option/timeout`.
+Two ways:
 
-> A one-flow wizard that also creates the inbound route automatically is the next
-> increment; today the IVR + schedule pieces are built here and the inbound route
-> is pointed at the schedule in FusionPBX (or by editing the schedule's open
-> destination to the IVR extension).
+- **One-flow wizard (`/flow/new`)** — build the whole chain in one step: it
+  creates the IVR, a time condition (schedule) whose open destination routes into
+  the IVR, and — if you give an inbound DID — an **inbound route** (Destinations
+  app, `public` context) that points the DID at the schedule. Result:
+  `inbound → time condition → IVR → option/timeout`.
+- **Piece by piece** — build an IVR here, then set a **schedule's open
+  destination** to the IVR's extension, and point your inbound route at the
+  schedule's extension yourself.
+
+Inbound routes are managed with the same ownership marker; the app refuses to
+overwrite an existing inbound route for a DID it didn't create.
 
 ## Caveat
 

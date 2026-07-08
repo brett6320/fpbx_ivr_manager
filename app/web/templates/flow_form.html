@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="topbar">
+  <h1>New call flow</h1>
+  <span class="muted">{{ user.name }} · <a href="/">Schedules</a> · <a href="/auth/logout">Sign out</a></span>
+</div>
+<p class="muted">Builds the whole chain in one step:
+<strong>inbound route → time condition → IVR → dialed option / timeout</strong>.
+Extensions auto-allocate from {{ pool }}.</p>
+
+{% macro dest_select(name, blank='— none —') %}
+<select name="{{ name }}">
+  <option value="">{{ blank }}</option>
+  {% for d in destinations %}<option value="{{ d.value }}">{{ d.label }}</option>{% endfor %}
+</select>
+{% endmacro %}
+
+<form method="post" action="/flow">
+
+  <h2>1. Inbound number (Destination)</h2>
+  <label>Inbound DID (optional — leave blank to wire the inbound route yourself)</label>
+  <input name="inbound_number" placeholder="18005551234">
+
+  <h2 style="margin-top:1.5rem;">2. Time condition (schedule)</h2>
+  <label>Label</label>
+  <input name="label" placeholder="Business hours" required>
+  <div class="grid2">
+    <div><label>Closed from</label><input type="datetime-local" name="start" required></div>
+    <div><label>Closed until</label><input type="datetime-local" name="end" required></div>
+  </div>
+  <label>Reason (optional, folded into the closed greeting)</label>
+  <input name="reason" placeholder="a holiday">
+  <label>When closed</label>
+  <select name="closed_action">
+    <option value="voicemail">Play greeting, then voicemail</option>
+    <option value="hangup">Play greeting, then hang up</option>
+  </select>
+  <p class="muted">Outside the closed window, callers are routed to the IVR below.</p>
+
+  <h2 style="margin-top:1.5rem;">3. IVR menu</h2>
+  <label>Name</label>
+  <input name="name" placeholder="Main Menu" required>
+
+  <label>Greeting</label>
+  <label class="muted"><input type="radio" name="greeting_mode" value="tts" checked onclick="gmode()"> Synthesize with Google TTS</label>
+  <label class="muted"><input type="radio" name="greeting_mode" value="recording" onclick="gmode()"> Use an existing recording</label>
+  <div id="g_tts"><textarea name="greeting_text" rows="3" placeholder="Thank you for calling. For sales press 1, support press 2, press zero for the operator."></textarea></div>
+  <div id="g_rec" style="display:none;">
+    <select name="greeting_recording"><option value="">— select a recording —</option>
+      {% for r in recordings %}<option value="{{ r.filename }}">{{ r.name }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <h3 style="margin-top:1rem;">Caller options</h3>
+  <div class="grid2">
+    {% for d in digits %}<div><label>Press {{ d }}</label>{{ dest_select('opt_' ~ d) }}</div>{% endfor %}
+  </div>
+
+  <h3 style="margin-top:1rem;">Timeout destination</h3>
+  <div class="grid2">
+    <div><label>Destination</label>{{ dest_select('timeout_dest', '— select —') }}</div>
+    <div><label>…or external/manual number</label><input name="timeout_manual" placeholder="e.g. answering service"></div>
+  </div>
+
+  <button type="submit" style="margin-top:1rem;">Build call flow</button>
+</form>
+
+<script>
+function gmode(){
+  const tts = document.querySelector('input[name=greeting_mode]:checked').value === 'tts';
+  document.getElementById('g_tts').style.display = tts ? '' : 'none';
+  document.getElementById('g_rec').style.display = tts ? 'none' : '';
+}
+</script>
+{% endblock %}

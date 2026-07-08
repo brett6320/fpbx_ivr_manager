@@ -6,12 +6,19 @@ import re
 from app.config import settings
 from app.fpbx import (
     extensions,
+    inbound_routes,
     ivr_menus,
     recordings,
     time_conditions,
     xmlrpc_client,
 )
-from app.models import IvrRequest, IvrResult, ScheduleRequest, ScheduleResult
+from app.models import (
+    CallFlowResult,
+    IvrRequest,
+    IvrResult,
+    ScheduleRequest,
+    ScheduleResult,
+)
 from app.phrases.builder import build_phrase
 from app.tts import google_tts
 
@@ -159,3 +166,27 @@ def list_destinations() -> list[dict]:
 
 def list_recordings() -> list[dict]:
     return recordings.list_recordings()
+
+
+# ---- one-flow call flow: inbound route -> time condition -> IVR ----
+def build_call_flow(
+    inbound_did: str | None, schedule_req: ScheduleRequest, ivr_req: IvrRequest
+) -> CallFlowResult:
+    """Create the IVR, a schedule whose open destination routes into it, and
+    (optionally) an inbound route for the DID that points at the schedule."""
+    ivr = create_ivr(ivr_req)                                  # -> IVR extension
+    sched = apply_schedule(schedule_req, str(ivr.extension))   # open dest = IVR
+    inbound_name = None
+    reloaded = sched.reloaded
+    if inbound_did:
+        inbound_name = inbound_routes.upsert_inbound(inbound_did, str(sched.extension))
+        reloaded = xmlrpc_client.reloadxml()
+    return CallFlowResult(
+        inbound_number=inbound_did or None,
+        inbound_name=inbound_name,
+        schedule_extension=sched.extension,
+        ivr_extension=ivr.extension,
+        ivr_name=ivr.name,
+        option_count=ivr.option_count,
+        reloaded=reloaded,
+    )

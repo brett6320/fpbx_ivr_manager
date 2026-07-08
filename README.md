@@ -140,13 +140,14 @@ recording that a human or another app made:
 Beyond time-condition greetings, the app builds native FusionPBX **IVR menus** —
 a greeting (TTS or existing recording), per-digit caller options routing to real
 FusionPBX destinations (extensions, ring groups, voicemail boxes), and a timeout
-destination. Flow: inbound route → time condition → IVR → option/timeout. See
-[docs/ivr.md](docs/ivr.md). Manage at `/ivrs`.
+destination. The **one-flow wizard at `/flow/new`** builds the whole chain in one
+step — inbound route → time condition → IVR → option/timeout — creating the
+inbound route (Destinations app), the time condition, and the IVR together. See
+[docs/ivr.md](docs/ivr.md). Manage IVRs at `/ivrs`.
 
 ## Status / not yet done
 
-- One-flow wizard that also auto-creates the **inbound route** (Destination) — the
-  IVR + time-condition pieces exist; inbound-route automation is the next step.
+- Multi-level / nested IVR trees (sub-menus) — the current IVR is a single menu.
 - Untested against a live FusionPBX box — DB column names verified against the
   4.5.x and current (5.5) schemas, and checked at startup (see
   [docs/compatibility.md](docs/compatibility.md)); confirm on your instance

@@ -19,6 +19,7 @@ from app.models import IvrOption, IvrRequest, ScheduleRequest
 from app.service import (
     adopt_schedule,
     apply_schedule,
+    build_call_flow,
     create_ivr,
     delete_ivr,
     delete_schedule,
@@ -598,3 +599,33 @@ def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedule
         log.warning("ivr delete refused", exc_info=True)
         return HTMLResponse("Refused: that IVR was not created by this app.", status_code=409)
     return RedirectResponse("/ivrs", status_code=303)
+
+
+# ---- one-flow call-flow wizard (inbound route -> time condition -> IVR) ----
+@router.get("/flow/new", response_class=HTMLResponse)
+def flow_new(request: Request, user: dict = Depends(require_schedules)):
+    return templates.TemplateResponse(
+        request,
+        "flow_form.html",
+        {
+            "user": user,
+            "org": settings.app_org_name,
+            "pool": f"{settings.ext_pool_start}-{settings.ext_pool_end}",
+            "digits": _DIGITS,
+            "destinations": list_destinations(),
+            "recordings": list_recordings(),
+        },
+    )
+
+
+@router.post("/flow", response_class=HTMLResponse)
+async def flow_create(request: Request, user: dict = Depends(require_schedules)):
+    form = await request.form()
+    did = (form.get("inbound_number") or "").strip()
+    try:
+        schedule_req = _parse(form)     # label/start/end/reason/closed_action
+        ivr_req = _parse_ivr(form)      # name/greeting/options/timeout
+        result = build_call_flow(did or None, schedule_req, ivr_req)
+    except (ValueError, NotManaged) as e:
+        return HTMLResponse(f"Could not build call flow: {e}", status_code=400)
+    return templates.TemplateResponse(request, "flow_result.html", {"r": result})

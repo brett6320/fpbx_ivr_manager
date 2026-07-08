@@ -86,6 +86,49 @@ def test_recycle_route_requires_confirm_and_passes_actor(client, monkeypatch):
         assert calls == [(9560, "ops")]  # actor logged (local username as email)
 
 
+def test_remove_ledger_entry(ledger):
+    recycle.record(9560, kind="ivr", name="A", actor="x")
+    recycle.record(9561, kind="ivr", name="B", actor="x")
+    at = [e for e in recycle.entries() if e["extension"] == 9560][0]["recycled_at"]
+    assert recycle.remove(9560, at) is True
+    assert [e["extension"] for e in recycle.entries()] == [9561]
+    assert recycle.remove(9560, at) is False   # already gone
+
+
+def test_recycled_delete_route_is_admin_only_and_confirmed(client, monkeypatch):
+    removed = []
+    monkeypatch.setattr(routes, "delete_recycled",
+                        lambda ext, at: removed.append((ext, at)) or True)
+    monkeypatch.setattr(routes, "list_ivrs", lambda: [])
+    monkeypatch.setattr(routes, "list_recycled",
+                        lambda: [{"extension": 9560, "previous_name": "A",
+                                  "recycled_at": "2026-07-08T00:00:00+00:00",
+                                  "recycled_by": "x", "available": True}])
+    with client as c:
+        # non-admin editor: no control, endpoint forbidden
+        local.create_user("ed", "pw")
+        local.add_to_group("ed", "editors")
+        c.post("/auth/login", data={"username": "ed", "password": "pw"}, follow_redirects=False)
+        assert "/ivrs/recycled/delete" not in c.get("/ivrs").text
+        assert c.post("/ivrs/recycled/delete",
+                      data={"confirm": "yes", "extension": "9560", "recycled_at": "x"},
+                      follow_redirects=False).status_code == 403
+        # admin: confirm required, then deletes
+        c.cookies.clear()
+        local.create_user("ops", "pw")
+        local.add_to_group("ops", "ops")
+        c.post("/auth/login", data={"username": "ops", "password": "pw"}, follow_redirects=False)
+        assert c.post("/ivrs/recycled/delete",
+                      data={"extension": "9560", "recycled_at": "t"},
+                      follow_redirects=False).status_code == 400   # no confirm
+        assert removed == []
+        r = c.post("/ivrs/recycled/delete",
+                   data={"confirm": "yes", "extension": "9560", "recycled_at": "t"},
+                   follow_redirects=False)
+        assert r.status_code == 303
+        assert removed == [(9560, "t")]
+
+
 def test_ivr_delete_and_recycle_are_admin_only(client, monkeypatch):
     # a schedules-only user can view IVRs but cannot delete or recycle them
     monkeypatch.setattr(routes, "list_ivrs", lambda: [{"extension": 9560, "name": "Main", "enabled": True}])

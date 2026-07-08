@@ -26,6 +26,7 @@ from app.service import (
     create_phrase,
     delete_ivr,
     delete_phrase,
+    delete_recycled,
     delete_schedule,
     get_adoptable,
     get_schedule,
@@ -604,6 +605,19 @@ def ivrs_list(request: Request, user: dict = Depends(require_schedules)):
         {"user": user, "ivrs": list_ivrs(), "recycled": list_recycled(),
          "can_admin": authz.has_permission(user, MANAGE_USERS)},
     )
+
+
+# defined before the /ivrs/{ext}/... routes so "recycled" isn't parsed as an ext
+@router.post("/ivrs/recycled/delete")
+async def recycled_delete(request: Request, user: dict = Depends(require_users)):
+    await _require_delete_confirm(request)
+    form = await request.form()
+    try:
+        ext = int(form.get("extension") or "")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid recycled item.") from None
+    delete_recycled(ext, (form.get("recycled_at") or "").strip())
+    return RedirectResponse("/ivrs", status_code=303)
 
 
 @router.get("/ivrs/new", response_class=HTMLResponse)

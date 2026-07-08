@@ -54,3 +54,17 @@ def record(extension: int, *, kind: str, name: str, actor: str) -> dict:
     stored.append(entry)
     _write(stored)
     return entry
+
+
+def remove(extension: int, recycled_at: str) -> bool:
+    """Delete a single ledger entry, identified by its extension + timestamp.
+    Returns True if an entry was removed. App-side only — does not touch FusionPBX."""
+    stored = list(reversed(entries()))  # oldest-first on-disk order
+    kept = [
+        e for e in stored
+        if not (e.get("extension") == int(extension) and e.get("recycled_at") == recycled_at)
+    ]
+    if len(kept) == len(stored):
+        return False
+    _write(kept)
+    return True

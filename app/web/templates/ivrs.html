@@ -46,7 +46,7 @@ callers into it (inbound route → time condition → IVR).
 “Available” numbers will be handed back out when a new IVR or schedule auto-allocates.</p>
 <table style="width:100%; border-collapse:collapse;">
   <thead><tr style="text-align:left; border-bottom:1px solid var(--border);">
-    <th>Ext</th><th>Previous use</th><th>Recycled</th><th>By</th><th>Status</th></tr></thead>
+    <th>Ext</th><th>Previous use</th><th>Recycled</th><th>By</th><th>Status</th>{% if can_admin %}<th></th>{% endif %}</tr></thead>
   <tbody>
   {% for e in recycled %}
     <tr style="border-bottom:1px solid var(--border-light);">
@@ -55,6 +55,17 @@ callers into it (inbound route → time condition → IVR).
       <td>{{ e.recycled_at }}</td>
       <td>{{ e.recycled_by }}</td>
       <td>{{ 'available for reuse' if e.available else 'in use again' }}</td>
+      {% if can_admin %}
+      <td style="white-space:nowrap;">
+        <form method="post" action="/ivrs/recycled/delete" style="display:inline;"
+              class="js-confirm" data-confirm="Delete this recycled record for extension {{ e.extension }}? This removes the history entry only.">
+          <input type="hidden" name="confirm" value="yes">
+          <input type="hidden" name="extension" value="{{ e.extension }}">
+          <input type="hidden" name="recycled_at" value="{{ e.recycled_at }}">
+          <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
+        </form>
+      </td>
+      {% endif %}
     </tr>
   {% endfor %}
   </tbody>

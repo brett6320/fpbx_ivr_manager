@@ -273,6 +273,11 @@ def _free_pool_numbers() -> set[int]:
     return set(extensions.POOL) - extensions.used_extensions()
 
 
+def delete_recycled(extension: int, recycled_at: str) -> bool:
+    """Admin: remove a recycled-IVR ledger entry (history only; no PBX change)."""
+    return recycle.remove(extension, recycled_at)
+
+
 def list_destinations() -> list[dict]:
     from app.fpbx import destinations
     return destinations.list_destinations()

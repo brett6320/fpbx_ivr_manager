@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Users</h1>
+{% if not is_local %}
+  <p class="muted">User management is available only with the local auth backend
+  (<code>AUTH_BACKEND=local</code>). This instance uses an external identity provider,
+  so users and groups are managed there.</p>
+{% else %}
+<p><a href="/admin/users/new"><button>+ New user</button></a></p>
+{% if not users %}
+  <p class="muted">No users yet.</p>
+{% else %}
+<table style="width:100%; border-collapse:collapse;">
+  <thead><tr style="text-align:left; border-bottom:1px solid var(--border);">
+    <th>Username</th><th>Name</th><th>Admin</th><th>MFA</th><th>Groups</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr style="border-bottom:1px solid var(--border-light);">
+    <td>{{ u.username }}</td>
+    <td>{{ u.display_name }}</td>
+    <td>{{ 'yes' if u.is_admin else '' }}</td>
+    <td>{{ 'enrolled' if u.has_mfa else '—' }}</td>
+    <td class="muted">{{ u.groups | join(', ') }}</td>
+    <td style="white-space:nowrap;">
+      <a href="/admin/users/{{ u.username }}/edit">Edit</a>
+      {% if u.has_mfa %}
+      <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline;"
+            onsubmit="return confirm('Reset MFA for {{ u.username }}?');">
+        <button type="submit" style="margin:0; padding:.2rem .5rem;">Reset MFA</button></form>
+      {% endif %}
+      <form method="post" action="/admin/users/{{ u.username }}/delete" style="display:inline;"
+            onsubmit="return confirm('Delete {{ u.username }}?');">
+        <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button></form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endif %}
+{% endblock %}

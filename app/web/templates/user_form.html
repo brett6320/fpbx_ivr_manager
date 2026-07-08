@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ 'Edit user' if u else 'New user' }}</h1>
+
+<form method="post" action="{{ ('/admin/users/' ~ u.username) if u else '/admin/users' }}">
+  <label>Username</label>
+  {% if u %}<input value="{{ u.username }}" readonly>
+  {% else %}<input name="username" required autofocus autocomplete="off">{% endif %}
+
+  <label>Display name</label>
+  <input name="display_name" value="{{ u.display_name if u }}">
+
+  <label>Password {% if u %}<span class="muted">(leave blank to keep current)</span>{% endif %}</label>
+  <input name="password" type="password" {% if not u %}required{% endif %} autocomplete="new-password">
+
+  <label><input type="checkbox" name="is_admin" {% if u and u.is_admin %}checked{% endif %}>
+    Administrator — superuser (all permissions); MFA required at sign-in</label>
+
+  <label>Groups (comma-separated)</label>
+  <input name="groups" value="{{ u.groups | join(', ') if u }}" placeholder="ivr-admins, ivr-editors">
+  {% if known_groups %}<p class="muted">Groups that grant permissions:
+    {% for g in known_groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    {% if admin_group %} — membership in <code>{{ admin_group }}</code> also grants admin.{% endif %}</p>{% endif %}
+
+  <button type="submit">{{ 'Save changes' if u else 'Create user' }}</button>
+</form>
+<p class="muted" style="margin-top:1rem;"><a href="/admin/users">← All users</a></p>
+{% endblock %}

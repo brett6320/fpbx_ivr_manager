@@ -47,6 +47,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["nav_can_admin"] = (
     lambda u: bool(u) and authz.has_permission(u, MANAGE_USERS)
 )
+templates.env.globals["nav_local_backend"] = lambda: backend.kind() == "local"
 
 
 # ---- auth ----
@@ -685,3 +686,108 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
             tmpls[tname] = (form.get(f"tmpl_value_{suffix}") or "").strip()
     business.save(name, tmpls)
     return RedirectResponse("/admin/business?saved=1", status_code=303)
+
+
+# ---- local user management (admins; only when AUTH_BACKEND=local) ----
+def _require_local() -> None:
+    if backend.kind() != "local":
+        raise HTTPException(
+            status_code=404,
+            detail="User management is only available with the local auth backend.",
+        )
+
+
+def _known_groups() -> list[str]:
+    import json
+    try:
+        perms = json.loads(settings.authz_group_permissions or "{}")
+    except ValueError:
+        perms = {}
+    groups = set(perms)
+    if settings.local_admin_group:
+        groups.add(settings.local_admin_group)
+    return sorted(groups)
+
+
+@router.get("/admin/users", response_class=HTMLResponse)
+def users_list(request: Request, user: dict = Depends(require_users)):
+    return templates.TemplateResponse(
+        request,
+        "users.html",
+        {
+            "user": user,
+            "is_local": backend.kind() == "local",
+            "users": local.list_users_detailed() if backend.kind() == "local" else [],
+        },
+    )
+
+
+def _user_form(request: Request, user: dict, u: dict | None):
+    return templates.TemplateResponse(
+        request, "user_form.html",
+        {"user": user, "u": u, "known_groups": _known_groups(),
+         "admin_group": settings.local_admin_group},
+    )
+
+
+@router.get("/admin/users/new", response_class=HTMLResponse)
+def user_new(request: Request, user: dict = Depends(require_users)):
+    _require_local()
+    return _user_form(request, user, None)
+
+
+@router.get("/admin/users/{username}/edit", response_class=HTMLResponse)
+def user_edit(request: Request, username: str, user: dict = Depends(require_users)):
+    _require_local()
+    u = local.get_user(username)
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return _user_form(request, user, u)
+
+
+@router.post("/admin/users")
+async def user_create(request: Request, user: dict = Depends(require_users)):
+    _require_local()
+    form = await request.form()
+    username = (form.get("username") or "").strip()
+    password = form.get("password") or ""
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required.")
+    if local.user_exists(username):
+        raise HTTPException(status_code=409, detail=f"User {username!r} already exists.")
+    local.create_user(username, password, (form.get("display_name") or "").strip() or username,
+                      is_admin=bool(form.get("is_admin")))
+    local.set_groups(username, (form.get("groups") or "").split(","))
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/admin/users/{username}")
+async def user_update(request: Request, username: str, user: dict = Depends(require_users)):
+    _require_local()
+    if not local.user_exists(username):
+        raise HTTPException(status_code=404, detail="User not found.")
+    form = await request.form()
+    display = (form.get("display_name") or "").strip() or username
+    with_pw = form.get("password") or ""
+    local.set_admin(username, bool(form.get("is_admin")))
+    local.set_groups(username, (form.get("groups") or "").split(","))
+    local.set_display_name(username, display)
+    if with_pw:
+        local.set_password(username, with_pw)
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/admin/users/{username}/mfa-reset")
+def user_mfa_reset(request: Request, username: str, user: dict = Depends(require_users)):
+    _require_local()
+    local.reset_mfa(username)
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/admin/users/{username}/delete")
+def user_delete(request: Request, username: str, user: dict = Depends(require_users)):
+    _require_local()
+    if username == user.get("email"):
+        raise HTTPException(status_code=400, detail="You cannot delete the account you are signed in as.")
+    local.delete_user(username)
+    return RedirectResponse("/admin/users", status_code=303)

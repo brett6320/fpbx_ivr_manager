@@ -862,7 +862,8 @@ async def admin_import_commit(request: Request, user: dict = Depends(require_use
             msg = portability.commit_item(item_type, data)
             results.append({"label": label, "ok": True, "message": msg})
         except Exception:  # noqa: BLE001 - report per-item, keep going
-            log.warning("import commit failed for %s", label, exc_info=True)
+            # log the item index (not the user-supplied label) to avoid log injection
+            log.warning("import commit failed for item %d", i, exc_info=True)
             results.append({"label": label, "ok": False,
                             "message": "failed — check the item's fields (see server logs)"})
     return templates.TemplateResponse(request, "import_result.html", {"user": user, "results": results})

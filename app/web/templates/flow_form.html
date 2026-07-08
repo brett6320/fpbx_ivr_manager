@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>New call flow</h1>
-  <span class="muted">{{ user.name }} · <a href="/">Schedules</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>New call flow</h1>
 <p class="muted">Builds the whole chain in one step:
 <strong>inbound route → time condition → IVR → dialed option / timeout</strong>.
 Extensions auto-allocate from {{ pool }}.</p>

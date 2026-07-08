@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>Authentication configuration</h1>
-  <span class="muted">{{ user.name }} · <a href="/">Home</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>Authentication configuration</h1>
 <p class="muted">Active backend: <strong>{{ backend }}</strong>. Test a configuration
 live, then save it. <strong>A restart is required</strong> for saved changes to
 take effect.</p>

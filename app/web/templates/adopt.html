@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="topbar">
-  <h1>Adopt existing time conditions</h1>
-  <span class="muted">{{ user.name }} · <a href="/">All schedules</a> · <a href="/auth/logout">Sign out</a></span>
-</div>
+<h1>Adopt existing time conditions</h1>
 <p class="muted">Admin-only. These are FusionPBX Time Conditions in this domain not
 yet managed by the app. Adopting one converts it into an app-managed schedule on
 its existing extension and <strong>replaces its routing</strong>.</p>

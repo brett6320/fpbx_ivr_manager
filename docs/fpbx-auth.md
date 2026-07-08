@@ -51,6 +51,23 @@ GRANT SELECT ON v_groups      TO ivr_manager;
 > them to verify logins — expected for this backend, but omit these grants if you
 > don't use it.
 
+## Local admins still work
+
+Local administrators (e.g. the built-in **`admin@local`**) are always
+authenticated against the **local** user database, even while `AUTH_BACKEND=fpbx`.
+They can sign in from the normal login form (a local-admin fallback runs when the
+FusionPBX lookup doesn't match) as well as the break-glass page at `/auth/local`.
+So switching to the fpbx backend never locks you out of the app's own admin.
+
+## Mapping FusionPBX groups to permissions
+
+On **`/admin/auth`**, expand **Map FusionPBX groups → permissions (builder)** and
+click **Load FusionPBX groups**: it lists the domain's `v_groups` and gives each a
+checkbox per app permission (`manage_schedules`, `manage_users`). Tick what each
+group should grant and **Apply to JSON** — it writes the mapping into
+`AUTHZ_GROUP_PERMISSIONS` for you (groups you don't touch are left as-is). **Save**
+and restart to apply.
+
 ## Test before committing
 
 On **`/admin/auth`**, pick *FusionPBX users* and use **Test FusionPBX login &

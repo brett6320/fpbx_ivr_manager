@@ -21,6 +21,15 @@ change to match your selection.</p>
 identifiers your provider returns (Entra: token <code>groups</code> claim; LDAP:
 group <code>cn</code>; Local / FusionPBX: group name).</p>
 
+<details id="group_map_wrap" style="margin:.25rem 0 1rem;">
+  <summary>Map FusionPBX groups → permissions (builder)</summary>
+  <p class="muted">Load your FusionPBX groups and tick the permissions each grants.
+  <strong>Apply to JSON</strong> writes the result into the box above (groups not
+  listed here are left untouched).</p>
+  <button type="button" onclick="loadFpbxGroups()">Load FusionPBX groups</button>
+  <div id="group_map"></div>
+</details>
+
 <hr>
 <div id="sec_local" class="backend-sec">
   <h2>Local users</h2>
@@ -98,6 +107,55 @@ function showBackend(){
 }
 showBackend();  // show only the active provider on load
 function authz() { return document.getElementById('authz').value; }
+
+const PERMISSIONS = {{ permissions | tojson }};
+async function loadFpbxGroups(){
+  const box = document.getElementById('group_map');
+  box.innerHTML = '<p class="muted">Loading…</p>';
+  let data;
+  try { data = await (await fetch('/admin/auth/fpbx-groups')).json(); }
+  catch(e){ box.innerHTML = '<div class="preview" style="border-color:var(--danger);">Request failed.</div>'; return; }
+  if (data.error){ box.innerHTML = '<div class="preview" style="border-color:var(--danger);">'+escapeHtml(data.error)+'</div>'; return; }
+  let current = {}; try { current = JSON.parse(authz() || '{}'); } catch(e){}
+  box.innerHTML = '';
+  const groups = data.groups || [];
+  if (!groups.length){ box.innerHTML = '<p class="muted">No FusionPBX groups found.</p>'; return; }
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  const thead = document.createElement('thead');
+  const hr = document.createElement('tr');
+  hr.appendChild(document.createElement('th')).textContent = 'FusionPBX group';
+  PERMISSIONS.forEach(p => { hr.appendChild(document.createElement('th')).textContent = p; });
+  thead.appendChild(hr); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  groups.forEach(g => {
+    const tr = document.createElement('tr');
+    tr.dataset.group = g;                              // safe: property assignment, no HTML injection
+    const td = document.createElement('td'); td.textContent = g; tr.appendChild(td);
+    const have = Array.isArray(current[g]) ? current[g] : [];
+    PERMISSIONS.forEach(p => {
+      const cell = document.createElement('td');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.dataset.perm = p; cb.checked = have.indexOf(p) !== -1;
+      cb.style.width = 'auto';
+      cell.appendChild(cb); tr.appendChild(cell);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); box.appendChild(table);
+  const apply = document.createElement('button');
+  apply.type = 'button'; apply.textContent = 'Apply to JSON';
+  apply.onclick = applyGroupMap; box.appendChild(apply);
+}
+function applyGroupMap(){
+  let current = {}; try { current = JSON.parse(authz() || '{}'); } catch(e){}
+  document.querySelectorAll('#group_map tr[data-group]').forEach(tr => {
+    const g = tr.dataset.group;
+    const perms = Array.from(tr.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.dataset.perm);
+    if (perms.length) current[g] = perms; else delete current[g];
+  });
+  document.getElementById('authz').value = JSON.stringify(current);
+}
 async function post(url, body){ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
 function render(el, res){
   const box = document.getElementById(el);

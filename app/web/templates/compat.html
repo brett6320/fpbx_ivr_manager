@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>FusionPBX compatibility</h1>
+<p class="muted">Supported: {{ r.supported }}</p>
+
+{% if error %}
+<div class="preview" style="border-left-color:var(--danger);">{{ error }} The schema
+check runs against the FusionPBX PostgreSQL database — confirm the app can reach it.</div>
+{% elif r.ok %}
+<div class="preview" style="border-left-color:var(--ok);">
+  ✓ Schema check passed — all required tables and columns are present.
+</div>
+{% else %}
+<div class="preview" style="border-left-color:var(--danger);">
+  ✗ Missing objects — this instance may be unsupported:
+  <ul>
+    {% for t in r.missing_tables %}<li>table <code>{{ t }}</code></li>{% endfor %}
+    {% for c in r.missing_columns %}<li>column <code>{{ c }}</code></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if r.checked_tables %}
+<p class="muted">Checked: {% for t in r.checked_tables %}<code>{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}
+{% endblock %}

@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.auth import authz, backend, entra, local
-from app.auth.authz import MANAGE_SCHEDULES
+from app.auth import authz, backend, config_store, entra, local, probe
+from app.auth.authz import MANAGE_SCHEDULES, MANAGE_USERS
 from app.config import settings
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
@@ -24,6 +24,8 @@ from app.service import (
 
 # every schedule route requires the manage_schedules permission (granted via groups)
 require_schedules = authz.require(MANAGE_SCHEDULES)
+# auth administration requires the manage_users permission
+require_users = authz.require(MANAGE_USERS)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -291,7 +293,11 @@ def index(request: Request, user: dict = Depends(require_schedules)):
     return templates.TemplateResponse(
         request,
         "schedules.html",
-        {"user": user, "schedules": list_schedules()},
+        {
+            "user": user,
+            "schedules": list_schedules(),
+            "can_admin": authz.has_permission(user, MANAGE_USERS),
+        },
     )
 
 
@@ -347,3 +353,88 @@ async def apply(request: Request, user: dict = Depends(require_schedules)):
     except NotManaged as e:
         return HTMLResponse(f"Refused: {e}", status_code=409)
     return templates.TemplateResponse(request, "result.html", {"r": result})
+
+
+# ---- interactive auth administration (SSO / LDAP enablement + live testing) ----
+@router.get("/admin/auth", response_class=HTMLResponse)
+def admin_auth(request: Request, user: dict = Depends(require_users)):
+    # prefill non-secret fields from current settings; secrets are never sent out
+    ctx = {
+        "user": user,
+        "org": settings.app_org_name,
+        "backend": backend.kind(),
+        "redirect_uri": settings.redirect_uri,
+        "authz": settings.authz_group_permissions,
+        "entra": {
+            "tenant_id": settings.entra_tenant_id,
+            "client_id": settings.entra_client_id,
+            "has_secret": bool(settings.entra_client_secret),
+        },
+        "ldap": {
+            "uri": settings.ldap_uri,
+            "bind_dn_template": settings.ldap_bind_dn_template,
+            "base_dn": settings.ldap_base_dn,
+            "user_filter": settings.ldap_user_filter,
+            "group_base_dn": settings.ldap_group_base_dn,
+            "group_filter": settings.ldap_group_filter,
+            "start_tls": settings.ldap_start_tls,
+        },
+    }
+    return templates.TemplateResponse(request, "admin_auth.html", ctx)
+
+
+@router.post("/admin/auth/test/ldap")
+async def admin_test_ldap(request: Request, user: dict = Depends(require_users)):
+    b = await request.json()
+    result = probe.ldap_probe(
+        uri=b.get("uri", ""),
+        bind_dn_template=b.get("bind_dn_template", ""),
+        base_dn=b.get("base_dn", ""),
+        user_filter=b.get("user_filter", "(uid={username})"),
+        group_base_dn=b.get("group_base_dn", ""),
+        group_filter=b.get("group_filter", "(member={user_dn})"),
+        start_tls=bool(b.get("start_tls", True)),
+        test_user=b.get("test_user", ""),
+        test_password=b.get("test_password", ""),
+        group_permissions=b.get("group_permissions", "{}"),
+    )
+    return JSONResponse(result)
+
+
+@router.post("/admin/auth/test/entra")
+async def admin_test_entra(request: Request, user: dict = Depends(require_users)):
+    b = await request.json()
+    result = probe.entra_probe(
+        tenant_id=b.get("tenant_id", ""),
+        client_id=b.get("client_id", ""),
+        client_secret=b.get("client_secret", ""),
+        redirect_uri=settings.redirect_uri,
+    )
+    return JSONResponse(result)
+
+
+@router.post("/admin/auth/test/token")
+async def admin_test_token(request: Request, user: dict = Depends(require_users)):
+    b = await request.json()
+    return JSONResponse(
+        probe.entra_decode_token(b.get("id_token", ""), b.get("group_permissions", "{}"))
+    )
+
+
+@router.post("/admin/auth/save")
+async def admin_save(request: Request, user: dict = Depends(require_users)):
+    b = await request.json()
+    # only whitelisted keys are accepted by config_store.write_managed
+    updates = {k: str(v) for k, v in b.items() if k in config_store.MANAGED_KEYS}
+    # never persist an empty secret over an existing one: drop blank secrets
+    for sk in config_store.SECRET_KEYS:
+        if sk in updates and updates[sk] == "":
+            updates.pop(sk)
+    try:
+        written = config_store.write_managed(updates)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    return JSONResponse(
+        {"ok": True, "written": written, "restart_required": True,
+         "note": "Saved. Restart the service to apply the new auth configuration."}
+    )

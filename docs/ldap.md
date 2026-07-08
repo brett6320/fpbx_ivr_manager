@@ -107,3 +107,11 @@ LDAP_GROUP_FILTER=(&(objectClass=groupOfNames)(member={user_dn}))
 | No groups found | `memberOf` not populated **and** `LDAP_GROUP_BASE_DN`/filter unset or wrong. Set the fallback. |
 | `ldap3` ImportError | Install the extra: `pip install '.[ldap]'`. |
 | Cleartext concern | Set `LDAP_START_TLS=true` or switch `LDAP_URI` to `ldaps://`. |
+
+## Interactive testing
+
+Prefer the admin UI at **`/admin/auth`** (requires `manage_users`) to enter these
+values and **Test** them live — it connects, negotiates StartTLS, binds as a test
+user you supply, and shows the resolved groups and their permission mapping
+before you save. See
+[authentication.md](authentication.md#interactive-enablement--live-testing-admin-ui).

@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import backend
@@ -64,6 +66,36 @@ app.add_middleware(
     same_site="lax",
 )
 app.include_router(router)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def styled_http_exception(request: Request, exc: StarletteHTTPException):
+    """Render 4xx/5xx as a themed page (inside the app shell) for browser
+    navigations; keep redirects and JSON API responses intact."""
+    # preserve redirects (e.g. the auth guard's 307 -> /auth/login)
+    location = None
+    for k, v in (exc.headers or {}).items():
+        if k.lower() == "location":
+            location = v
+    if location:
+        return RedirectResponse(location, status_code=exc.status_code)
+
+    accept = request.headers.get("accept", "")
+    if "text/html" not in accept:  # fetch()/API callers -> JSON
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+    from app.web.routes import templates
+
+    titles = {400: "Invalid request", 401: "Sign in required",
+              403: "Not permitted", 404: "Not found", 409: "Refused",
+              500: "Something went wrong"}
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        {"status": exc.status_code, "title": titles.get(exc.status_code),
+         "message": exc.detail or "The request could not be completed."},
+        status_code=exc.status_code,
+    )
 
 
 @app.get("/healthz")

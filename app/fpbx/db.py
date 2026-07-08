@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache, lru_cache
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -26,6 +26,37 @@ def cursor():
         with conn.cursor() as cur:
             yield cur
         conn.commit()
+
+
+@cache
+def table_columns(table: str) -> frozenset[str]:
+    """Columns that exist on a table (cached). Used to stay resilient to schema
+    differences across FusionPBX versions."""
+    with cursor() as cur:
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = %s",
+            (table,),
+        )
+        return frozenset(r["column_name"] for r in cur.fetchall())
+
+
+def insert_row(cur, table: str, values: dict) -> None:
+    """INSERT, including only the columns that actually exist on `table`.
+
+    `table` and the value keys are code constants (not user input), so the
+    interpolated identifiers are safe; values are always parameterized.
+    """
+    cols = table_columns(table)
+    data = {k: v for k, v in values.items() if k in cols}
+    if not data:
+        raise ValueError(f"no known columns to insert into {table}")
+    keys = list(data)
+    placeholders = ", ".join(["%s"] * len(keys))
+    cur.execute(
+        f"INSERT INTO {table} ({', '.join(keys)}) VALUES ({placeholders})",  # noqa: S608
+        [data[k] for k in keys],
+    )
 
 
 def domain_uuid() -> str:

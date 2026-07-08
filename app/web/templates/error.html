@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ title or ("Error " ~ status) }}</h1>
+<div class="preview" style="border-left-color: var(--danger);">
+  {{ message }}
+</div>
+<p class="muted" style="margin-top:1rem;">
+  <a href="javascript:history.back()">← Go back</a> · <a href="/">Home</a>
+</p>
+{% endblock %}

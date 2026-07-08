@@ -59,3 +59,13 @@ class IvrResult(BaseModel):
     ivr_menu_uuid: str
     option_count: int
     reloaded: bool
+
+
+class CallFlowResult(BaseModel):
+    inbound_number: str | None
+    inbound_name: str | None
+    schedule_extension: int
+    ivr_extension: int
+    ivr_name: str
+    option_count: int
+    reloaded: bool

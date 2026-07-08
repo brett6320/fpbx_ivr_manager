@@ -30,7 +30,7 @@
       </td>
       <td>{{ c.open_destination or '?' }}</td>
       <td style="white-space:nowrap;">
-        <a href="/schedules/{{ c.extension }}/edit">Edit</a>
+        <a href="/schedules/{{ c.extension }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
         <form method="post" action="/schedules/{{ c.extension }}/delete" style="display:inline;"
               onsubmit="return confirm('Delete time condition {{ c.extension }} and all its closures?');">
           <input type="hidden" name="confirm" value="yes">

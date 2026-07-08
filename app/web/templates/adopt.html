@@ -21,7 +21,7 @@ its existing extension and <strong>replaces its routing</strong>.</p>
       <td>{{ t.name }}</td>
       <td class="muted">{{ t.description }}</td>
       <td>{{ 'enabled' if t.enabled else 'disabled' }}</td>
-      <td><a href="/admin/adopt/{{ t.dialplan_uuid }}">Adopt →</a></td>
+      <td><a href="/admin/adopt/{{ t.dialplan_uuid }}"><button type="button" style="margin:0; padding:.2rem .5rem;">Adopt →</button></a></td>
     </tr>
   {% endfor %}
   </tbody>

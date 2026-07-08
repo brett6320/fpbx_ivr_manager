@@ -39,9 +39,11 @@ def test_nav_shows_main_sections(client):
         for link in ("Schedules", "IVRs", "Phrases", "Sign&nbsp;out"):
             assert link in html
         assert 'href="/phrases"' in html   # non-admins can view phrases
-        # editor lacks manage_users -> no admin links, and Call flow is admin-only
-        assert 'href="/admin/adopt"' not in html
-        assert 'href="/flow/new"' not in html
+        # editor lacks manage_users -> none of the admin-only links appear:
+        # adopt, backup (import/export), users, auth, call flow, compatibility, business
+        for href in ('/admin/adopt', '/admin/import', '/admin/export', '/admin/users',
+                     '/admin/auth', '/flow/new', '/admin/compat', '/admin/business'):
+            assert f'href="{href}"' not in html, href
 
 
 def test_nav_shows_admin_links_for_manage_users(client):

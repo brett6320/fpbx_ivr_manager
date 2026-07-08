@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Phrases</h1>
+<p><a href="/phrases/new"><button>+ New phrase</button></a></p>
 <p class="muted">Greeting/prompt recordings this app created. They also appear
-natively in FusionPBX under <strong>Apps → Recordings</strong>.
+natively in FusionPBX under <strong>Apps → Recordings</strong>, and in the
+“existing phrase” pickers when building schedules and IVRs.
 {% if can_admin %}Admins can delete a managed phrase here.{% endif %}</p>
 
 {% if not phrases %}
-  <p class="muted">No managed phrases yet — they're created when you generate a
-  schedule greeting or an IVR greeting via text-to-speech.</p>
+  <p class="muted">No managed phrases yet. Create one above, or they're added
+  when you generate a schedule or IVR greeting via text-to-speech.</p>
 {% else %}
 <table style="width:100%; border-collapse:collapse;">
   <thead>

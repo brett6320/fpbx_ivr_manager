@@ -296,6 +296,27 @@ def delete_phrase(name: str) -> bool:
     return recordings.delete_recording(name)
 
 
+def preview_phrase_text(text: str) -> str:
+    """Resolve business placeholders in free-text, for a phrase preview."""
+    return business.render(text or "")
+
+
+def create_phrase(label: str, text: str) -> dict:
+    """Synthesize a named phrase from text and store it as a managed recording.
+
+    Named with the GENERATED_PREFIX so it filters easily. Returns {name,
+    filename}. Raises ValueError on empty input; NotManaged if the target name
+    already exists but isn't ours."""
+    label = (label or "").strip()
+    resolved = business.render(text or "").strip()
+    if not label or not resolved:
+        raise ValueError("a phrase needs a name and some text")
+    name = f"{GENERATED_PREFIX}phrase_{_slug(label)}"
+    wav = google_tts.synthesize(resolved)
+    filename = recordings.upsert_recording(name, wav, description=label)
+    return {"name": name, "filename": filename}
+
+
 def list_inbound_destinations() -> list[dict]:
     return inbound_routes.list_inbound_destinations()
 

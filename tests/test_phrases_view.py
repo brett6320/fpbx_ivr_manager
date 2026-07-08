@@ -7,6 +7,27 @@ from app.config import settings
 from app.web import routes
 
 
+def test_create_phrase_synthesizes_prefixed_recording(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(service.google_tts, "synthesize", lambda t: captured.setdefault("text", t) or b"RIFF")
+    monkeypatch.setattr(service.recordings, "upsert_recording",
+                        lambda name, wav, description="": captured.update(name=name, desc=description) or f"{name}.wav")
+    monkeypatch.setattr(service.business, "render", lambda t: t.replace("{business_name}", "Acme"))
+    out = service.create_phrase("Main Greeting", "Hi from {business_name}")
+    assert out["name"] == "ivrmgr_phrase_main_greeting"
+    assert out["filename"] == "ivrmgr_phrase_main_greeting.wav"
+    assert captured["text"] == "Hi from Acme"       # placeholders resolved before TTS
+    assert captured["desc"] == "Main Greeting"
+
+
+def test_create_phrase_rejects_empty(monkeypatch):
+    monkeypatch.setattr(service.business, "render", lambda t: t)
+    with pytest.raises(ValueError):
+        service.create_phrase("", "text")
+    with pytest.raises(ValueError):
+        service.create_phrase("Name", "   ")
+
+
 def test_list_phrases_flags_generated(monkeypatch):
     monkeypatch.setattr(service.recordings, "list_managed", lambda: [
         {"name": "ivrmgr_schedule_9550_july", "filename": "a.wav", "description": "July"},
@@ -40,6 +61,21 @@ def _phrases(monkeypatch):
         {"name": "ivrmgr_ivr_9560_main", "filename": "m.wav",
          "description": "Main menu", "generated": True},
     ])
+
+
+def test_editor_can_create_phrase(client, monkeypatch):
+    _phrases(monkeypatch)
+    made = []
+    monkeypatch.setattr(routes, "create_phrase",
+                        lambda label, text: made.append((label, text)) or {"name": "ivrmgr_phrase_x"})
+    local.create_user("ed", "pw")
+    local.add_to_group("ed", "editors")
+    with client as c:
+        _login(c, "ed")
+        assert c.get("/phrases/new", follow_redirects=False).status_code == 200
+        r = c.post("/phrases", data={"label": "Greeting", "text": "hi"}, follow_redirects=False)
+        assert r.status_code == 303
+        assert made == [("Greeting", "hi")]
 
 
 def test_editor_can_view_but_not_delete(client, monkeypatch):

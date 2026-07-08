@@ -169,10 +169,12 @@ inbound route (Destinations app), the time condition, and the IVR together. See
 
 Greetings/prompts the app generates (or adopts) are real **`v_recordings`** rows,
 so they appear natively in **FusionPBX → Apps → Recordings**. The app also lists
-them at **`/phrases`** — any signed-in user can view the managed phrases;
-**admins can delete** one there (with confirmation; deleting removes the DB row
-and the stored `.wav`). Generated phrases are named with the `ivrmgr_` prefix so
-they're easy to spot in either place.
+them at **`/phrases`** — a small phrase manager where any signed-in user can
+**view** and **create** phrases (type text → Google TTS → stored recording,
+`{placeholder}`-aware), and **admins can delete** one (with confirmation;
+removes the DB row and the stored `.wav`). Generated phrases are named with the
+`ivrmgr_` prefix so they're easy to spot here, in FusionPBX, and in the
+“existing phrase” pickers when building schedules and IVRs.
 
 ## Status / not yet done
 

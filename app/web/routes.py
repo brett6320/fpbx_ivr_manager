@@ -457,7 +457,8 @@ def admin_auth(request: Request, user: dict = Depends(require_users)):
         "org": settings.app_org_name,
         "backend": backend.kind(),
         "redirect_uri": settings.redirect_uri,
-        "authz": settings.authz_group_permissions,
+        # show the effective mapping (the fpbx default fills in when unset)
+        "authz": authz.group_permissions_json(),
         "entra": {
             "tenant_id": settings.entra_tenant_id,
             "client_id": settings.entra_client_id,

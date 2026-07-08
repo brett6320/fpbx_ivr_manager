@@ -32,6 +32,7 @@
 
   <label>Reason (optional, folded into greeting)</label>
   <input name="reason" placeholder="a company holiday">
+  {% if placeholders %}<p class="muted">Placeholders you can use: {% for k in placeholders %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 
   <div class="grid2">
     <div>

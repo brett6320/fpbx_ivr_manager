@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from app.config import settings
+from app import business
 from app.fpbx import (
     extensions,
     inbound_routes,
@@ -29,13 +29,19 @@ def _slug(label: str) -> str:
 
 def preview_phrase(req: ScheduleRequest) -> str:
     return build_phrase(
-        req.start, req.end, org_name=settings.app_org_name, reason=req.reason
+        req.start, req.end,
+        org_name=business.business_name(),
+        reason=business.render(req.reason),
     ).text
 
 
 def _synthesize_recording(ext: int, req: ScheduleRequest):
     """Build the greeting and store it as a recording. Returns (phrase, rec_name, filename)."""
-    phrase = build_phrase(req.start, req.end, org_name=settings.app_org_name, reason=req.reason)
+    phrase = build_phrase(
+        req.start, req.end,
+        org_name=business.business_name(),
+        reason=business.render(req.reason),
+    )
     wav = google_tts.synthesize(phrase.text)
     rec_name = f"schedule_{ext}_{_slug(req.label)}"
     rec_filename = recordings.upsert_recording(rec_name, wav, description=req.label)
@@ -128,7 +134,7 @@ def create_ivr(req: IvrRequest) -> IvrResult:
         ext = extensions.allocate()
 
     if req.greeting_text:
-        wav = google_tts.synthesize(req.greeting_text)
+        wav = google_tts.synthesize(business.render(req.greeting_text))
         greet_filename = recordings.upsert_recording(
             f"ivr_{ext}_{_slug(req.name)}", wav, description=req.name
         )

@@ -47,6 +47,7 @@ Extensions auto-allocate from {{ pool }}.</p>
       {% for r in recordings %}<option value="{{ r.filename }}">{{ r.name }}</option>{% endfor %}
     </select>
   </div>
+  {% if placeholders %}<p class="muted">Placeholders you can use: {% for k in placeholders %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 
   <h3 style="margin-top:1rem;">Caller options</h3>
   <div class="grid2">

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app import business
 from app.auth import authz, backend, config_store, entra, local, probe
 from app.auth.authz import MANAGE_SCHEDULES, MANAGE_USERS
 from app.config import settings
@@ -305,6 +306,7 @@ def _form_ctx(user: dict, c: dict | None = None, adopt_uuid: str | None = None) 
         "pool": f"{settings.ext_pool_start}-{settings.ext_pool_end}",
         "c": c,  # prefill dict for edit mode, else None
         "adopt_uuid": adopt_uuid,  # set => adoption mode (posts to /admin/adopt)
+        "placeholders": business.placeholder_keys(),
     }
 
 
@@ -560,6 +562,7 @@ def ivr_new(request: Request, user: dict = Depends(require_schedules)):
             "digits": _DIGITS,
             "destinations": list_destinations(),
             "recordings": list_recordings(),
+            "placeholders": business.placeholder_keys(),
         },
     )
 
@@ -624,6 +627,7 @@ def flow_new(request: Request, user: dict = Depends(require_schedules)):
             "digits": _DIGITS,
             "destinations": list_destinations(),
             "recordings": list_recordings(),
+            "placeholders": business.placeholder_keys(),
         },
     )
 
@@ -644,3 +648,43 @@ async def flow_create(request: Request, user: dict = Depends(require_schedules))
             "IVR fields (see server logs for details).",
         ) from None
     return templates.TemplateResponse(request, "flow_result.html", {"r": result})
+
+
+# ---- business profile: name + business-hours templates (admins) ----
+_TMPL_ROWS = 6
+
+
+@router.get("/admin/business", response_class=HTMLResponse)
+def admin_business(request: Request, user: dict = Depends(require_users), saved: int = 0):
+    tmpl = business.hours_templates()
+    rows = list(tmpl.items())
+    while len(rows) < _TMPL_ROWS:
+        rows.append(("", ""))
+    return templates.TemplateResponse(
+        request,
+        "business.html",
+        {
+            "user": user,
+            "business_name": business.load().get("business_name", ""),
+            "org_fallback": settings.app_org_name,
+            "rows": rows,
+            "placeholders": business.placeholder_keys(),
+            "saved": bool(saved),
+        },
+    )
+
+
+@router.post("/admin/business")
+async def admin_business_save(request: Request, user: dict = Depends(require_users)):
+    form = await request.form()
+    name = (form.get("business_name") or "").strip()
+    tmpls: dict[str, str] = {}
+    i = 0
+    while form.get(f"tmpl_name_{i}") is not None:
+        k = (form.get(f"tmpl_name_{i}") or "").strip()
+        v = (form.get(f"tmpl_text_{i}") or "").strip()
+        if k:
+            tmpls[k] = v
+        i += 1
+    business.save(name, tmpls)
+    return RedirectResponse("/admin/business?saved=1", status_code=303)

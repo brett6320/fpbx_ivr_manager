@@ -135,6 +135,13 @@ recording that a human or another app made:
 - `list_schedules()` surfaces only marker-carrying rows, so the UI never offers to
   edit a look-alike.
 
+## Business profile & prompt placeholders
+
+Admins set a **business name** and reusable **business-hours templates** at
+`/admin/business`. Prompts can reference `{business_name}`, `{hours.<Template>}`,
+and `{business_hours}` — plugged in when the greeting audio is generated. See
+[docs/business.md](docs/business.md).
+
 ## IVR menus
 
 Beyond time-condition greetings, the app builds native FusionPBX **IVR menus** —

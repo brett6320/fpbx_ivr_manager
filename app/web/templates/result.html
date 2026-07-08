@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>Schedule created</h1>
+<h1>Time condition saved</h1>
 <p><strong>Extension:</strong> {{ r.extension }}</p>
-<p><strong>Label:</strong> {{ r.label }}</p>
-<p><strong>Recording:</strong> {{ r.recording_name }}</p>
+<p><strong>Name:</strong> {{ r.label }}</p>
+<p><strong>Closures:</strong> {{ r.closure_count }}</p>
 <p><strong>Time condition:</strong> {{ r.time_condition_name }}</p>
 <p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
+<p class="muted">Sample greeting (most specific closure):</p>
 <div class="preview">{{ r.phrase_text }}</div>
-<p><a href="/">← Back to schedules</a> · <a href="/schedules/new">Plan another</a></p>
+<p><a href="/">← Back to time conditions</a> · <a href="/schedules/new">Plan another</a></p>
 {% endblock %}

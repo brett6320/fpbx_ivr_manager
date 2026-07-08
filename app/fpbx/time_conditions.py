@@ -15,6 +15,7 @@ from __future__ import annotations
 import posixpath
 import re
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from xml.sax.saxutils import escape, unescape
 
@@ -22,6 +23,27 @@ from app.config import settings
 from app.fpbx.db import cursor, domain_uuid
 
 FS_DT = "%Y-%m-%d %H:%M:%S"
+
+
+@dataclass
+class Closure:
+    """One closure window within a time condition."""
+    label: str
+    start: datetime
+    end: datetime
+    closed_action: str            # voicemail | hangup
+    recording_filename: str       # the greeting recording played when active
+    reason: str = ""              # kept only to round-trip the greeting on edit
+
+
+def _duration(c: Closure):
+    return c.end - c.start
+
+
+def sort_closures(closures: list[Closure]) -> list[Closure]:
+    """Most specific first: shortest window wins, ties broken by earliest start.
+    A narrow closure therefore shadows a broader one that overlaps it."""
+    return sorted(closures, key=lambda c: (_duration(c), c.start))
 
 # Ownership marker embedded in every dialplan we create. We refuse to update or
 # delete any dialplan that does not carry it, even if the name/number matches —
@@ -45,44 +67,68 @@ class NotManaged(Exception):
 _RE_DT = re.compile(r'date-time="([^"~]+)~([^"]+)"')
 _RE_TRANSFER = re.compile(r'transfer" data="([^ ]+) XML')
 _RE_VOICEMAIL = re.compile(r'application="voicemail"')
+# one closure = its metadata comment immediately followed by its date-time condition
+_RE_CLOSURE_META = re.compile(
+    r'<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)" -->'
+)
+_RE_CONDITION = re.compile(r'<condition date-time="([^"~]+)~([^"]+)"[^>]*>(.*?)</condition>', re.S)
+_RE_PLAYBACK = re.compile(r'playback" data="[^"]*?/([^"/]+)"')
 
 
 def _playback_path(recording_filename: str) -> str:
     return posixpath.join(settings.recordings_dir, recording_filename)
 
 
+def _comment_safe(text: str) -> str:
+    """Make a value safe to embed inside an XML comment attribute."""
+    return (text or "").replace('"', "'").replace("<", "").replace(">", "").replace("--", "-")
+
+
+def _closure_block(extension: int, c: Closure, domain: str) -> str:
+    """The metadata comment + date-time condition for one closure."""
+    dt = f"{c.start.strftime(FS_DT)}~{c.end.strftime(FS_DT)}"
+    play = escape(_playback_path(c.recording_filename))
+    if c.closed_action == "hangup":
+        closed = '    <action application="hangup" data="NORMAL_CLEARING"/>'
+    else:  # voicemail (call already answered above)
+        closed = f'    <action application="voicemail" data="default {escape(domain)} {extension}"/>'
+    meta = (
+        f'  <!-- ivrmgr:closure label="{_comment_safe(c.label)}" '
+        f'reason="{_comment_safe(c.reason)}" action="{_comment_safe(c.closed_action)}" -->'
+    )
+    return (
+        f'{meta}\n'
+        f'  <condition date-time="{dt}" break="on-true">\n'
+        f'    <action application="answer"/>\n'
+        f'    <action application="sleep" data="700"/>\n'
+        f'    <action application="playback" data="{play}"/>\n'
+        f'{closed}\n'
+        f'  </condition>'
+    )
+
+
 def build_dialplan_xml(
     extension: int,
-    ranges: tuple[datetime, datetime],
-    recording_filename: str,
+    closures: list[Closure],
     *,
-    closed_action: str,
     open_destination: str,
     domain: str,
 ) -> str:
-    start, end = ranges
-    dt = f"{start.strftime(FS_DT)}~{end.strftime(FS_DT)}"
-    play = escape(_playback_path(recording_filename))
+    """A time-condition dialplan holding one or more closures.
 
-    if closed_action == "hangup":
-        closed = '    <action application="hangup" data="NORMAL_CLEARING"/>'
-    else:  # voicemail
-        closed = (
-            f'    <action application="answer"/>\n'
-            f'    <action application="sleep" data="700"/>\n'
-            f'    <action application="voicemail" data="default {escape(domain)} {extension}"/>'
-        )
-
+    Closures are emitted most-specific-first, each breaking on a match so a live
+    closure stops evaluation. If none match, the final condition transfers the
+    caller to open_destination (the normal daytime route)."""
+    blocks = "\n".join(
+        _closure_block(extension, c, domain) for c in sort_closures(closures)
+    )
     return (
         f'{_MARKER_XML}\n'
         f'<extension name="schedule_{extension}" continue="false">\n'
         f'  <condition field="destination_number" expression="^{extension}$" break="on-false"/>\n'
-        f'  <condition date-time="{dt}">\n'
-        f'    <action application="answer"/>\n'
-        f'    <action application="sleep" data="700"/>\n'
-        f'    <action application="playback" data="{play}"/>\n'
-        f"{closed}\n"
-        f'    <anti-action application="transfer" data="{escape(open_destination)} XML {escape(domain)}"/>\n'
+        f'{blocks}\n'
+        f'  <condition field="destination_number" expression="^{extension}$">\n'
+        f'    <action application="transfer" data="{escape(open_destination)} XML {escape(domain)}"/>\n'
         f'  </condition>\n'
         f'</extension>'
     )
@@ -90,24 +136,19 @@ def build_dialplan_xml(
 
 def upsert_time_condition(
     extension: int,
-    label: str,
-    ranges: tuple[datetime, datetime],
-    recording_filename: str,
+    name: str,
+    closures: list[Closure],
     *,
-    closed_action: str,
     open_destination: str,
 ) -> str:
-    """Create/replace the schedule dialplan. Returns the dialplan name."""
+    """Create/replace the time-condition dialplan with the given closure set.
+    Returns the dialplan name."""
     d = domain_uuid()
     ctx = settings.fpbx_domain_name
+    label = name
     name = f"schedule_{extension}"
     xml = build_dialplan_xml(
-        extension,
-        ranges,
-        recording_filename,
-        closed_action=closed_action,
-        open_destination=open_destination,
-        domain=ctx,
+        extension, closures, open_destination=open_destination, domain=ctx,
     )
 
     with cursor() as cur:
@@ -169,27 +210,49 @@ def _assert_number_free_or_owned(cur, d: str, extension: int) -> None:
             )
 
 
-def _parse_xml(xml: str) -> dict:
-    """Recover schedule fields from a stored dialplan_xml (best-effort)."""
-    out: dict = {"start": None, "end": None, "open_destination": None, "closed_action": "hangup"}
-    m = _RE_DT.search(xml)
-    if m:
-        try:
-            out["start"] = datetime.strptime(m.group(1), FS_DT)
-            out["end"] = datetime.strptime(m.group(2), FS_DT)
-        except ValueError:
-            pass  # unparseable date-time in stored XML: leave start/end as None
-    t = _RE_TRANSFER.search(xml)
-    if t:
-        out["open_destination"] = unescape(t.group(1))
-    if _RE_VOICEMAIL.search(xml):
-        out["closed_action"] = "voicemail"
-    return out
+def _parse_dt(a: str, b: str):
+    try:
+        return datetime.strptime(a, FS_DT), datetime.strptime(b, FS_DT)
+    except ValueError:
+        return None, None
+
+
+def parse_closures(xml: str) -> dict:
+    """Recover a time condition's closures + open destination from stored XML.
+
+    Handles both the current multi-closure format (metadata comment per closure)
+    and the earlier single-closure format (one condition + anti-action)."""
+    xml = xml or ""
+    metas = _RE_CLOSURE_META.findall(xml)          # [(label, reason, action), ...]
+    blocks = _RE_CONDITION.findall(xml)            # [(start, end, inner), ...]
+    closures: list[dict] = []
+    for i, (a, b, inner) in enumerate(blocks):
+        start, end = _parse_dt(a, b)
+        meta = metas[i] if i < len(metas) else None
+        pm = _RE_PLAYBACK.search(inner)
+        closures.append({
+            "label": (meta[0] if meta else "") or "closure",
+            "reason": meta[1] if meta else "",
+            "closed_action": (meta[2] if meta else None)
+            or ("voicemail" if "voicemail" in inner else "hangup"),
+            "start": start,
+            "end": end,
+            "recording_filename": pm.group(1) if pm else "",
+        })
+    # open destination: last transfer wins (our trailing open condition); the old
+    # format only had an anti-action transfer, which this regex still catches
+    dest = None
+    for m in _RE_TRANSFER.finditer(xml):
+        dest = unescape(m.group(1))
+    return {"closures": closures, "open_destination": dest}
 
 
 def list_schedules() -> list[dict]:
-    """All managed schedules in the domain (identified by our ownership marker),
-    including adopted ones outside the extension pool, by extension number."""
+    """All managed time conditions in the domain (identified by our ownership
+    marker), including adopted ones outside the extension pool, by extension.
+
+    Each entry carries its full closure list; for backward compatibility the
+    first (most specific) closure's window/action is also surfaced at top level."""
     d = domain_uuid()
     with cursor() as cur:
         # time-condition app_uuid keeps IVR-menu dialplans (which also carry our
@@ -206,8 +269,9 @@ def list_schedules() -> list[dict]:
         # the ownership marker is the authoritative scope signal
         if not _is_managed(row["dialplan_xml"]):
             continue
-        parsed = _parse_xml(row["dialplan_xml"] or "")
+        parsed = parse_closures(row["dialplan_xml"] or "")
         ext = int(row["dialplan_number"])
+        first = parsed["closures"][0] if parsed["closures"] else {}
         result.append(
             {
                 "extension": ext,
@@ -215,7 +279,12 @@ def list_schedules() -> list[dict]:
                 "enabled": row["dialplan_enabled"] == "true",
                 # adopted records may sit outside the managed pool; flag for the UI
                 "in_pool": settings.ext_pool_start <= ext <= settings.ext_pool_end,
-                **parsed,
+                "open_destination": parsed["open_destination"],
+                "closures": parsed["closures"],
+                # legacy top-level fields (first closure)
+                "start": first.get("start"),
+                "end": first.get("end"),
+                "closed_action": first.get("closed_action", "voicemail"),
             }
         )
     return result
@@ -275,10 +344,8 @@ def get_time_condition(dialplan_uuid: str) -> dict:
 def adopt_time_condition(
     dialplan_uuid: str,
     label: str,
-    ranges: tuple[datetime, datetime],
-    recording_filename: str,
+    closures: list[Closure],
     *,
-    closed_action: str,
     open_destination: str,
 ) -> int:
     """Convert an existing time condition into an app-managed schedule in place.
@@ -290,12 +357,7 @@ def adopt_time_condition(
     extension = tc["extension"]
     ctx = settings.fpbx_domain_name
     xml = build_dialplan_xml(
-        extension,
-        ranges,
-        recording_filename,
-        closed_action=closed_action,
-        open_destination=open_destination,
-        domain=ctx,
+        extension, closures, open_destination=open_destination, domain=ctx,
     )
     with cursor() as cur:
         cur.execute(

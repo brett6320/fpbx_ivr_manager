@@ -34,6 +34,63 @@ def test_apply_new_record_outside_pool_is_rejected(monkeypatch):
         service.apply_schedule(_req(3000), "2000")
 
 
+def _fake_synth(monkeypatch):
+    monkeypatch.setattr(service.google_tts, "synthesize", lambda t: b"RIFFxxxx")
+    monkeypatch.setattr(service.recordings, "upsert_recording",
+                        lambda name, wav, description="": f"{name}.wav")
+
+
+def test_apply_time_condition_builds_multiple_closures(monkeypatch):
+    from datetime import datetime as _dt
+
+    from app.models import Closure, TimeConditionRequest
+    _fake_synth(monkeypatch)
+    monkeypatch.setattr(service.time_conditions, "get_schedule", lambda e: None)
+    monkeypatch.setattr(service.extensions, "validate", lambda e: e)
+    captured = {}
+    monkeypatch.setattr(service.time_conditions, "upsert_time_condition",
+                        lambda ext, name, closures, *, open_destination:
+                        captured.update(ext=ext, name=name, closures=closures, dest=open_destination) or "schedule_9550")
+    monkeypatch.setattr(service.xmlrpc_client, "reloadxml", lambda: True)
+
+    tc = TimeConditionRequest(
+        name="TC-Main", open_destination="2000", extension=9550,
+        closures=[
+            Closure(label="Summer", start=_dt(2026, 7, 1, 0, 0), end=_dt(2026, 7, 8, 23, 59)),
+            Closure(label="July 4th", start=_dt(2026, 7, 4, 0, 0), end=_dt(2026, 7, 4, 23, 59)),
+        ],
+    )
+    res = service.apply_time_condition(tc)
+    assert res.extension == 9550 and res.closure_count == 2
+    assert captured["name"] == "TC-Main" and captured["dest"] == "2000"
+    assert {c.label for c in captured["closures"]} == {"Summer", "July 4th"}
+
+
+def test_apply_schedule_merges_into_existing_closures(monkeypatch):
+    from datetime import datetime as _dt
+
+    _fake_synth(monkeypatch)
+    existing = {
+        "label": "TC-Main", "extension": 9550,
+        "closures": [{"label": "Old", "start": _dt(2026, 1, 1, 0, 0),
+                      "end": _dt(2026, 1, 1, 23, 59), "closed_action": "hangup",
+                      "recording_filename": "old.wav", "reason": ""}],
+    }
+    monkeypatch.setattr(service.time_conditions, "get_schedule", lambda e: existing)
+    captured = {}
+    monkeypatch.setattr(service.time_conditions, "upsert_time_condition",
+                        lambda ext, name, closures, *, open_destination:
+                        captured.update(name=name, closures=closures) or "schedule_9550")
+    monkeypatch.setattr(service.xmlrpc_client, "reloadxml", lambda: True)
+
+    req = ScheduleRequest(label="New", start=_dt(2026, 7, 4, 0, 0),
+                          end=_dt(2026, 7, 4, 23, 59), extension=9550)
+    res = service.apply_schedule(req, "2000")
+    # new closure added alongside the pre-existing one; TC name preserved
+    assert res.closure_count == 2 and captured["name"] == "TC-Main"
+    assert {c.label for c in captured["closures"]} == {"Old", "New"}
+
+
 def test_slug_normalizes():
     assert _slug("July 4th Holiday!") == "july_4th_holiday"
     assert _slug("  Spaces  &  Symbols  ") == "spaces_symbols"

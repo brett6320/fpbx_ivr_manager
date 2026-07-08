@@ -18,6 +18,7 @@ from app.models import (
     IvrResult,
     ScheduleRequest,
     ScheduleResult,
+    TimeConditionRequest,
 )
 from app.phrases.builder import build_phrase
 from app.tts import google_tts
@@ -64,32 +65,95 @@ def _synthesize_recording(ext: int, req: ScheduleRequest):
     return phrase, rec_name, rec_filename
 
 
+def _resolve_extension(ext_in: int | None) -> int:
+    if ext_in:
+        # editing an existing managed TC keeps its number (may be outside the pool
+        # if adopted); a brand-new one must be in the managed pool.
+        return ext_in if time_conditions.get_schedule(ext_in) else extensions.validate(ext_in)
+    return extensions.allocate()
+
+
+def _build_closure(ext: int, c) -> tuple[str, time_conditions.Closure]:
+    """Synthesize the greeting for one closure and return (phrase_text, Closure)."""
+    phrase, _rec_name, rec_filename = _synthesize_recording(ext, c)
+    return phrase.text, time_conditions.Closure(
+        label=c.label, start=c.start, end=c.end,
+        closed_action=c.closed_action, recording_filename=rec_filename,
+        reason=c.reason or "",
+    )
+
+
+def apply_time_condition(tc: TimeConditionRequest) -> ScheduleResult:
+    """Create/replace a time condition holding one or more closures."""
+    ext = _resolve_extension(tc.extension)
+    phrases, closures = [], []
+    for c in tc.closures:
+        text, closure = _build_closure(ext, c)
+        phrases.append(text)
+        closures.append(closure)
+
+    name = time_conditions.upsert_time_condition(
+        ext, tc.name, closures, open_destination=tc.open_destination,
+    )
+    reloaded = xmlrpc_client.reloadxml()
+    first = time_conditions.sort_closures(closures)[0]
+    return ScheduleResult(
+        extension=ext,
+        label=tc.name,
+        phrase_text=phrases[closures.index(first)],
+        recording_name=first.recording_filename,
+        time_condition_name=name,
+        reloaded=reloaded,
+        closure_count=len(closures),
+    )
+
+
+def _existing_closures(ext: int) -> list[time_conditions.Closure]:
+    """Current closures on a managed TC as Closure objects (recordings preserved)."""
+    tc = time_conditions.get_schedule(ext)
+    if not tc:
+        return []
+    out = []
+    for c in tc.get("closures", []):
+        if not (c.get("start") and c.get("end")):
+            continue
+        out.append(time_conditions.Closure(
+            label=c.get("label") or "closure", start=c["start"], end=c["end"],
+            closed_action=c.get("closed_action", "voicemail"),
+            recording_filename=c.get("recording_filename", ""),
+            reason=c.get("reason", ""),
+        ))
+    return out
+
+
 def apply_schedule(req: ScheduleRequest, open_destination: str) -> ScheduleResult:
-    if req.extension:
-        # editing an existing managed schedule keeps its number (may be outside the
-        # pool if it was adopted); a brand-new one must be in the managed pool.
-        ext = req.extension if time_conditions.get_schedule(req.extension) else extensions.validate(req.extension)
-    else:
-        ext = extensions.allocate()
+    """Add or update a single closure (by label) within the time condition on the
+    target extension, preserving any other closures already there."""
+    ext = _resolve_extension(req.extension)
+    existing = time_conditions.get_schedule(ext)
+    tc_name = (existing.get("label") if existing else None) or req.label
 
     phrase, rec_name, rec_filename = _synthesize_recording(ext, req)
+    new_closure = time_conditions.Closure(
+        label=req.label, start=req.start, end=req.end,
+        closed_action=req.closed_action, recording_filename=rec_filename,
+        reason=req.reason or "",
+    )
+    closures = [c for c in _existing_closures(ext) if c.label != req.label]
+    closures.append(new_closure)
 
-    tc_name = time_conditions.upsert_time_condition(
-        ext,
-        req.label,
-        (req.start, req.end),
-        rec_filename,
-        closed_action=req.closed_action,
-        open_destination=open_destination,
+    name = time_conditions.upsert_time_condition(
+        ext, tc_name, closures, open_destination=open_destination,
     )
     reloaded = xmlrpc_client.reloadxml()
     return ScheduleResult(
         extension=ext,
-        label=req.label,
+        label=tc_name,
         phrase_text=phrase.text,
         recording_name=rec_name,
-        time_condition_name=tc_name,
+        time_condition_name=name,
         reloaded=reloaded,
+        closure_count=len(closures),
     )
 
 
@@ -100,13 +164,13 @@ def adopt_schedule(dialplan_uuid: str, req: ScheduleRequest, open_destination: s
 
     phrase, rec_name, rec_filename = _synthesize_recording(ext, req)
 
+    closure = time_conditions.Closure(
+        label=req.label, start=req.start, end=req.end,
+        closed_action=req.closed_action, recording_filename=rec_filename,
+        reason=req.reason or "",
+    )
     time_conditions.adopt_time_condition(
-        dialplan_uuid,
-        req.label,
-        (req.start, req.end),
-        rec_filename,
-        closed_action=req.closed_action,
-        open_destination=open_destination,
+        dialplan_uuid, req.label, [closure], open_destination=open_destination,
     )
     reloaded = xmlrpc_client.reloadxml()
     return ScheduleResult(

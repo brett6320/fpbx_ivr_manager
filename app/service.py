@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 from app import business, recycle
 from app.fpbx import (
@@ -197,6 +198,33 @@ def list_schedules() -> list[dict]:
 
 def get_schedule(extension: int) -> dict | None:
     return time_conditions.get_schedule(extension)
+
+
+def summarize_closures(schedules: list[dict], *, now: datetime | None = None) -> dict:
+    """Flatten managed time conditions into the closures that are **active now**
+    or **upcoming**, for the home-page summary. Times are the FusionPBX domain's
+    local time (naive), compared against the server clock."""
+    now = now or datetime.now()
+    active, upcoming = [], []
+    for tc in schedules:
+        for cl in tc.get("closures", []):
+            start, end = cl.get("start"), cl.get("end")
+            if not (start and end):
+                continue
+            item = {
+                "extension": tc["extension"],
+                "tc_label": tc.get("label"),
+                "label": cl.get("label") or "closure",
+                "start": start,
+                "end": end,
+            }
+            if start <= now <= end:
+                active.append(item)
+            elif now < start:
+                upcoming.append(item)
+    active.sort(key=lambda x: x["end"])          # ending soonest first
+    upcoming.sort(key=lambda x: x["start"])       # starting soonest first
+    return {"active": active, "upcoming": upcoming, "now": now}
 
 
 def delete_schedule(extension: int) -> bool:

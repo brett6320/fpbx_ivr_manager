@@ -8,7 +8,9 @@ They slot into the call flow as:
 Destination (inbound route) → Time Condition (schedule) → IVR → dialed option / timeout
 ```
 
-Manage them at **`/ivrs`** (requires `manage_schedules`).
+Manage them at **`/ivrs`**. Viewing and **creating** IVRs needs `manage_schedules`;
+**deleting or recycling** an IVR is **admin-only** (`manage_users`) — regular
+schedule users don't see those controls.
 
 ## What gets created
 
@@ -58,11 +60,12 @@ off-box answering service.
 
 Two ways:
 
-- **One-flow wizard (`/flow/new`)** — build the whole chain in one step: it
-  creates the IVR, a time condition (schedule) whose open destination routes into
-  the IVR, and — if you pick an inbound DID — points that **inbound route**
-  (Destinations app, `public` context) at the schedule. Result:
-  `inbound → time condition → IVR → option/timeout`.
+- **One-flow wizard (`/flow/new`, admin-only `manage_users`)** — build the whole
+  chain in one step: it creates the IVR, a time condition (schedule) whose open
+  destination routes into the IVR, and — if you pick an inbound DID — points that
+  **inbound route** (Destinations app, `public` context) at the schedule. Result:
+  `inbound → time condition → IVR → option/timeout`. It's admin-only because it can
+  repoint inbound routes.
 - **Piece by piece** — build an IVR here, then set a **schedule's open
   destination** to the IVR's extension, and point your inbound route at the
   schedule's extension yourself.
@@ -74,21 +77,23 @@ created by this app, the wizard **refuses to overwrite it** — and does not cre
 anything — unless you tick *"replace the existing inbound route."* Managed routes
 are updated freely.
 
-## Recycling an extension
+## Recycling an extension (admin-only)
 
-On the IVRs list each row offers two removals:
+On the IVRs list each row offers two removals — both **admin-only**
+(`manage_users`):
 
 - **Recycle** — logs the extension's **previous use** (name, timestamp, who) to
   an app-side ledger, then frees it in the dialplan (removes the IVR) so the pool
   number can be handed back out. The **Recycled extensions** table on the same
   page shows the history and flags each number *available for reuse* or *in use
   again*. Auto-allocation (`/ivrs/new`, `/flow/new`) picks up freed numbers
-  automatically.
+  automatically. Admins can also **delete individual ledger entries** from that
+  table (history only — no FusionPBX change).
 - **Delete** — removes the IVR and frees the number too, but keeps no history.
 
-Both require confirmation. The ledger is app-managed JSON in the writable state
-dir (`RECYCLE_LOG_FILE`, default `data/recycled.json`, `0600`) — no FusionPBX
-changes.
+Both require confirmation (a modal, the same as every destructive action in the
+app). The ledger is app-managed JSON in the writable state dir (`RECYCLE_LOG_FILE`,
+default `data/recycled.json`, `0600`) — no FusionPBX changes.
 
 ## Caveat
 

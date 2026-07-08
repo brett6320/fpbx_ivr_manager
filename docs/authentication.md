@@ -112,12 +112,32 @@ can do nothing until placed in a group that appears in
 `LOCAL_ADMIN_GROUP`) holds *every* permission regardless of `AUTHZ_GROUP_PERMISSIONS`
 — so the seeded admin can manage the app out of the box. This is a role, not a
 per-user permission binding; `is_admin` is only ever set by the local backend, so
-IdP (Entra/LDAP) users still derive their permissions purely from groups.
+IdP (Entra/LDAP/FusionPBX) users still derive their permissions purely from groups.
+
+The seed admin's username follows the **`admin@local`** convention (distinct from
+FusionPBX's own `admin`); a database previously seeded as `admin` is renamed to
+`admin@local` once, carrying its groups, admin flag and MFA.
+
+**Local admins work under any backend.** Even with `AUTH_BACKEND` set to an
+external provider, local administrators authenticate against the local DB from the
+**normal login form** (a local-admin fallback runs when the external lookup
+doesn't match) as well as the break-glass page at `/auth/local`. Non-admin local
+users get no such fallback.
+
+## Self-service account (`/account`)
+
+Every signed-in user has an account page (linked from their name in the top nav):
+
+- **Local-DB accounts** (including a local admin signed in under an external
+  backend) can change their **display name** and **password** (password change
+  requires the current password).
+- **External identities** (Entra / LDAP / FusionPBX) see a **read-only** table of
+  name, email and groups, labelled with the source they came from.
 
 ## Interactive enablement & live testing (admin UI)
 
 Users with `manage_users` get an **Auth config** page at **`/admin/auth`** to
-enable and test SSO/LDAP interactively before committing:
+enable and test a provider interactively before committing:
 
 - **Entra**: enter tenant/client id/secret → **Test** fetches the tenant OIDC
   discovery doc and validates the client credentials by acquiring a token, and
@@ -127,6 +147,10 @@ enable and test SSO/LDAP interactively before committing:
   connects, negotiates StartTLS, binds as that user, resolves their groups, and
   shows which map to permissions. Test credentials are used only for the probe
   and are never stored.
+- **FusionPBX**: **Test** verifies a real username/password against `v_users` and
+  shows the groups found and permissions they map to. A **group→permission mapping
+  builder** loads the domain's groups and lets you tick permissions per group,
+  writing `AUTHZ_GROUP_PERMISSIONS` for you. See [fpbx-auth.md](fpbx-auth.md).
 - **Save** writes the validated values to an app-managed override file
   (`AUTH_CONFIG_FILE`, default `data/auth.env`) in the app's writable state dir —
   the root-owned main env file is never modified. **Restart the service** to

@@ -25,14 +25,14 @@ The app separates **authentication** (who are you?) from **authorization**
         AUTHZ_GROUP_PERMISSIONS: { group -> [permissions] }   (groups only)
                             │
                             ▼
-             require("manage_closures")  ── 200 / 307 / 403
+             require("manage_schedules")  ── 200 / 307 / 403
 ```
 
 ## Permissions
 
 | Permission        | Guards                                                   |
 |-------------------|---------------------------------------------------------|
-| `manage_closures` | Viewing, creating, editing, deleting closures (all UI)  |
+| `manage_schedules` | Viewing, creating, editing, deleting schedules (all UI)  |
 | `manage_users`    | Reserved for local user administration                  |
 
 A logged-in user with **no** matching group gets **HTTP 403**. A user who is not
@@ -50,7 +50,7 @@ whose exact form depends on the backend:
 | ldap    | the group `cn` (e.g. `ivr-admins`)                           |
 
 ```env
-AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_closures","manage_users"],"ivr-editors":["manage_closures"]}
+AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_schedules","manage_users"],"ivr-editors":["manage_schedules"]}
 ```
 
 Backend-specific setup:

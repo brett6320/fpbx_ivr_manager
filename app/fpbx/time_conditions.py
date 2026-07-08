@@ -1,8 +1,8 @@
-"""Create/replace a FusionPBX time-condition dialplan for a planned closure.
+"""Create/replace a FusionPBX time-condition dialplan for a planned schedule.
 
-Model: one managed extension (9550-9599) per closure. The dialplan matches the
+Model: one managed extension (9550-9599) per schedule. The dialplan matches the
 extension, then a date-time condition:
-  - inside the closure window  -> answer, play the closure greeting, then the
+  - inside the schedule window  -> answer, play the schedule greeting, then the
     closed action (voicemail or hangup)
   - outside the window         -> transfer the caller to the normal daytime
     destination (an existing IVR / ring group / extension)
@@ -67,7 +67,7 @@ def build_dialplan_xml(
 
     return (
         f'{_MARKER_XML}\n'
-        f'<extension name="closure_{extension}" continue="false">\n'
+        f'<extension name="schedule_{extension}" continue="false">\n'
         f'  <condition field="destination_number" expression="^{extension}$" break="on-false"/>\n'
         f'  <condition date-time="{dt}">\n'
         f'    <action application="answer"/>\n'
@@ -89,10 +89,10 @@ def upsert_time_condition(
     closed_action: str,
     open_destination: str,
 ) -> str:
-    """Create/replace the closure dialplan. Returns the dialplan name."""
+    """Create/replace the schedule dialplan. Returns the dialplan name."""
     d = domain_uuid()
     ctx = settings.fpbx_domain_name
-    name = f"closure_{extension}"
+    name = f"schedule_{extension}"
     xml = build_dialplan_xml(
         extension,
         ranges,
@@ -157,7 +157,7 @@ def _assert_number_free_or_owned(cur, d: str, extension: int) -> None:
 
 
 def _parse_xml(xml: str) -> dict:
-    """Recover closure fields from a stored dialplan_xml (best-effort)."""
+    """Recover schedule fields from a stored dialplan_xml (best-effort)."""
     out: dict = {"start": None, "end": None, "open_destination": None, "closed_action": "hangup"}
     m = _RE_DT.search(xml)
     if m:
@@ -174,14 +174,14 @@ def _parse_xml(xml: str) -> dict:
     return out
 
 
-def list_closures() -> list[dict]:
-    """All managed closure dialplans in the domain, newest extension first."""
+def list_schedules() -> list[dict]:
+    """All managed schedule dialplans in the domain, newest extension first."""
     d = domain_uuid()
     with cursor() as cur:
         cur.execute(
             "SELECT dialplan_number, dialplan_name, dialplan_description, "
             "dialplan_enabled, dialplan_xml FROM v_dialplans "
-            "WHERE domain_uuid = %s AND dialplan_name LIKE 'closure_%%' "
+            "WHERE domain_uuid = %s AND dialplan_name LIKE 'schedule_%%' "
             "ORDER BY dialplan_number",
             (d,),
         )
@@ -204,8 +204,8 @@ def list_closures() -> list[dict]:
     return result
 
 
-def get_closure(extension: int) -> dict | None:
-    for c in list_closures():
+def get_schedule(extension: int) -> dict | None:
+    for c in list_schedules():
         if c["extension"] == extension:
             return c
     return None
@@ -213,7 +213,7 @@ def get_closure(extension: int) -> dict | None:
 
 def delete_time_condition(extension: int) -> bool:
     d = domain_uuid()
-    name = f"closure_{extension}"
+    name = f"schedule_{extension}"
     with cursor() as cur:
         cur.execute(
             "SELECT dialplan_uuid, dialplan_xml FROM v_dialplans "

@@ -2,7 +2,7 @@
 
 An extension is considered 'in use' if any dialplan (our time conditions) or
 extension record references it in the domain. We track ours by a naming
-convention: dialplan name 'closure_<ext>'.
+convention: dialplan name 'schedule_<ext>'.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ POOL = range(settings.ext_pool_start, settings.ext_pool_end + 1)
 
 
 def used_extensions() -> set[int]:
-    """Every number in the pool that is occupied by *anything* — our closures,
+    """Every number in the pool that is occupied by *anything* — our schedules,
     foreign dialplans/time conditions, or real extensions. Auto-allocation only
     ever hands out a number that is completely free, so we never step on a
     construct we did not create."""

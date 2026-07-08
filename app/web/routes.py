@@ -1,4 +1,4 @@
-"""HTTP routes: auth flow + closure management UI/API."""
+"""HTTP routes: auth flow + schedule management UI/API."""
 from __future__ import annotations
 
 import secrets
@@ -9,21 +9,21 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth import authz, backend, entra, local
-from app.auth.authz import MANAGE_CLOSURES
+from app.auth.authz import MANAGE_SCHEDULES
 from app.config import settings
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
-from app.models import ClosureRequest
+from app.models import ScheduleRequest
 from app.service import (
-    apply_closure,
-    delete_closure,
-    get_closure,
-    list_closures,
+    apply_schedule,
+    delete_schedule,
+    get_schedule,
+    list_schedules,
     preview_phrase,
 )
 
-# every closure route requires the manage_closures permission (granted via groups)
-require_closures = authz.require(MANAGE_CLOSURES)
+# every schedule route requires the manage_schedules permission (granted via groups)
+require_schedules = authz.require(MANAGE_SCHEDULES)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -287,38 +287,38 @@ def _form_ctx(user: dict, c: dict | None = None) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, user: dict = Depends(require_closures)):
+def index(request: Request, user: dict = Depends(require_schedules)):
     return templates.TemplateResponse(
         request,
-        "closures.html",
-        {"user": user, "closures": list_closures()},
+        "schedules.html",
+        {"user": user, "schedules": list_schedules()},
     )
 
 
-@router.get("/closures/new", response_class=HTMLResponse)
-def new_closure(request: Request, user: dict = Depends(require_closures)):
-    return templates.TemplateResponse(request, "closure_form.html", _form_ctx(user))
+@router.get("/schedules/new", response_class=HTMLResponse)
+def new_schedule(request: Request, user: dict = Depends(require_schedules)):
+    return templates.TemplateResponse(request, "schedule_form.html", _form_ctx(user))
 
 
-@router.get("/closures/{ext}/edit", response_class=HTMLResponse)
-def edit_closure(request: Request, ext: int, user: dict = Depends(require_closures)):
-    c = get_closure(ext)
+@router.get("/schedules/{ext}/edit", response_class=HTMLResponse)
+def edit_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
+    c = get_schedule(ext)
     if not c:
-        return HTMLResponse("closure not found", status_code=404)
-    return templates.TemplateResponse(request, "closure_form.html", _form_ctx(user, c))
+        return HTMLResponse("schedule not found", status_code=404)
+    return templates.TemplateResponse(request, "schedule_form.html", _form_ctx(user, c))
 
 
-@router.post("/closures/{ext}/delete")
-def remove_closure(request: Request, ext: int, user: dict = Depends(require_closures)):
+@router.post("/schedules/{ext}/delete")
+def remove_schedule(request: Request, ext: int, user: dict = Depends(require_schedules)):
     try:
-        delete_closure(ext)
+        delete_schedule(ext)
     except NotManaged as e:
         return HTMLResponse(f"Refused: {e}", status_code=409)
     return RedirectResponse("/", status_code=303)
 
 
-def _parse(form) -> ClosureRequest:
-    return ClosureRequest(
+def _parse(form) -> ScheduleRequest:
+    return ScheduleRequest(
         label=form["label"],
         start=form["start"],
         end=form["end"],
@@ -329,21 +329,21 @@ def _parse(form) -> ClosureRequest:
 
 
 @router.post("/preview", response_class=HTMLResponse)
-async def preview(request: Request, user: dict = Depends(require_closures)):
+async def preview(request: Request, user: dict = Depends(require_schedules)):
     form = await request.form()
     text = preview_phrase(_parse(form))
     return HTMLResponse(f'<div class="preview">{text}</div>')
 
 
 @router.post("/apply", response_class=HTMLResponse)
-async def apply(request: Request, user: dict = Depends(require_closures)):
+async def apply(request: Request, user: dict = Depends(require_schedules)):
     form = await request.form()
     req = _parse(form)
     open_dest = form.get("open_destination", "").strip()
     if not open_dest:
         return HTMLResponse("open_destination is required", status_code=400)
     try:
-        result = apply_closure(req, open_dest)
+        result = apply_schedule(req, open_dest)
     except NotManaged as e:
         return HTMLResponse(f"Refused: {e}", status_code=409)
     return templates.TemplateResponse(request, "result.html", {"r": result})

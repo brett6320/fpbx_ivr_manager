@@ -14,7 +14,7 @@ never sees their password. Group membership from the token drives authorization.
 In the [Entra admin center](https://entra.microsoft.com) → **Identity →
 Applications → App registrations → New registration**:
 
-1. **Name**: e.g. `FusionPBX Closure Manager`.
+1. **Name**: e.g. `FusionPBX IVR Manager`.
 2. **Supported account types**: *Accounts in this organizational directory only*
    (single tenant) unless you specifically need multi-tenant.
 3. **Redirect URI**: platform **Web**, value:
@@ -76,7 +76,7 @@ ENTRA_CLIENT_SECRET=<client secret VALUE>
 
 # Map the group identifiers that appear in the token 'groups' claim.
 # Using Group IDs (GUIDs):
-AUTHZ_GROUP_PERMISSIONS={"11111111-1111-1111-1111-111111111111":["manage_closures","manage_users"],"22222222-2222-2222-2222-222222222222":["manage_closures"]}
+AUTHZ_GROUP_PERMISSIONS={"11111111-1111-1111-1111-111111111111":["manage_schedules","manage_users"],"22222222-2222-2222-2222-222222222222":["manage_schedules"]}
 ```
 
 At startup the app validates that `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and
@@ -86,7 +86,7 @@ At startup the app validates that `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and
 
 1. Browse to `https://ivr.example.com/` → you are redirected to Microsoft.
 2. Sign in with a user who is a member of a mapped group → you land on the
-   closures list.
+   schedules list.
 3. Sign in as a user in **no** mapped group → **403** (authenticated but
    unauthorized), proving group binding works.
 

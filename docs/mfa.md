@@ -34,7 +34,7 @@ When the primary backend is external, the standard login page shows a
   refused), and
 - enforces MFA exactly like the local backend does.
 
-This guarantees you can always get in to manage closures if the IdP is
+This guarantees you can always get in to manage schedules if the IdP is
 unavailable or misconfigured — provided you keep a local admin with an enrolled
 factor.
 

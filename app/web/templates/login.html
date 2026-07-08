@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>{{ org }} — Closure Manager</h1>
+<h1>{{ org }} — IVR Manager</h1>
 
 {% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
 
@@ -8,7 +8,7 @@
   <p class="muted">Sign in with your organization account.</p>
   <a href="/auth/login"><button>Sign in with Microsoft Entra ID</button></a>
 {% else %}
-  <p class="muted">Sign in to manage planned office closures.</p>
+  <p class="muted">Sign in to manage planned IVR schedules.</p>
   <form method="post" action="/auth/login">
     <label>Username</label>
     <input name="username" autocomplete="username" required autofocus>

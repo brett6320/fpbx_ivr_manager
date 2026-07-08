@@ -1,4 +1,4 @@
-# FusionPBX Closure Manager — least-privilege container deployment.
+# FusionPBX IVR Manager — least-privilege container deployment.
 #
 # Assumes the app runs on (or beside) the FusionPBX host. It reaches the host's
 # PostgreSQL and FreeSWITCH mod_xml_rpc over the host gateway, and — when using

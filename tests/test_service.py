@@ -1,18 +1,18 @@
 from datetime import datetime
 
-from app.models import ClosureRequest
+from app.models import ScheduleRequest
 from app.service import _slug, preview_phrase
 
 
 def test_slug_normalizes():
     assert _slug("July 4th Holiday!") == "july_4th_holiday"
     assert _slug("  Spaces  &  Symbols  ") == "spaces_symbols"
-    assert _slug("") == "closure"
-    assert _slug("---") == "closure"
+    assert _slug("") == "schedule"
+    assert _slug("---") == "schedule"
 
 
 def test_preview_phrase_uses_org_and_reason():
-    req = ClosureRequest(
+    req = ScheduleRequest(
         label="Holiday",
         start=datetime(2026, 7, 7, 0, 0),
         end=datetime(2026, 7, 7, 23, 59),
@@ -24,11 +24,11 @@ def test_preview_phrase_uses_org_and_reason():
     assert "This closure is for a company holiday." in text
 
 
-def test_closure_request_rejects_end_before_start():
+def test_schedule_request_rejects_end_before_start():
     import pytest
 
     with pytest.raises(ValueError):
-        ClosureRequest(
+        ScheduleRequest(
             label="x",
             start=datetime(2026, 7, 7, 12, 0),
             end=datetime(2026, 7, 7, 9, 0),

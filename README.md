@@ -1,7 +1,7 @@
-# FusionPBX IVR / Closure Manager
+# FusionPBX IVR Manager
 
-Web app to schedule planned office closures on FusionPBX. Users sign in with
-Microsoft Entra ID, enter a closure start/end and a normal daytime destination,
+Web app to schedule planned IVR schedules on FusionPBX. Users sign in with
+Microsoft Entra ID, enter a schedule start/end and a normal daytime destination,
 and the app generates the greeting (Google TTS), stores it as a FusionPBX
 recording, builds a time-condition dialplan on a managed extension (9550–9599),
 and reloads FreeSWITCH.
@@ -26,7 +26,7 @@ PostgreSQL; the only native runtime interconnect is FreeSWITCH `mod_xml_rpc`. So
 
 ## Greeting composition
 
-`app/phrases/builder.py` — greeting = **opening** + **closure description** +
+`app/phrases/builder.py` — greeting = **opening** + **schedule description** +
 **closing**. The middle sentence varies by the shape of the window:
 
 - full single day → "closed all day Tuesday, July 7th"
@@ -74,12 +74,12 @@ individual users. Full setup guides:
 
 Quick start (local backend): set `LOCAL_ADMIN_USER` / `LOCAL_ADMIN_PASSWORD` and a
 mapping like
-`AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_closures","manage_users"]}`, then
+`AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_schedules","manage_users"]}`, then
 manage users with `python manage.py add|group-add|list`.
 
 ## Dialplan model
 
-Per closure, extension `95xx` gets a dialplan:
+Per schedule, extension `95xx` gets a dialplan:
 1. match `destination_number` `^95xx$`
 2. `date-time` condition for the window
    - **inside window** → answer, play greeting, then voicemail/hangup
@@ -93,14 +93,14 @@ The app confines itself to the managed extension pool **and** proves ownership
 before any write, so it can never modify a time condition, dialplan, or
 recording that a human or another app made:
 
-- Every closure dialplan we create embeds a marker comment
+- Every schedule dialplan we create embeds a marker comment
   `<!-- fpbx-ivr-manager:managed -->`; recordings carry a `[fpbx-ivr-manager:managed]`
   tag in their description.
 - **Update / delete refuse** on any row lacking that marker, even if the
   name/number matches (`NotManaged` → HTTP 409).
 - **Auto-allocation** treats *any* dialplan on a pool number (ours or foreign)
   and any real extension as occupied — it only ever hands out a fully-free number.
-- `list_closures()` surfaces only marker-carrying rows, so the UI never offers to
+- `list_schedules()` surfaces only marker-carrying rows, so the UI never offers to
   edit a look-alike.
 
 ## Status / not yet done

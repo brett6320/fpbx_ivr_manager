@@ -21,9 +21,9 @@ from starlette.exceptions import HTTPException
 from app.config import settings
 
 # Known permissions
-MANAGE_CLOSURES = "manage_closures"
+MANAGE_SCHEDULES = "manage_schedules"
 MANAGE_USERS = "manage_users"
-ALL_PERMISSIONS = {MANAGE_CLOSURES, MANAGE_USERS}
+ALL_PERMISSIONS = {MANAGE_SCHEDULES, MANAGE_USERS}
 
 
 @lru_cache(maxsize=1)

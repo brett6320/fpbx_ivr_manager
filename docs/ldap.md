@@ -48,7 +48,7 @@ LDAP_GROUP_BASE_DN=ou=groups,dc=example,dc=com
 LDAP_GROUP_FILTER=(member={user_dn})
 
 # Grant permissions by group cn:
-AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_closures","manage_users"],"ivr-editors":["manage_closures"]}
+AUTHZ_GROUP_PERMISSIONS={"ivr-admins":["manage_schedules","manage_users"],"ivr-editors":["manage_schedules"]}
 ```
 
 The app validates at startup that `LDAP_URI` and `LDAP_BIND_DN_TEMPLATE` are set.
@@ -93,7 +93,7 @@ LDAP_GROUP_FILTER=(&(objectClass=groupOfNames)(member={user_dn}))
 ## Verify
 
 1. `pip install '.[ldap]'`, set the env, start the app.
-2. Log in as a directory user in a mapped group → closures list.
+2. Log in as a directory user in a mapped group → schedules list.
 3. Log in as a valid user in **no** mapped group → **403** (auth OK, not
    authorized).
 4. Wrong password → form re-displays with "Invalid username or password".

@@ -26,7 +26,8 @@ def test_schedule_delete_uses_modal_not_native_confirm():
 
 def test_all_destructive_templates_dropped_native_confirm():
     rows = {
-        "ivrs.html": {"ivrs": [{"extension": 9560, "name": "Main", "enabled": True}], "recycled": []},
+        "ivrs.html": {"can_admin": True, "recycled": [],
+                      "ivrs": [{"extension": 9560, "name": "Main", "enabled": True}]},
         "users.html": {"is_local": True,
                         "users": [{"username": "a", "display_name": "A", "is_admin": False,
                                    "has_mfa": True, "groups": []}]},

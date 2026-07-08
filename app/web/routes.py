@@ -586,8 +586,13 @@ async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
     try:
         req = _parse_ivr(form)
         result = create_ivr(req)
-    except (ValueError, NotManaged) as e:
-        return HTMLResponse(f"Could not create IVR: {e}", status_code=400)
+    except (ValueError, NotManaged):
+        log.warning("IVR create rejected", exc_info=True)
+        return HTMLResponse(
+            "Could not create IVR: check the greeting, options, timeout, and extension "
+            "(see server logs for details).",
+            status_code=400,
+        )
     return templates.TemplateResponse(request, "ivr_result.html", {"r": result})
 
 
@@ -626,6 +631,11 @@ async def flow_create(request: Request, user: dict = Depends(require_schedules))
         schedule_req = _parse(form)     # label/start/end/reason/closed_action
         ivr_req = _parse_ivr(form)      # name/greeting/options/timeout
         result = build_call_flow(did or None, schedule_req, ivr_req)
-    except (ValueError, NotManaged) as e:
-        return HTMLResponse(f"Could not build call flow: {e}", status_code=400)
+    except (ValueError, NotManaged):
+        log.warning("call flow build rejected", exc_info=True)
+        return HTMLResponse(
+            "Could not build call flow: check the inbound number, schedule window, and "
+            "IVR fields (see server logs for details).",
+            status_code=400,
+        )
     return templates.TemplateResponse(request, "flow_result.html", {"r": result})

@@ -15,9 +15,14 @@
       <td>{{ i.extension }}</td>
       <td>{{ i.name }}</td>
       <td>{{ 'enabled' if i.enabled else 'disabled' }}</td>
-      <td>
+      <td style="white-space:nowrap;">
+        <form method="post" action="/ivrs/{{ i.extension }}/recycle" style="display:inline;"
+              onsubmit="return confirm('Recycle extension {{ i.extension }}? The IVR is removed and the number freed for reuse; its previous use is logged.');">
+          <input type="hidden" name="confirm" value="yes">
+          <button type="submit" style="margin:0; padding:.2rem .5rem;">Recycle</button>
+        </form>
         <form method="post" action="/ivrs/{{ i.extension }}/delete" style="display:inline;"
-              onsubmit="return confirm('Delete IVR on {{ i.extension }}?');">
+              onsubmit="return confirm('Delete IVR on {{ i.extension }}? (No history is kept — use Recycle to log the previous use.)');">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>
@@ -28,5 +33,28 @@
 </table>
 {% endif %}
 <p class="muted">Point a schedule's <em>open destination</em> at an IVR's extension to route
-callers into it (inbound route → time condition → IVR).</p>
+callers into it (inbound route → time condition → IVR).
+<strong>Recycle</strong> frees the extension for reuse and logs its previous use;
+<strong>Delete</strong> just removes it.</p>
+
+{% if recycled %}
+<h2 style="margin-top:1.5rem;">Recycled extensions</h2>
+<p class="muted">Previous IVR uses of pool extensions that were freed for reuse.
+“Available” numbers will be handed back out when a new IVR or schedule auto-allocates.</p>
+<table style="width:100%; border-collapse:collapse;">
+  <thead><tr style="text-align:left; border-bottom:1px solid var(--border);">
+    <th>Ext</th><th>Previous use</th><th>Recycled</th><th>By</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for e in recycled %}
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td>{{ e.extension }}</td>
+      <td>{{ e.previous_name or '—' }}</td>
+      <td>{{ e.recycled_at }}</td>
+      <td>{{ e.recycled_by }}</td>
+      <td>{{ 'available for reuse' if e.available else 'in use again' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% endblock %}

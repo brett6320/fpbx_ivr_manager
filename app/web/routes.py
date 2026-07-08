@@ -32,8 +32,10 @@ from app.service import (
     list_inbound_destinations,
     list_ivrs,
     list_recordings,
+    list_recycled,
     list_schedules,
     preview_phrase,
+    recycle_ivr,
 )
 
 # every schedule route requires the manage_schedules permission (granted via groups)
@@ -564,7 +566,8 @@ _DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#"]
 @router.get("/ivrs", response_class=HTMLResponse)
 def ivrs_list(request: Request, user: dict = Depends(require_schedules)):
     return templates.TemplateResponse(
-        request, "ivrs.html", {"user": user, "ivrs": list_ivrs()}
+        request, "ivrs.html",
+        {"user": user, "ivrs": list_ivrs(), "recycled": list_recycled()},
     )
 
 
@@ -629,6 +632,18 @@ async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_sc
         delete_ivr(ext)
     except NotManaged:
         log.warning("ivr delete refused", exc_info=True)
+        raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
+    return RedirectResponse("/ivrs", status_code=303)
+
+
+@router.post("/ivrs/{ext}/recycle")
+async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_schedules)):
+    await _require_delete_confirm(request)
+    actor = user.get("email") or user.get("name") or "unknown"
+    try:
+        recycle_ivr(ext, actor=actor)
+    except NotManaged:
+        log.warning("ivr recycle refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
     return RedirectResponse("/ivrs", status_code=303)
 

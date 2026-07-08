@@ -21,6 +21,15 @@ DAY_END = time(23, 59)
 OPEN_TIME = time(9, 0)
 CLOSE_TIME = time(17, 0)
 
+# Default fixed parts of the closure greeting. Admins can override these in the
+# Business profile; when unset, these are used. {org} in the opening is filled
+# with the business name. Kept here so the UI can show them as the "default".
+DEFAULT_OPENING = "Thank you for calling {org}."
+DEFAULT_CLOSING = (
+    "We apologize for any inconvenience. Please call back during our "
+    "regular business hours, or stay on the line to leave a message. Goodbye."
+)
+
 
 @dataclass(frozen=True)
 class Phrase:
@@ -91,14 +100,18 @@ def build_phrase(
     *,
     org_name: str,
     reason: str | None = None,
+    opening: str | None = None,
+    closing: str | None = None,
 ) -> Phrase:
-    """Assemble opening + body + closing greeting."""
-    opening = f"Thank you for calling {org_name}."
+    """Assemble opening + body + closing greeting.
+
+    opening/closing override the fixed parts (from the Business profile); when
+    None the defaults are used. The opening's {org} placeholder is filled with
+    org_name.
+    """
+    opening = (opening or DEFAULT_OPENING).replace("{org}", org_name)
     body = describe_window(start, end)
     if reason:
         body = f"{body} This closure is for {reason}."
-    closing = (
-        "We apologize for any inconvenience. Please call back during our "
-        "regular business hours, or stay on the line to leave a message. Goodbye."
-    )
+    closing = closing or DEFAULT_CLOSING
     return Phrase(opening=opening, body=body, closing=closing)

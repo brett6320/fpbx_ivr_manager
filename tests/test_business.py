@@ -43,6 +43,19 @@ def test_cycle_is_guarded(store):
     assert "{a}" in out or "{b}" in out
 
 
+def test_closure_message_roundtrip(store):
+    business.save("Acme Co", {}, closure_opening="Hi from {business_name}.",
+                 closure_closing="Bye.")
+    assert business.closure_opening() == "Hi from {business_name}."
+    assert business.closure_closing() == "Bye."
+
+
+def test_closure_message_defaults_empty(store):
+    business.save("Acme Co", {})
+    assert business.closure_opening() == ""
+    assert business.closure_closing() == ""
+
+
 def test_placeholder_keys(store):
     business.save("Acme Co", {"greeting": "x", "closing": "y"})
     keys = business.placeholder_keys()
@@ -87,3 +100,12 @@ def test_admin_business_requires_manage_users_and_saves_dynamic_rows(client):
         assert r2.status_code == 303
         assert business.business_name() == "Acme"
         assert business.templates() == {"greeting": "Hi", "closing": "Bye"}
+        r3 = c.post(
+            "/admin/business",
+            data={"business_name": "Acme", "closure_opening": "Hola {business_name}.",
+                  "closure_closing": "Adios."},
+            follow_redirects=False,
+        )
+        assert r3.status_code == 303
+        assert business.closure_opening() == "Hola {business_name}."
+        assert business.closure_closing() == "Adios."

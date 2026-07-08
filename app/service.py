@@ -31,20 +31,32 @@ def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_") or "schedule"
 
 
+def _closure_parts() -> tuple[str | None, str | None]:
+    """Business-configured opening/closing for the closure greeting, with
+    placeholders resolved. None means 'use the builder default'."""
+    opening = business.render(business.closure_opening()) or None
+    closing = business.render(business.closure_closing()) or None
+    return opening, closing
+
+
 def preview_phrase(req: ScheduleRequest) -> str:
+    opening, closing = _closure_parts()
     return build_phrase(
         req.start, req.end,
         org_name=business.business_name(),
         reason=business.render(req.reason),
+        opening=opening, closing=closing,
     ).text
 
 
 def _synthesize_recording(ext: int, req: ScheduleRequest):
     """Build the greeting and store it as a recording. Returns (phrase, rec_name, filename)."""
+    opening, closing = _closure_parts()
     phrase = build_phrase(
         req.start, req.end,
         org_name=business.business_name(),
         reason=business.render(req.reason),
+        opening=opening, closing=closing,
     )
     wav = google_tts.synthesize(phrase.text)
     rec_name = f"{GENERATED_PREFIX}schedule_{ext}_{_slug(req.label)}"

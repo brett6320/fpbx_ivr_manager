@@ -680,7 +680,7 @@ async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_s
 
 # ---- one-flow call-flow wizard (inbound route -> time condition -> IVR) ----
 @router.get("/flow/new", response_class=HTMLResponse)
-def flow_new(request: Request, user: dict = Depends(require_schedules)):
+def flow_new(request: Request, user: dict = Depends(require_users)):
     return templates.TemplateResponse(
         request,
         "flow_form.html",
@@ -698,7 +698,7 @@ def flow_new(request: Request, user: dict = Depends(require_schedules)):
 
 
 @router.post("/flow", response_class=HTMLResponse)
-async def flow_create(request: Request, user: dict = Depends(require_schedules)):
+async def flow_create(request: Request, user: dict = Depends(require_users)):
     form = await request.form()
     did = (form.get("inbound_number") or "").strip()
     confirm = bool(form.get("confirm_overwrite"))

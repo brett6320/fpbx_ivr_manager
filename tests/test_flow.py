@@ -60,7 +60,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "local_admin_group", "local-admins")
     monkeypatch.setattr(
         settings, "authz_group_permissions",
-        '{"editors":["manage_schedules"],"none":[]}',
+        '{"admins":["manage_users","manage_schedules"],"editors":["manage_schedules"],"none":[]}',
     )
     authz._group_map.cache_clear()
     from app.main import app
@@ -75,10 +75,10 @@ def test_flow_new_renders(client, monkeypatch):
     monkeypatch.setattr(routes, "list_inbound_destinations",
                         lambda: [{"did": "18005551234", "name": "MainDID",
                                   "enabled": True, "managed": False}])
-    local.create_user("ed", "pw")
-    local.add_to_group("ed", "editors")
+    local.create_user("adm", "pw")
+    local.add_to_group("adm", "admins")
     with client as c:
-        c.post("/auth/login", data={"username": "ed", "password": "pw"}, follow_redirects=False)
+        c.post("/auth/login", data={"username": "adm", "password": "pw"}, follow_redirects=False)
         r = c.get("/flow/new", follow_redirects=False)
         assert r.status_code == 200
         assert "New call flow" in r.text
@@ -89,9 +89,15 @@ def test_flow_new_renders(client, monkeypatch):
         assert 'name="confirm_overwrite"' in r.text
 
 
-def test_flow_requires_manage_schedules(client):
+def test_flow_requires_admin_not_just_schedules(client):
+    # call flows are admin-only: a schedules-only user is refused
+    local.create_user("ed", "pw")
+    local.add_to_group("ed", "editors")
     local.create_user("nobody", "pw")
     local.add_to_group("nobody", "none")
     with client as c:
         c.post("/auth/login", data={"username": "nobody", "password": "pw"}, follow_redirects=False)
+        assert c.get("/flow/new", follow_redirects=False).status_code == 403
+        c.cookies.clear()
+        c.post("/auth/login", data={"username": "ed", "password": "pw"}, follow_redirects=False)
         assert c.get("/flow/new", follow_redirects=False).status_code == 403

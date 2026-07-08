@@ -601,7 +601,8 @@ _DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#"]
 def ivrs_list(request: Request, user: dict = Depends(require_schedules)):
     return templates.TemplateResponse(
         request, "ivrs.html",
-        {"user": user, "ivrs": list_ivrs(), "recycled": list_recycled()},
+        {"user": user, "ivrs": list_ivrs(), "recycled": list_recycled(),
+         "can_admin": authz.has_permission(user, MANAGE_USERS)},
     )
 
 
@@ -660,7 +661,7 @@ async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
 
 
 @router.post("/ivrs/{ext}/delete")
-async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_schedules)):
+async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_users)):
     await _require_delete_confirm(request)
     try:
         delete_ivr(ext)
@@ -725,7 +726,7 @@ async def phrase_delete(request: Request, name: str, user: dict = Depends(requir
 
 
 @router.post("/ivrs/{ext}/recycle")
-async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_schedules)):
+async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_users)):
     await _require_delete_confirm(request)
     actor = user.get("email") or user.get("name") or "unknown"
     try:

@@ -65,7 +65,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "auth_backend", "local")
     monkeypatch.setattr(settings, "local_admin_group", "local-admins")
     monkeypatch.setattr(
-        settings, "authz_group_permissions", '{"ops":["manage_schedules"]}')
+        settings, "authz_group_permissions",
+        '{"ops":["manage_users","manage_schedules"],"editors":["manage_schedules"]}')
     authz._group_map.cache_clear()
     from app.main import app
     return TestClient(app, base_url="https://testserver")
@@ -83,3 +84,20 @@ def test_recycle_route_requires_confirm_and_passes_actor(client, monkeypatch):
         r = c.post("/ivrs/9560/recycle", data={"confirm": "yes"}, follow_redirects=False)
         assert r.status_code == 303
         assert calls == [(9560, "ops")]  # actor logged (local username as email)
+
+
+def test_ivr_delete_and_recycle_are_admin_only(client, monkeypatch):
+    # a schedules-only user can view IVRs but cannot delete or recycle them
+    monkeypatch.setattr(routes, "list_ivrs", lambda: [{"extension": 9560, "name": "Main", "enabled": True}])
+    monkeypatch.setattr(routes, "list_recycled", lambda: [])
+    with client as c:
+        local.create_user("ed", "pw")
+        local.add_to_group("ed", "editors")
+        c.post("/auth/login", data={"username": "ed", "password": "pw"}, follow_redirects=False)
+        page = c.get("/ivrs", follow_redirects=False)
+        assert page.status_code == 200
+        assert "9560" in page.text                    # can view
+        assert "/ivrs/9560/delete" not in page.text   # no admin controls
+        assert "/ivrs/9560/recycle" not in page.text
+        for path in ("/ivrs/9560/delete", "/ivrs/9560/recycle"):
+            assert c.post(path, data={"confirm": "yes"}, follow_redirects=False).status_code == 403

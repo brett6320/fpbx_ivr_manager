@@ -8,13 +8,14 @@
 {% else %}
 <table style="width:100%; border-collapse:collapse;">
   <thead><tr style="text-align:left; border-bottom:1px solid var(--border);">
-    <th>Ext</th><th>Name</th><th>Status</th><th></th></tr></thead>
+    <th>Ext</th><th>Name</th><th>Status</th>{% if can_admin %}<th></th>{% endif %}</tr></thead>
   <tbody>
   {% for i in ivrs %}
     <tr style="border-bottom:1px solid var(--border-light);">
       <td>{{ i.extension }}</td>
       <td>{{ i.name }}</td>
       <td>{{ 'enabled' if i.enabled else 'disabled' }}</td>
+      {% if can_admin %}
       <td style="white-space:nowrap;">
         <form method="post" action="/ivrs/{{ i.extension }}/recycle" style="display:inline;"
               class="js-confirm" data-confirm-label="Recycle"
@@ -28,6 +29,7 @@
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>
       </td>
+      {% endif %}
     </tr>
   {% endfor %}
   </tbody>
@@ -35,8 +37,8 @@
 {% endif %}
 <p class="muted">Point a schedule's <em>open destination</em> at an IVR's extension to route
 callers into it (inbound route → time condition → IVR).
-<strong>Recycle</strong> frees the extension for reuse and logs its previous use;
-<strong>Delete</strong> just removes it.</p>
+{% if can_admin %}<strong>Recycle</strong> frees the extension for reuse and logs its previous use;
+<strong>Delete</strong> just removes it (admin only).{% endif %}</p>
 
 {% if recycled %}
 <h2 style="margin-top:1.5rem;">Recycled extensions</h2>

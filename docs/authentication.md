@@ -91,6 +91,27 @@ Because permissions come only from groups, a freshly-added user can log in but
 can do nothing until placed in a group that appears in
 `AUTHZ_GROUP_PERMISSIONS`.
 
+## Interactive enablement & live testing (admin UI)
+
+Users with `manage_users` get an **Auth config** page at **`/admin/auth`** to
+enable and test SSO/LDAP interactively before committing:
+
+- **Entra**: enter tenant/client id/secret → **Test** fetches the tenant OIDC
+  discovery doc and validates the client credentials by acquiring a token, and
+  shows the redirect URI to register. You can also paste an ID token to inspect
+  its `groups` claim and see which permissions it maps to.
+- **LDAP**: enter connection + DN settings and a **test user/password** → **Test**
+  connects, negotiates StartTLS, binds as that user, resolves their groups, and
+  shows which map to permissions. Test credentials are used only for the probe
+  and are never stored.
+- **Save** writes the validated values to an app-managed override file
+  (`AUTH_CONFIG_FILE`, default `data/auth.env`) in the app's writable state dir —
+  the root-owned main env file is never modified. **Restart the service** to
+  apply.
+
+Precedence: real process env vars > `AUTH_CONFIG_FILE` > `.env`. Manage a given
+backend via the admin UI *or* via process env, not both.
+
 ## Session & cookie notes
 
 - Sessions are signed cookies (`APP_SECRET_KEY`, `itsdangerous`). Set a long

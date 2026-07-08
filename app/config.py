@@ -1,12 +1,20 @@
 """Application settings loaded from environment / .env."""
 from __future__ import annotations
 
+import os
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# App-writable override file for auth config managed via the admin UI. Lives in
+# the app's state dir (not the root-owned main env), so persisting from the web
+# UI never requires loosening the main env file's permissions. Loaded after
+# .env, so it overrides .env values (real process env vars still win over both).
+AUTH_CONFIG_FILE = os.environ.get("AUTH_CONFIG_FILE", "data/auth.env")
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", AUTH_CONFIG_FILE), extra="ignore")
 
     # web
     app_secret_key: str = Field(alias="APP_SECRET_KEY")

@@ -107,7 +107,9 @@ def authenticate(username: str, password: str) -> dict | None:
     return {
         "name": row["username"],
         "email": row["username"],   # FusionPBX email lives in v_contacts, not read here
-        "oid": row["user_uuid"],
+        # psycopg returns uuid columns as uuid.UUID; str() so the session (a
+        # signed cookie serialized with json.dumps) can encode it
+        "oid": str(row["user_uuid"]),
         "groups": groups,
     }
 

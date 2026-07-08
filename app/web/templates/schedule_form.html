@@ -64,5 +64,18 @@ async function preview() {
   const res = await fetch('/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
   document.getElementById('preview').innerHTML = await res.text();
 }
+// Keep the end picker at or after the start: end can't be earlier, and it
+// pre-selects to match the start whenever it's blank or would fall behind.
+(function syncEndWithStart() {
+  const start = document.querySelector('input[name=start]');
+  const end = document.querySelector('input[name=end]');
+  if (!start || !end) return;
+  function sync() {
+    end.min = start.value || '';
+    if (start.value && (!end.value || end.value < start.value)) end.value = start.value;
+  }
+  start.addEventListener('input', sync);
+  sync();
+})();
 </script>
 {% endblock %}

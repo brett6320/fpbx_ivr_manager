@@ -1,5 +1,10 @@
 # FusionPBX IVR Manager
 
+[![CI](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/codeql.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/codeql.yml)
+[![Release](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/release.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/brett6320/fpbx_ivr_manager?logo=github)](https://github.com/brett6320/fpbx_ivr_manager/releases)
+
 Web app to schedule planned IVR schedules on FusionPBX. Users sign in with
 Microsoft Entra ID, enter a schedule start/end and a normal daytime destination,
 and the app generates the greeting (Google TTS), stores it as a FusionPBX

@@ -11,7 +11,7 @@ AUTH_BACKEND=fpbx
 AUTHZ_GROUP_PERMISSIONS={"superadmin":["manage_schedules","manage_users"],"agents":["manage_schedules"]}
 ```
 
-The keys are FusionPBX **group names** (`v_user_groups.group_name`, e.g.
+The keys are FusionPBX **group names** (`v_group_users.group_name`, e.g.
 `superadmin`, `agents`). A FusionPBX user with no mapped group can sign in but has
 no permissions until a group they belong to appears in the map.
 
@@ -27,7 +27,7 @@ no permissions until a group they belong to appears in the map.
    - **legacy MD5** — `md5(salt + password)`, then `md5(password)`. Weak, but
      matches FusionPBX's own legacy fallback so older accounts still work.
    Other crypt schemes (`$6$` sha512, argon2, …) are **not** accepted.
-3. Resolve the user's groups from `v_user_groups` and map them to permissions.
+3. Resolve the user's groups from `v_group_users` and map them to permissions.
 
 The session identity's email is the FusionPBX **username** — FusionPBX stores a
 user's email in `v_contacts` (via `contact_uuid`), not `v_users`, and some schema
@@ -43,7 +43,7 @@ The app must be able to read three tables. With the scoped role
 
 ```sql
 GRANT SELECT ON v_users       TO ivr_manager;
-GRANT SELECT ON v_user_groups TO ivr_manager;
+GRANT SELECT ON v_group_users TO ivr_manager;
 GRANT SELECT ON v_groups      TO ivr_manager;
 ```
 

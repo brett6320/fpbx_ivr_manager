@@ -35,7 +35,7 @@ GRANT SELECT, INSERT, UPDATE         ON v_recordings TO ivr_manager;
 --    app read them to verify logins. Omit these three grants if you don't use
 --    the fpbx auth backend.
 GRANT SELECT                         ON v_users       TO ivr_manager;
-GRANT SELECT                         ON v_user_groups TO ivr_manager;
+GRANT SELECT                         ON v_group_users TO ivr_manager;
 GRANT SELECT                         ON v_groups      TO ivr_manager;
 
 -- 4. Explicitly deny broad defaults: no privileges on any other table are

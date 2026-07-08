@@ -81,9 +81,13 @@ def _find_user(cur, username: str, d: str) -> dict | None:
 
 
 def _user_groups(cur, user_uuid: str, d: str) -> list[str]:
+    # FusionPBX maps users to groups in v_group_users (not v_user_groups). Join
+    # v_groups on group_uuid so we don't depend on the denormalized group_name
+    # column that some schema versions omit from v_group_users.
     cur.execute(
-        "SELECT group_name FROM v_user_groups "
-        "WHERE user_uuid = %s AND (domain_uuid = %s OR domain_uuid IS NULL)",
+        "SELECT g.group_name FROM v_group_users gu "
+        "JOIN v_groups g ON g.group_uuid = gu.group_uuid "
+        "WHERE gu.user_uuid = %s AND (gu.domain_uuid = %s OR gu.domain_uuid IS NULL)",
         (user_uuid, d),
     )
     return [r["group_name"] for r in cur.fetchall() if r["group_name"]]

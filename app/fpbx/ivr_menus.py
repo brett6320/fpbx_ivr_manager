@@ -203,6 +203,39 @@ def get_ivr(extension: int) -> dict | None:
     return None
 
 
+def get_ivr_full(extension: int) -> dict | None:
+    """Full managed IVR (name, greeting recording, timeout, options) for export."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT ivr_menu_uuid, ivr_menu_name, ivr_menu_greet_long, ivr_menu_exit_app, "
+            "ivr_menu_exit_data, ivr_menu_description FROM v_ivr_menus "
+            "WHERE domain_uuid=%s AND ivr_menu_extension=%s",
+            (d, str(extension)),
+        )
+        row = cur.fetchone()
+        if not row or not _is_managed_desc(row["ivr_menu_description"]):
+            return None
+        cur.execute(
+            "SELECT ivr_menu_option_digits, ivr_menu_option_param FROM v_ivr_menu_options "
+            "WHERE ivr_menu_uuid=%s ORDER BY ivr_menu_option_order",
+            (row["ivr_menu_uuid"],),
+        )
+        options = [
+            {"digits": o["ivr_menu_option_digits"], "destination": o["ivr_menu_option_param"]}
+            for o in cur.fetchall()
+        ]
+    timeout = f"{row['ivr_menu_exit_app'] or ''} {row['ivr_menu_exit_data'] or ''}".strip()
+    return {
+        "extension": int(extension),
+        "name": row["ivr_menu_name"],
+        "greeting_recording": row["ivr_menu_greet_long"],
+        "greeting_text": "",
+        "timeout_destination": timeout,
+        "options": options,
+    }
+
+
 def delete_ivr(extension: int) -> bool:
     d = domain_uuid()
     with cursor() as cur:

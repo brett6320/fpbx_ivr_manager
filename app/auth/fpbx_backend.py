@@ -60,9 +60,13 @@ def _verify_password(password: str, stored: str | None, salt: str | None) -> boo
 
 def _find_user(cur, username: str, d: str) -> dict | None:
     """The enabled user for this username, preferring the configured domain and
-    falling back to a global (domain-less) FusionPBX superadmin account."""
+    falling back to a global (domain-less) FusionPBX superadmin account.
+
+    Note: email is intentionally NOT read here — FusionPBX keeps it in v_contacts
+    (via contact_uuid), not v_users, and some schema versions have no email column
+    on v_users at all. The session email falls back to the username."""
     cur.execute(
-        "SELECT user_uuid, username, password, salt, user_email, user_enabled, domain_uuid "
+        "SELECT user_uuid, username, password, salt, user_enabled, domain_uuid "
         "FROM v_users WHERE username = %s AND (domain_uuid = %s OR domain_uuid IS NULL)",
         (username, d),
     )
@@ -98,7 +102,7 @@ def authenticate(username: str, password: str) -> dict | None:
         groups = _user_groups(cur, row["user_uuid"], d)
     return {
         "name": row["username"],
-        "email": row.get("user_email") or row["username"],
+        "email": row["username"],   # FusionPBX email lives in v_contacts, not read here
         "oid": row["user_uuid"],
         "groups": groups,
     }

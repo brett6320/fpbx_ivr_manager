@@ -29,6 +29,10 @@ no permissions until a group they belong to appears in the map.
    Other crypt schemes (`$6$` sha512, argon2, …) are **not** accepted.
 3. Resolve the user's groups from `v_user_groups` and map them to permissions.
 
+The session identity's email is the FusionPBX **username** — FusionPBX stores a
+user's email in `v_contacts` (via `contact_uuid`), not `v_users`, and some schema
+versions have no email column on `v_users` at all, so it isn't read.
+
 Permissions remain **group-only**; this backend never sets the local `is_admin`
 superuser flag (that's exclusive to the local backend).
 

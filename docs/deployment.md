@@ -118,10 +118,12 @@ sudo mkdir -p /opt/fpbx_ivr_manager
 sudo git clone https://github.com/brett6320/fpbx_ivr_manager /opt/fpbx_ivr_manager
 cd /opt/fpbx_ivr_manager
 
-# Dedicated, unprivileged service account. Add to 'freeswitch' only if you use
-# local recording storage; omit the group otherwise.
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin \
-     --groups freeswitch ivrmgr
+# Dedicated, unprivileged service account (declarative via systemd-sysusers).
+# The sample adds ivrmgr to 'freeswitch' — remove that line if you use db storage.
+sudo cp deploy/fpbx-ivr-manager.sysusers.conf /etc/sysusers.d/fpbx-ivr-manager.conf
+sudo systemd-sysusers
+#   (equivalent manual form:)
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin --groups freeswitch ivrmgr
 
 # Isolated virtualenv (add [ldap]/[passkey] extras as needed).
 sudo python3 -m venv .venv
@@ -133,13 +135,11 @@ sudo chown -R root:root /opt/fpbx_ivr_manager   # app code owned by root, run re
 
 ```bash
 sudo install -d -m 750 -o root -g ivrmgr /etc/fpbx-ivr-manager
-sudo cp .env.example /etc/fpbx-ivr-manager/env
+# Native-oriented sample (localhost DB/xmlrpc, StateDirectory path, db storage):
+sudo cp deploy/fpbx-ivr-manager.env.sample /etc/fpbx-ivr-manager/env
 sudo chown root:ivrmgr /etc/fpbx-ivr-manager/env
 sudo chmod 640 /etc/fpbx-ivr-manager/env
-# In the env file:
-#   LOCAL_AUTH_DB=/var/lib/fpbx-ivr-manager/users.db   (systemd StateDirectory)
-#   FPBX_DB_HOST=127.0.0.1
-#   FS_XMLRPC_URL=http://127.0.0.1:8787/RPC2
+sudo "${EDITOR:-vi}" /etc/fpbx-ivr-manager/env      # fill REPLACE_ME values
 ```
 
 ### Enable

@@ -22,7 +22,7 @@
     <td>{{ 'enrolled' if u.has_mfa else '—' }}</td>
     <td class="muted">{{ u.groups | join(', ') }}</td>
     <td style="white-space:nowrap;">
-      <a href="/admin/users/{{ u.username }}/edit">Edit</a>
+      <a href="/admin/users/{{ u.username }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
       {% if u.has_mfa %}
       <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline;"
             onsubmit="return confirm('Reset MFA for {{ u.username }}?');">

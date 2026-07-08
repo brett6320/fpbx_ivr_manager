@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>New phrase</h1>
+<p class="muted">Generate a named prompt with Google TTS for {{ org }}. It's stored
+as a managed recording (prefixed <code>ivrmgr_</code>) and becomes selectable as
+an “existing phrase” when building schedules and IVRs.</p>
+
+<form id="f" method="post" action="/phrases">
+  <label>Name</label>
+  <input name="label" placeholder="Main greeting" required>
+  <label>Text</label>
+  <textarea name="text" rows="4" placeholder="Thank you for calling {business_name}. Please listen carefully as our menu options have changed." required></textarea>
+  {% if placeholders %}<p class="muted">Placeholders you can use: {% for k in placeholders %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+
+  <button type="button" onclick="preview()">Preview text</button>
+  <button type="submit">Create phrase</button>
+</form>
+<div id="preview"></div>
+
+<script>
+async function preview(){
+  const res = await fetch('/phrases/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
+  document.getElementById('preview').innerHTML = await res.text();
+}
+</script>
+{% endblock %}

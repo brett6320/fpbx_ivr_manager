@@ -32,8 +32,13 @@ The app separates **authentication** (who are you?) from **authorization**
 
 | Permission        | Guards                                                   |
 |-------------------|---------------------------------------------------------|
-| `manage_schedules` | Viewing, creating, editing, deleting schedules (all UI)  |
-| `manage_users`    | Reserved for local user administration                  |
+| `manage_schedules` | Viewing, creating, editing, deleting schedules and IVRs  |
+| `manage_users`    | Admin: local user administration **and the call-flow wizard** (`/flow`), plus all admin pages |
+
+The **call-flow wizard** (`/flow`) wires an inbound route → time condition → IVR
+in one step; because it can repoint inbound routes, it is **admin-only**
+(`manage_users`). Building schedules and IVRs individually only needs
+`manage_schedules`.
 
 A logged-in user with **no** matching group gets **HTTP 403**. A user who is not
 logged in is redirected (**307**) to `/auth/login`.

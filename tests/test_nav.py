@@ -36,10 +36,11 @@ def test_nav_shows_main_sections(client):
         _login(c, "ed")
         html = c.get("/schedules/new", follow_redirects=False).text  # no DB needed
         assert '<nav class="nav">' in html
-        for link in ("Schedules", "Call&nbsp;flow", "IVRs", "Sign&nbsp;out"):
+        for link in ("Schedules", "IVRs", "Sign&nbsp;out"):
             assert link in html
-        # editor lacks manage_users -> no admin links
+        # editor lacks manage_users -> no admin links, and Call flow is admin-only
         assert 'href="/admin/adopt"' not in html
+        assert 'href="/flow/new"' not in html
 
 
 def test_nav_shows_admin_links_for_manage_users(client):
@@ -48,5 +49,5 @@ def test_nav_shows_admin_links_for_manage_users(client):
     with client as c:
         _login(c, "ops")
         html = c.get("/schedules/new", follow_redirects=False).text
-        for link in ("/admin/adopt", "/admin/auth", "/admin/compat"):
+        for link in ("/admin/adopt", "/admin/auth", "/admin/compat", "/flow/new"):
             assert f'href="{link}"' in html

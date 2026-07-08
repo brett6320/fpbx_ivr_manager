@@ -32,7 +32,7 @@
       <td style="white-space:nowrap;">
         <a href="/schedules/{{ c.extension }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
         <form method="post" action="/schedules/{{ c.extension }}/delete" style="display:inline;"
-              onsubmit="return confirm('Delete time condition {{ c.extension }} and all its closures?');">
+              class="js-confirm" data-confirm="Delete time condition {{ c.extension }} and all its closures?">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>

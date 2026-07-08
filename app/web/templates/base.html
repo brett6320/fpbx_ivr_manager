@@ -27,11 +27,12 @@
       --warn:    light-dark(#d97706, #fbbf24);
     }
     body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--fg); }
-    .content { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    /* full-width: fill the window, with breathing room at the edges */
+    .content { max-width: none; margin: 1.5rem 0; padding: 0 1.5rem; box-sizing: border-box; }
     a { color: var(--accent); }
     /* top nav */
     .nav { border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 10; }
-    .nav-inner { max-width: 900px; margin: 0 auto; padding: .55rem 1rem; display: flex; gap: 1.1rem;
+    .nav-inner { max-width: none; margin: 0; padding: .55rem 1.5rem; display: flex; gap: 1.1rem;
                  align-items: center; flex-wrap: wrap; }
     .nav a { text-decoration: none; color: var(--fg); }
     .nav a:hover { color: var(--accent); }
@@ -51,6 +52,19 @@
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .theme-switch { position: fixed; bottom: .75rem; right: .75rem; font-size: .8rem; }
     .theme-switch select { width: auto; padding: .2rem .4rem; }
+    /* confirmation modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100;
+                     display: flex; align-items: center; justify-content: center; }
+    .modal-overlay[hidden] { display: none; }
+    .modal { background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+             border-radius: 8px; padding: 1.25rem 1.5rem; max-width: 460px; width: calc(100% - 2rem);
+             box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .modal h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+    .modal p { margin: 0 0 1.1rem; color: var(--fg); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+    .modal-actions button { margin: 0; }
+    .btn-secondary { background: var(--panel); color: var(--fg); border: 1px solid var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
   </style>
 </head>
 <body>
@@ -81,6 +95,46 @@
 <main class="content">
 {% block body %}{% endblock %}
 </main>
+<div id="confirmModal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal">
+    <h2 id="confirmTitle">Please confirm</h2>
+    <p id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button type="button" id="confirmCancel" class="btn-secondary" autofocus>Cancel</button>
+      <button type="button" id="confirmOk" class="btn-danger">Confirm</button>
+    </div>
+  </div>
+</div>
+<script>
+  // Any form with class "js-confirm" is intercepted and gated by the modal,
+  // replacing single-click / native confirm() deletes across the app.
+  (function(){
+    const overlay = document.getElementById('confirmModal');
+    const msg = document.getElementById('confirmMsg');
+    const okBtn = document.getElementById('confirmOk');
+    const cancelBtn = document.getElementById('confirmCancel');
+    let pending = null;
+    function close(){ overlay.hidden = true; pending = null; }
+    document.addEventListener('submit', function(e){
+      const form = e.target;
+      if (!form.classList || !form.classList.contains('js-confirm')) return;
+      e.preventDefault();
+      pending = form;
+      msg.textContent = form.dataset.confirm || 'Are you sure?';
+      okBtn.textContent = form.dataset.confirmLabel || 'Delete';
+      overlay.hidden = false;
+      cancelBtn.focus();
+    });
+    okBtn.addEventListener('click', function(){
+      if (!pending) return;
+      const f = pending; pending = null; overlay.hidden = true;
+      f.submit();  // native submit bypasses the intercept above
+    });
+    cancelBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !overlay.hidden) close(); });
+  })();
+</script>
 <div class="theme-switch muted">
   <label style="display:inline; font-weight:400;">Theme
     <select id="themeSel" onchange="setTheme(this.value)">

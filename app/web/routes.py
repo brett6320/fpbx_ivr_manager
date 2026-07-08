@@ -16,9 +16,12 @@ from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
 from app.models import ScheduleRequest
 from app.service import (
+    adopt_schedule,
     apply_schedule,
     delete_schedule,
+    get_adoptable,
     get_schedule,
+    list_adoptable,
     list_schedules,
     preview_phrase,
 )
@@ -283,12 +286,13 @@ async def passkey_auth(request: Request):
 
 
 # ---- UI ----
-def _form_ctx(user: dict, c: dict | None = None) -> dict:
+def _form_ctx(user: dict, c: dict | None = None, adopt_uuid: str | None = None) -> dict:
     return {
         "user": user,
         "org": settings.app_org_name,
         "pool": f"{settings.ext_pool_start}-{settings.ext_pool_end}",
         "c": c,  # prefill dict for edit mode, else None
+        "adopt_uuid": adopt_uuid,  # set => adoption mode (posts to /admin/adopt)
     }
 
 
@@ -455,3 +459,51 @@ async def admin_save(request: Request, user: dict = Depends(require_users)):
         {"ok": True, "written": written, "restart_required": True,
          "note": "Saved. Restart the service to apply the new auth configuration."}
     )
+
+
+# ---- manual adoption of existing FusionPBX time conditions (admins only) ----
+@router.get("/admin/adopt", response_class=HTMLResponse)
+def admin_adopt_list(request: Request, user: dict = Depends(require_users)):
+    return templates.TemplateResponse(
+        request, "adopt.html", {"user": user, "candidates": list_adoptable()}
+    )
+
+
+@router.get("/admin/adopt/{dialplan_uuid}", response_class=HTMLResponse)
+def admin_adopt_form(request: Request, dialplan_uuid: str, user: dict = Depends(require_users)):
+    try:
+        tc = get_adoptable(dialplan_uuid)
+    except NotManaged:
+        return HTMLResponse("This time condition cannot be adopted.", status_code=409)
+    c = {
+        "extension": tc["extension"],
+        "label": tc["description"] or tc["name"],
+        "start": None,
+        "end": None,
+        "open_destination": None,
+        "closed_action": "voicemail",
+    }
+    return templates.TemplateResponse(
+        request, "schedule_form.html", _form_ctx(user, c, adopt_uuid=dialplan_uuid)
+    )
+
+
+@router.post("/admin/adopt", response_class=HTMLResponse)
+async def admin_adopt_apply(request: Request, user: dict = Depends(require_users)):
+    form = await request.form()
+    adopt_uuid = (form.get("adopt_uuid") or "").strip()
+    if not adopt_uuid:
+        return HTMLResponse("adopt_uuid is required", status_code=400)
+    open_dest = (form.get("open_destination") or "").strip()
+    if not open_dest:
+        return HTMLResponse("open_destination is required", status_code=400)
+    req = _parse(form)
+    try:
+        result = adopt_schedule(adopt_uuid, req, open_dest)
+    except NotManaged:
+        log.warning("adopt refused", exc_info=True)
+        return HTMLResponse(
+            "Refused: the selected time condition is not adoptable (see server logs).",
+            status_code=409,
+        )
+    return templates.TemplateResponse(request, "result.html", {"r": result})

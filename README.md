@@ -88,13 +88,19 @@ manage users with `python manage.py add|group-add|list`.
 
 ## Dialplan model
 
-Per schedule, extension `95xx` gets a dialplan:
+A **time condition** on extension `95xx` can hold **several closures** (e.g.
+`TC-Main` with July 4th *and* Labor Day). Its dialplan is:
 1. match `destination_number` `^95xx$`
-2. `date-time` condition for the window
-   - **inside window** → answer, play greeting, then voicemail/hangup
-   - **outside window** → transfer to the normal daytime destination
+2. one `date-time` condition **per closure**, emitted **most specific
+   (shortest window) first**, each `break="on-true"`:
+   - **inside a closure window** → answer, play that closure's greeting, then
+     voicemail/hangup, and stop (a narrower closure shadows a broader overlap)
+3. a trailing condition that transfers to the normal daytime destination when
+   no closure is active
 
-Point your inbound route (or a time condition upstream) at the managed extension.
+Add/remove closures within a time condition on its edit page; the app manages
+the condition sequence for you. Point your inbound route (or a time condition
+upstream) at the managed extension.
 
 ### Scope & native Time Conditions
 

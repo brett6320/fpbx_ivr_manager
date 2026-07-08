@@ -16,11 +16,11 @@ from app.config import settings
 from app.fpbx import destinations
 from app.fpbx.time_conditions import NotManaged
 from app.mfa import totp
-from app.models import IvrOption, IvrRequest, ScheduleRequest
+from app.models import Closure, IvrOption, IvrRequest, ScheduleRequest, TimeConditionRequest
 from app.phrases import builder
 from app.service import (
     adopt_schedule,
-    apply_schedule,
+    apply_time_condition,
     build_call_flow,
     create_ivr,
     delete_ivr,
@@ -369,13 +369,41 @@ async def remove_schedule(request: Request, ext: int, user: dict = Depends(requi
 
 
 def _parse(form) -> ScheduleRequest:
+    """A single closure — used for greeting preview."""
     return ScheduleRequest(
-        label=form["label"],
+        label=form.get("label") or "closure",
         start=form["start"],
         end=form["end"],
         reason=form.get("reason") or None,
-        extension=int(form["extension"]) if form.get("extension") else None,
         closed_action=form.get("closed_action", "voicemail"),
+    )
+
+
+def _parse_closures(form) -> list[Closure]:
+    """Closure rows arrive as parallel c_label_<i> / c_start_<i> / … fields."""
+    closures = []
+    for key in form:
+        if not key.startswith("c_label_"):
+            continue
+        i = key[len("c_label_"):]
+        label = (form.get(key) or "").strip()
+        start, end = form.get(f"c_start_{i}"), form.get(f"c_end_{i}")
+        if not (label and start and end):
+            continue
+        closures.append(Closure(
+            label=label, start=start, end=end,
+            reason=(form.get(f"c_reason_{i}") or None),
+            closed_action=form.get(f"c_action_{i}", "voicemail"),
+        ))
+    return closures
+
+
+def _parse_tc(form) -> TimeConditionRequest:
+    return TimeConditionRequest(
+        name=(form.get("name") or "").strip(),
+        open_destination=(form.get("open_destination") or "").strip(),
+        extension=int(form["extension"]) if form.get("extension") else None,
+        closures=_parse_closures(form),
     )
 
 
@@ -389,12 +417,12 @@ async def preview(request: Request, user: dict = Depends(require_schedules)):
 @router.post("/apply", response_class=HTMLResponse)
 async def apply(request: Request, user: dict = Depends(require_schedules)):
     form = await request.form()
-    req = _parse(form)
-    open_dest = form.get("open_destination", "").strip()
-    if not open_dest:
+    if not (form.get("open_destination") or "").strip():
         raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
     try:
-        result = apply_schedule(req, open_dest)
+        result = apply_time_condition(_parse_tc(form))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except NotManaged:
         log.warning("guardrail refused operation", exc_info=True)
         raise HTTPException(
@@ -529,9 +557,11 @@ async def admin_adopt_apply(request: Request, user: dict = Depends(require_users
     open_dest = (form.get("open_destination") or "").strip()
     if not open_dest:
         raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
-    req = _parse(form)
+    closures = _parse_closures(form)
+    if not closures:
+        raise HTTPException(status_code=400, detail="A closure window is required.")
     try:
-        result = adopt_schedule(adopt_uuid, req, open_dest)
+        result = adopt_schedule(adopt_uuid, closures[0], open_dest)
     except NotManaged:
         log.warning("adopt refused", exc_info=True)
         raise HTTPException(

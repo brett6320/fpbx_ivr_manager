@@ -1,33 +1,38 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>IVR schedules</h1>
-<p><a href="/flow/new"><button>+ New call flow</button></a> <a href="/schedules/new"><button>New schedule</button></a></p>
+<h1>Time conditions</h1>
+<p>{% if can_admin %}<a href="/flow/new"><button>+ New call flow</button></a> {% endif %}<a href="/schedules/new"><button>New time condition</button></a></p>
 
 {% if not schedules %}
-  <p class="muted">No managed schedules yet.</p>
+  <p class="muted">No managed time conditions yet.</p>
 {% else %}
 <table style="width:100%; border-collapse:collapse;">
   <thead>
     <tr style="text-align:left; border-bottom:1px solid var(--border);">
-      <th>Ext</th><th>Label</th><th>Window</th><th>When closed</th><th>Open dest</th><th></th>
+      <th>Ext</th><th>Name</th><th>Closures</th><th>Open dest</th><th></th>
     </tr>
   </thead>
   <tbody>
   {% for c in schedules %}
-    <tr style="border-bottom:1px solid var(--border-light);">
+    <tr style="border-bottom:1px solid var(--border-light); vertical-align:top;">
       <td>{{ c.extension }}{% if not c.in_pool %} <span class="muted" title="Adopted; outside the managed pool">(adopted)</span>{% endif %}</td>
       <td>{{ c.label }}{% if not c.enabled %} <span class="muted">(disabled)</span>{% endif %}</td>
       <td class="muted">
-        {% if c.start and c.end %}
-          {{ c.start.strftime('%Y-%m-%d %H:%M') }} → {{ c.end.strftime('%Y-%m-%d %H:%M') }}
-        {% else %}?{% endif %}
+        {% if c.closures %}
+        <ul style="margin:0; padding-left:1.1rem;">
+          {% for cl in c.closures %}
+          <li><strong>{{ cl.label }}</strong>:
+            {% if cl.start and cl.end %}{{ cl.start.strftime('%Y-%m-%d %H:%M') }} → {{ cl.end.strftime('%Y-%m-%d %H:%M') }}{% else %}?{% endif %}
+            ({{ cl.closed_action }})</li>
+          {% endfor %}
+        </ul>
+        {% else %}<span class="muted">none</span>{% endif %}
       </td>
-      <td>{{ c.closed_action }}</td>
       <td>{{ c.open_destination or '?' }}</td>
       <td style="white-space:nowrap;">
         <a href="/schedules/{{ c.extension }}/edit">Edit</a>
         <form method="post" action="/schedules/{{ c.extension }}/delete" style="display:inline;"
-              onsubmit="return confirm('Delete schedule on {{ c.extension }}?');">
+              onsubmit="return confirm('Delete time condition {{ c.extension }} and all its closures?');">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
         </form>

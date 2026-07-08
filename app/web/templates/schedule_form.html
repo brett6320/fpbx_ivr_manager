@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% set dt = '%Y-%m-%dT%H:%M' %}
 {% block body %}
-<h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit schedule' if c else 'Plan an IVR schedule') }}</h1>
-<p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
+<h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit time condition' if c else 'Plan a time condition') }}</h1>
+<p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.
+One time condition can hold several closures — the most specific (shortest) window
+is matched first.</p>
 
 {% if adopt_uuid %}
 <div class="preview" style="border-color:var(--warn);">
@@ -14,25 +16,11 @@
 
 <form id="f" method="post" action="{{ '/admin/adopt' if adopt_uuid else '/apply' }}">
   {% if adopt_uuid %}<input type="hidden" name="adopt_uuid" value="{{ adopt_uuid }}">{% endif %}
-  <label>Label</label>
-  <input name="label" placeholder="July 4th Holiday" value="{{ c.label if c }}" required>
 
-  <div class="grid2">
-    <div>
-      <label>Schedule start</label>
-      <input type="datetime-local" name="start" required
-             value="{{ c.start.strftime(dt) if c and c.start }}">
-    </div>
-    <div>
-      <label>Schedule end</label>
-      <input type="datetime-local" name="end" required
-             value="{{ c.end.strftime(dt) if c and c.end }}">
-    </div>
-  </div>
-
-  <label>Reason (optional, folded into greeting)</label>
-  <input name="reason" placeholder="a company holiday">
-  {% if placeholders %}<p class="muted">Placeholders you can use: {% for k in placeholders %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% if not adopt_uuid %}
+  <label>Time condition name</label>
+  <input name="name" placeholder="TC-Main" value="{{ c.label if c }}" required>
+  {% endif %}
 
   <div class="grid2">
     <div>
@@ -41,41 +29,103 @@
              value="{{ c.open_destination if c }}" required>
     </div>
     <div>
-      <label>When closed</label>
-      <select name="closed_action">
-        <option value="voicemail" {{ 'selected' if c and c.closed_action == 'voicemail' }}>Play greeting, then voicemail</option>
-        <option value="hangup" {{ 'selected' if c and c.closed_action == 'hangup' }}>Play greeting, then hang up</option>
-      </select>
+      <label>Extension {{ '(existing time condition)' if adopt_uuid else ('(fixed for edit)' if c else '(blank = auto-allocate)') }}</label>
+      <input name="extension" placeholder="auto" value="{{ c.extension if c }}"
+             {{ 'readonly' if c }}>
     </div>
   </div>
 
-  <label>Extension {{ '(existing time condition)' if adopt_uuid else ('(fixed for edit)' if c else '(blank = auto-allocate from pool)') }}</label>
-  <input name="extension" placeholder="auto" value="{{ c.extension if c }}"
-         {{ 'readonly' if c }}>
+  <h2 style="margin-top:1.25rem;">Closures</h2>
+  {% if placeholders %}<p class="muted">Placeholders you can use in a reason: {% for k in placeholders %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 
-  <button type="button" onclick="preview()">Preview greeting</button>
-  <button type="submit">{{ 'Adopt &amp; manage' if adopt_uuid else ('Save changes' if c else 'Create schedule') }}</button>
+  <div id="closure_rows">
+    {% for cl in (c.closures if c and c.closures else [None]) %}
+    <div class="closure-row" style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.6rem;">
+      <label>Closure label</label>
+      <input name="c_label_{{ loop.index0 }}" value="{{ cl.label if cl }}" placeholder="July 4th Holiday" required>
+      <div class="grid2">
+        <div><label>Closed from</label>
+          <input type="datetime-local" name="c_start_{{ loop.index0 }}" required
+                 value="{{ cl.start.strftime(dt) if cl and cl.start }}"></div>
+        <div><label>Closed until</label>
+          <input type="datetime-local" name="c_end_{{ loop.index0 }}" required
+                 value="{{ cl.end.strftime(dt) if cl and cl.end }}"></div>
+      </div>
+      <div class="grid2">
+        <div><label>Reason (optional, folded into greeting)</label>
+          <input name="c_reason_{{ loop.index0 }}" value="{{ cl.reason if cl }}" placeholder="a company holiday"></div>
+        <div><label>When closed</label>
+          <select name="c_action_{{ loop.index0 }}">
+            <option value="voicemail" {{ 'selected' if cl and cl.closed_action == 'voicemail' }}>Play greeting, then voicemail</option>
+            <option value="hangup" {{ 'selected' if cl and cl.closed_action == 'hangup' }}>Play greeting, then hang up</option>
+          </select></div>
+      </div>
+      <button type="button" onclick="previewRow(this)" style="margin:.4rem 0 0;">Preview greeting</button>
+      {% if not adopt_uuid %}<button type="button" onclick="removeRow(this)" style="margin:.4rem 0 0;">Remove closure</button>{% endif %}
+      <div class="preview-out"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if not adopt_uuid %}<button type="button" onclick="addRow()">+ Add closure</button>{% endif %}
+  <button type="submit">{{ 'Adopt &amp; manage' if adopt_uuid else ('Save changes' if c else 'Create time condition') }}</button>
 </form>
 
-<div id="preview"></div>
+<template id="closure_tpl">
+  <div class="closure-row" style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.6rem;">
+    <label>Closure label</label>
+    <input name="c_label___IDX__" placeholder="July 4th Holiday" required>
+    <div class="grid2">
+      <div><label>Closed from</label><input type="datetime-local" name="c_start___IDX__" required></div>
+      <div><label>Closed until</label><input type="datetime-local" name="c_end___IDX__" required></div>
+    </div>
+    <div class="grid2">
+      <div><label>Reason (optional, folded into greeting)</label><input name="c_reason___IDX__" placeholder="a company holiday"></div>
+      <div><label>When closed</label>
+        <select name="c_action___IDX__">
+          <option value="voicemail">Play greeting, then voicemail</option>
+          <option value="hangup">Play greeting, then hang up</option>
+        </select></div>
+    </div>
+    <button type="button" onclick="previewRow(this)" style="margin:.4rem 0 0;">Preview greeting</button>
+    <button type="button" onclick="removeRow(this)" style="margin:.4rem 0 0;">Remove closure</button>
+    <div class="preview-out"></div>
+  </div>
+</template>
 
 <script>
-async function preview() {
-  const res = await fetch('/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
-  document.getElementById('preview').innerHTML = await res.text();
-}
-// Keep the end picker at or after the start: end can't be earlier, and it
-// pre-selects to match the start whenever it's blank or would fall behind.
-(function syncEndWithStart() {
-  const start = document.querySelector('input[name=start]');
-  const end = document.querySelector('input[name=end]');
-  if (!start || !end) return;
-  function sync() {
-    end.min = start.value || '';
-    if (start.value && (!end.value || end.value < start.value)) end.value = start.value;
+let nextIdx = {{ (c.closures | length) if c and c.closures else 1 }};
+function wireRow(row){
+  const start = row.querySelector('input[name^=c_start_]');
+  const end = row.querySelector('input[name^=c_end_]');
+  if (start && end) {
+    const sync = () => { end.min = start.value || '';
+      if (start.value && (!end.value || end.value < start.value)) end.value = start.value; };
+    start.addEventListener('input', sync); sync();
   }
-  start.addEventListener('input', sync);
-  sync();
-})();
+}
+function addRow(){
+  const html = document.getElementById('closure_tpl').innerHTML.replaceAll('__IDX__', nextIdx++);
+  const wrap = document.createElement('div'); wrap.innerHTML = html.trim();
+  const row = wrap.firstChild;
+  document.getElementById('closure_rows').appendChild(row);
+  wireRow(row);
+}
+function removeRow(btn){
+  const rows = document.querySelectorAll('.closure-row');
+  if (rows.length <= 1) { alert('A time condition needs at least one closure.'); return; }
+  btn.closest('.closure-row').remove();
+}
+async function previewRow(btn){
+  const row = btn.closest('.closure-row');
+  const fd = new FormData();
+  fd.append('label', row.querySelector('input[name^=c_label_]').value);
+  fd.append('start', row.querySelector('input[name^=c_start_]').value);
+  fd.append('end', row.querySelector('input[name^=c_end_]').value);
+  fd.append('reason', row.querySelector('input[name^=c_reason_]').value);
+  const res = await fetch('/preview', { method: 'POST', body: fd });
+  row.querySelector('.preview-out').innerHTML = await res.text();
+}
+document.querySelectorAll('.closure-row').forEach(wireRow);
 </script>
 {% endblock %}

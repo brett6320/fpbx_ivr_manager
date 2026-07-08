@@ -45,6 +45,11 @@ def permissions_for(groups: list[str] | None) -> set[str]:
 
 
 def user_permissions(user: dict) -> set[str]:
+    # A local administrator is the app's superuser role and holds every
+    # permission. (is_admin is only ever set by the local backend — IdP users
+    # still derive permissions purely from their groups.)
+    if user.get("is_admin"):
+        return set(ALL_PERMISSIONS)
     return permissions_for(user.get("groups"))
 
 

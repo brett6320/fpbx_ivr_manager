@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(alias="APP_SECRET_KEY")
     app_base_url: str = Field(alias="APP_BASE_URL")
     app_org_name: str = Field(alias="APP_ORG_NAME", default="Our office")
+    # Dev mode relaxes security for local development (e.g. does NOT force MFA
+    # enrollment for local admins). Never enable in production.
+    dev_mode: bool = Field(alias="DEV_MODE", default=False)
     # Mark the session cookie Secure? Empty = derive from APP_BASE_URL scheme
     # (https -> Secure). Set false to allow login over plain HTTP.
     session_https_only_raw: str = Field(alias="SESSION_HTTPS_ONLY", default="")

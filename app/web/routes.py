@@ -113,6 +113,13 @@ async def login_submit(request: Request):
     username = (form.get("username") or "").strip()
     password = form.get("password") or ""
     user = backend.password_login(username, password)
+    if not user and backend.kind() != "local":
+        # Local administrators (e.g. admin@local) are always authenticated against
+        # the local database, even under an external backend (fpbx/ldap) — so the
+        # built-in admin works from the normal login form, not only /auth/local.
+        candidate = local.authenticate(username, password)
+        if candidate and candidate.get("is_admin"):
+            user = candidate
     if not user:
         return _login_page(request, error="Invalid username or password", status=401)
     return _post_password(request, user)
@@ -465,8 +472,22 @@ def admin_auth(request: Request, user: dict = Depends(require_users)):
             "group_filter": settings.ldap_group_filter,
             "start_tls": settings.ldap_start_tls,
         },
+        "permissions": sorted(authz.ALL_PERMISSIONS),
     }
     return templates.TemplateResponse(request, "admin_auth.html", ctx)
+
+
+@router.get("/admin/auth/fpbx-groups")
+def admin_fpbx_groups(request: Request, user: dict = Depends(require_users)):
+    """Group names from the FusionPBX DB, for the mapping builder."""
+    from app.auth import fpbx_backend
+    try:
+        return JSONResponse({"groups": fpbx_backend.list_groups()})
+    except Exception:
+        log.warning("fpbx group list failed", exc_info=True)
+        return JSONResponse(
+            {"error": "Could not read FusionPBX groups (see server logs)."}, status_code=200
+        )
 
 
 @router.post("/admin/auth/test/ldap")

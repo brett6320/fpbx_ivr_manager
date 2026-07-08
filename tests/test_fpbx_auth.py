@@ -113,6 +113,18 @@ def test_user_groups_uses_v_group_users_table():
     assert "v_group_users" in cur.sql and "v_user_groups" not in cur.sql
 
 
+def test_list_groups_reads_v_groups(monkeypatch):
+    monkeypatch.setattr(fpbx_backend, "domain_uuid", lambda: "dom-1")
+    cur = _Cur([{"group_name": "agents"}, {"group_name": "superadmin"}])
+
+    class _CM:
+        def __enter__(self): return cur
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(fpbx_backend, "cursor", lambda: _CM())
+    assert fpbx_backend.list_groups() == ["agents", "superadmin"]
+    assert "v_groups" in cur.sql
+
+
 # ---- dispatcher wiring ----
 def test_backend_dispatch_fpbx(monkeypatch):
     from app.config import settings

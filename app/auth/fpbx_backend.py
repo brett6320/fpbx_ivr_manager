@@ -114,6 +114,20 @@ def authenticate(username: str, password: str) -> dict | None:
     }
 
 
+def list_groups() -> list[str]:
+    """Distinct FusionPBX group names in the configured domain (plus global
+    groups), for the admin group→permission mapping UI."""
+    d = domain_uuid()
+    with cursor() as cur:
+        cur.execute(
+            "SELECT DISTINCT group_name FROM v_groups "
+            "WHERE (domain_uuid = %s OR domain_uuid IS NULL) AND group_name IS NOT NULL "
+            "ORDER BY group_name",
+            (d,),
+        )
+        return [r["group_name"] for r in cur.fetchall()]
+
+
 def probe(username: str, password: str) -> dict:
     """Live test for the admin auth page: verify a credential and show which
     permissions the resolved groups grant. Never returns the stored hash."""

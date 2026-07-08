@@ -9,24 +9,53 @@
   <p class="muted">Referenced in prompts as <code>{business_name}</code>. Falls back to
   “{{ org_fallback }}” if blank.</p>
 
-  <h2 style="margin-top:1.5rem;">Business-hours templates</h2>
-  <p class="muted">Reusable hours descriptions. Reference one in a prompt as
-  <code>{hours.Name}</code> (or <code>{business_hours}</code> for the first).</p>
-  {% for name, text in rows %}
-  <div class="grid2">
-    <div><label>Template name</label>
-      <input name="tmpl_name_{{ loop.index0 }}" value="{{ name }}" placeholder="Standard"></div>
-    <div><label>Hours text</label>
-      <input name="tmpl_text_{{ loop.index0 }}" value="{{ text }}"
-             placeholder="Monday to Friday, 9 AM to 5 PM"></div>
-  </div>
-  {% endfor %}
+  <h2 style="margin-top:1.5rem;">Templates</h2>
+  <p class="muted">Reusable named snippets — a generic greeting, a closing line, hours,
+  anything. Reference one in a prompt (or in another template) as <code>{name}</code>.
+  Templates may reference other templates (nested).</p>
 
+  <div id="tmpl_rows">
+    {% for name, value in rows %}
+    <div class="tmpl-row" style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.6rem;">
+      <div class="grid2">
+        <div><label>Name</label>
+          <input name="tmpl_name_{{ loop.index0 }}" value="{{ name }}" placeholder="greeting"></div>
+        <div style="display:flex; align-items:flex-end;">
+          <button type="button" onclick="removeRow(this)" style="margin:0;">Remove</button></div>
+      </div>
+      <label>Value</label>
+      <textarea name="tmpl_value_{{ loop.index0 }}" rows="2" placeholder="Thank you for calling {business_name} and have a nice day.">{{ value }}</textarea>
+    </div>
+    {% endfor %}
+  </div>
+
+  <button type="button" onclick="addRow()">+ Add template</button>
   <button type="submit">Save</button>
 </form>
 
 <h2 style="margin-top:1.5rem;">Available placeholders</h2>
-<p class="muted">Paste any of these into a greeting or reason; they are plugged in when the
-audio is generated:</p>
+<p class="muted">Paste any of these into a greeting, reason, or another template:</p>
 <ul class="muted">{% for k in placeholders %}<li><code>{{ k }}</code></li>{% endfor %}</ul>
+
+<template id="tmpl_row_template">
+  <div class="tmpl-row" style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.6rem;">
+    <div class="grid2">
+      <div><label>Name</label><input name="tmpl_name___IDX__" placeholder="greeting"></div>
+      <div style="display:flex; align-items:flex-end;">
+        <button type="button" onclick="removeRow(this)" style="margin:0;">Remove</button></div>
+    </div>
+    <label>Value</label>
+    <textarea name="tmpl_value___IDX__" rows="2" placeholder="Thank you for calling {business_name} and have a nice day."></textarea>
+  </div>
+</template>
+
+<script>
+  let nextIdx = {{ rows|length }};
+  function addRow(){
+    const tpl = document.getElementById('tmpl_row_template').innerHTML.replaceAll('__IDX__', nextIdx++);
+    document.getElementById('tmpl_rows').insertAdjacentHTML('beforeend', tpl);
+  }
+  function removeRow(btn){ btn.closest('.tmpl-row').remove(); }
+  if (nextIdx === 0) addRow();  // start with one empty row
+</script>
 {% endblock %}

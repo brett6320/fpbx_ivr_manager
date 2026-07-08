@@ -49,6 +49,22 @@ def test_authenticate_success_maps_groups(monkeypatch):
     assert user == {"name": "alice", "email": "alice", "oid": "u-1", "groups": ["ivr-admins"]}
 
 
+def test_authenticate_returns_json_serializable_uuid(monkeypatch):
+    import json
+    import uuid
+    stored = hashlib.md5(b"pw").hexdigest()
+    uid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    monkeypatch.setattr(fpbx_backend, "domain_uuid", lambda: "dom-1")
+    monkeypatch.setattr(fpbx_backend, "_find_user", lambda cur, u, d: {
+        "user_uuid": uid, "username": u, "password": stored, "salt": "", "domain_uuid": d})
+    monkeypatch.setattr(fpbx_backend, "_user_groups", lambda cur, uid, d: [])
+    monkeypatch.setattr(fpbx_backend, "cursor", _fake_cursor)
+
+    user = fpbx_backend.authenticate("alice", "pw")
+    assert user["oid"] == str(uid) and isinstance(user["oid"], str)
+    json.dumps(user)  # must be serializable for the signed-cookie session
+
+
 def test_authenticate_wrong_password_returns_none(monkeypatch):
     stored = hashlib.md5(b"pw").hexdigest()
     monkeypatch.setattr(fpbx_backend, "domain_uuid", lambda: "dom-1")

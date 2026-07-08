@@ -28,8 +28,12 @@ def test_to_review_items_skips_empty_business():
 
 def test_export_document_shape(monkeypatch):
     monkeypatch.setattr(time_conditions, "list_schedules", lambda: [
-        {"extension": 9550, "label": "Holiday", "start": datetime(2026, 7, 7, 0, 0),
-         "end": datetime(2026, 7, 7, 23, 59), "closed_action": "voicemail", "open_destination": "2000"}
+        {"extension": 9550, "label": "TC-Main", "open_destination": "2000",
+         "closures": [
+             {"label": "Holiday", "start": datetime(2026, 7, 7, 0, 0),
+              "end": datetime(2026, 7, 7, 23, 59), "reason": "a holiday",
+              "closed_action": "voicemail"},
+         ]}
     ])
     monkeypatch.setattr(ivr_menus, "list_ivrs", lambda: [{"extension": 9560}])
     monkeypatch.setattr(ivr_menus, "get_ivr_full", lambda e: {"extension": e, "name": "Main", "options": []})
@@ -38,7 +42,10 @@ def test_export_document_shape(monkeypatch):
     doc = portability.export_document()
     assert doc["version"] == portability.EXPORT_VERSION
     assert doc["business"] == {"business_name": "Acme", "templates": {"g": "x"}}
-    assert doc["schedules"][0]["start"] == "2026-07-07T00:00:00"  # datetimes -> ISO
+    s = doc["schedules"][0]
+    assert s["label"] == "TC-Main" and s["open_destination"] == "2000"
+    assert s["closures"][0]["start"] == "2026-07-07T00:00:00"  # datetimes -> ISO
+    assert s["closures"][0]["label"] == "Holiday"
     assert doc["ivrs"][0]["extension"] == 9560
 
 
@@ -48,11 +55,21 @@ def test_commit_item_dispatch(monkeypatch):
     assert portability.commit_item("business", {"business_name": "Acme", "templates": {"g": "x"}})
     assert saved == {"name": "Acme", "tmpl": {"g": "x"}}
 
-    monkeypatch.setattr(service, "apply_schedule", lambda req, dest: type("R", (), {"extension": req.extension})())
+    monkeypatch.setattr(service, "apply_time_condition",
+                        lambda tc: type("R", (), {"extension": tc.extension, "closure_count": len(tc.closures)})())
+    # v1 flat closure still imports (back-compat)
     msg = portability.commit_item("schedule", {
         "label": "L", "start": "2026-07-07T00:00", "end": "2026-07-07T23:59",
         "extension": 9551, "open_destination": "2000"})
     assert "9551" in msg
+    # v2 closure list
+    msg2 = portability.commit_item("schedule", {
+        "label": "TC-Main", "extension": 9552, "open_destination": "2000",
+        "closures": [
+            {"label": "A", "start": "2026-07-04T00:00", "end": "2026-07-04T23:59"},
+            {"label": "B", "start": "2026-09-07T00:00", "end": "2026-09-07T23:59"},
+        ]})
+    assert "9552" in msg2 and "2 closure" in msg2
 
     monkeypatch.setattr(service, "create_ivr", lambda req: type("R", (), {"extension": req.extension})())
     msg = portability.commit_item("ivr", {

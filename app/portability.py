@@ -7,9 +7,19 @@ from __future__ import annotations
 
 from app import business, service
 from app.fpbx import ivr_menus, time_conditions
-from app.models import IvrOption, IvrRequest, ScheduleRequest
+from app.models import Closure, IvrOption, IvrRequest, TimeConditionRequest
 
-EXPORT_VERSION = 1
+EXPORT_VERSION = 2
+
+
+def _dump_closure(cl: dict) -> dict:
+    return {
+        "label": cl.get("label", ""),
+        "start": cl["start"].isoformat() if cl.get("start") else None,
+        "end": cl["end"].isoformat() if cl.get("end") else None,
+        "reason": cl.get("reason", ""),
+        "closed_action": cl.get("closed_action", "voicemail"),
+    }
 
 
 def export_document() -> dict:
@@ -19,11 +29,8 @@ def export_document() -> dict:
         schedules.append({
             "extension": s["extension"],
             "label": s["label"],
-            "start": s["start"].isoformat() if s.get("start") else None,
-            "end": s["end"].isoformat() if s.get("end") else None,
-            "closed_action": s.get("closed_action", "voicemail"),
             "open_destination": s.get("open_destination"),
-            "reason": "",  # not recoverable from the dialplan; edit on import
+            "closures": [_dump_closure(cl) for cl in s.get("closures", [])],
         })
     ivrs = [ivr_menus.get_ivr_full(i["extension"]) for i in ivr_menus.list_ivrs()]
     return {
@@ -60,19 +67,32 @@ def commit_item(item_type: str, data: dict) -> str:
         return "Business profile saved"
 
     if item_type == "schedule":
-        req = ScheduleRequest(
-            label=data["label"],
-            start=data["start"],
-            end=data["end"],
-            reason=data.get("reason") or None,
-            extension=data.get("extension"),
-            closed_action=data.get("closed_action", "voicemail"),
-        )
         open_dest = (data.get("open_destination") or "").strip()
         if not open_dest:
             raise ValueError("schedule needs an open_destination")
-        r = service.apply_schedule(req, open_dest)
-        return f"Schedule created on extension {r.extension}"
+        # v2 carries a closure list; v1 was a single flat closure
+        raw = data.get("closures")
+        if not raw:
+            raw = [{
+                "label": data.get("label", "closure"),
+                "start": data.get("start"), "end": data.get("end"),
+                "reason": data.get("reason"),
+                "closed_action": data.get("closed_action", "voicemail"),
+            }]
+        closures = [
+            Closure(
+                label=c.get("label", "closure"), start=c["start"], end=c["end"],
+                reason=c.get("reason") or None,
+                closed_action=c.get("closed_action", "voicemail"),
+            )
+            for c in raw if c.get("start") and c.get("end")
+        ]
+        tc = TimeConditionRequest(
+            name=data.get("label", "TC"), open_destination=open_dest,
+            extension=data.get("extension"), closures=closures,
+        )
+        r = service.apply_time_condition(tc)
+        return f"Time condition created on extension {r.extension} ({r.closure_count} closure(s))"
 
     if item_type == "ivr":
         options = [IvrOption(**o) for o in (data.get("options") or [])]

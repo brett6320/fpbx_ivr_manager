@@ -134,6 +134,16 @@ It auto-detects the `freeswitch` group (for local recording storage) and falls
 back to a private group + db storage when it's absent. Non-interactive:
 `sudo INSTALL_DIR=/srv/ivr START_AT_BOOT=no EXTRAS=fpbx ASSUME_YES=1 ./deploy/install.sh`.
 
+**Python 3.11+ is required.** The installer picks the newest suitable interpreter
+(`python3.14`…`python3.11`) and errors clearly if none is found. If your distro's
+default `python3` is older than 3.11 (common on the FusionPBX Debian base), install
+a newer one and either let the installer auto-detect it or point it explicitly:
+
+```bash
+sudo apt install python3.11 python3.11-venv       # Debian/Ubuntu
+sudo PYTHON=/usr/bin/python3.11 ./deploy/install.sh
+```
+
 The manual steps below are equivalent, if you'd rather do it by hand.
 
 ### Install (manual)

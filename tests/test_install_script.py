@@ -26,6 +26,24 @@ def test_install_script_prompts_and_defaults():
     assert "useradd --system" in body               # unprivileged service user
 
 
+def test_install_script_enforces_min_python_and_sanitizes_extras():
+    body = open(SCRIPT).read()
+    # picks/validates a Python >= the app minimum, with an override hook
+    assert "pick_python" in body and "MIN_PY_MINOR" in body
+    assert "PYTHON" in body                          # honors a $PYTHON override
+    assert 'tr -d ' in body and "extras" in body     # strips whitespace from extras
+
+
+def test_install_script_min_python_matches_pyproject():
+    import re
+    proj = open(os.path.join(REPO, "pyproject.toml")).read()
+    m = re.search(r'requires-python\s*=\s*">=(\d+)\.(\d+)"', proj)
+    assert m, "requires-python not found in pyproject.toml"
+    major, minor = m.group(1), m.group(2)
+    body = open(SCRIPT).read()
+    assert f"MIN_PY_MAJOR={major}" in body and f"MIN_PY_MINOR={minor}" in body
+
+
 def test_unit_uses_templating_token():
     unit = open(UNIT).read()
     # the installer rewrites this canonical path to the chosen INSTALL_DIR

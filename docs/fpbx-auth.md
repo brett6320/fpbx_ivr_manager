@@ -15,6 +15,20 @@ The keys are FusionPBX **group names** (`v_group_users.group_name`, e.g.
 `superadmin`, `agents`). A FusionPBX user with no mapped group can sign in but has
 no permissions until a group they belong to appears in the map.
 
+**Default mapping.** When `AUTH_BACKEND=fpbx` and `AUTHZ_GROUP_PERMISSIONS` is not
+set, a sensible default keyed by FusionPBX's common group names applies:
+
+| Group | Permissions |
+|---|---|
+| `ivr-admins` | `manage_schedules`, `manage_users` |
+| `superadmin` | `manage_schedules`, `manage_users` |
+| `ivr-editors` | `manage_schedules` |
+| `admin` | `manage_schedules` |
+| `user` | `manage_schedules` |
+
+Setting `AUTHZ_GROUP_PERMISSIONS` (or using the mapping builder below and saving)
+replaces the default entirely — it is not merged.
+
 ## How a login is verified
 
 1. Look up the enabled user (`user_enabled = 'true'`) by `username` in the

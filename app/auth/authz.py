@@ -25,12 +25,34 @@ MANAGE_SCHEDULES = "manage_schedules"
 MANAGE_USERS = "manage_users"
 ALL_PERMISSIONS = {MANAGE_SCHEDULES, MANAGE_USERS}
 
+# Default group->permission map used when AUTH_BACKEND=fpbx and no explicit
+# AUTHZ_GROUP_PERMISSIONS is configured — keyed by FusionPBX's common group names.
+FPBX_DEFAULT_GROUP_PERMISSIONS: dict[str, list[str]] = {
+    "ivr-admins": [MANAGE_SCHEDULES, MANAGE_USERS],
+    "ivr-editors": [MANAGE_SCHEDULES],
+    "admin": [MANAGE_SCHEDULES],
+    "superadmin": [MANAGE_SCHEDULES, MANAGE_USERS],
+    "user": [MANAGE_SCHEDULES],
+}
+
+
+def _raw_group_permissions() -> dict:
+    """The configured mapping, or the fpbx-backend default when unset."""
+    raw = json.loads(settings.authz_group_permissions or "{}")
+    if not raw and settings.auth_backend.lower() == "fpbx":
+        return dict(FPBX_DEFAULT_GROUP_PERMISSIONS)
+    return raw
+
+
+def group_permissions_json() -> str:
+    """Effective mapping as JSON (what the admin page shows / _group_map uses)."""
+    return json.dumps(_raw_group_permissions())
+
 
 @lru_cache(maxsize=1)
 def _group_map() -> dict[str, set[str]]:
-    raw = json.loads(settings.authz_group_permissions or "{}")
     out: dict[str, set[str]] = {}
-    for group, perms in raw.items():
+    for group, perms in _raw_group_permissions().items():
         out[str(group)] = {str(p) for p in perms}
     return out
 

@@ -11,13 +11,13 @@
 {% else %}
 <table style="width:100%; border-collapse:collapse;">
   <thead>
-    <tr style="text-align:left; border-bottom:1px solid #d1d5db;">
+    <tr style="text-align:left; border-bottom:1px solid var(--border);">
       <th>Ext</th><th>Label</th><th>Window</th><th>When closed</th><th>Open dest</th><th></th>
     </tr>
   </thead>
   <tbody>
   {% for c in schedules %}
-    <tr style="border-bottom:1px solid #eee;">
+    <tr style="border-bottom:1px solid var(--border-light);">
       <td>{{ c.extension }}{% if not c.in_pool %} <span class="muted" title="Adopted; outside the managed pool">(adopted)</span>{% endif %}</td>
       <td>{{ c.label }}{% if not c.enabled %} <span class="muted">(disabled)</span>{% endif %}</td>
       <td class="muted">

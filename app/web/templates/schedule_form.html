@@ -8,7 +8,7 @@
 <p class="muted">Managed extensions: {{ pool }}. Greeting for {{ org }}.</p>
 
 {% if adopt_uuid %}
-<div class="preview" style="border-color:#d97706;">
+<div class="preview" style="border-color:var(--warn);">
   <strong>Adopting extension {{ c.extension }}.</strong> This replaces the existing
   time condition's routing with an app-managed schedule and takes ownership of it.
   The original routing is overwritten.

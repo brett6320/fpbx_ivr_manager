@@ -2,7 +2,7 @@
 {% block body %}
 <h1>{{ org }} — IVR Manager</h1>
 
-{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+{% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 
 {% if sso %}
   <p class="muted">Sign in with your organization account.</p>

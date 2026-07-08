@@ -67,8 +67,8 @@ function authz() { return document.getElementById('authz').value; }
 async function post(url, body){ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
 function render(el, res){
   const box = document.getElementById(el);
-  if(res.error){ box.innerHTML = '<div class="preview" style="border-color:#dc2626;">'+res.error+'</div>'; return; }
-  let h = '<div class="preview" style="border-color:'+(res.ok?'#16a34a':'#dc2626')+';"><ul style="margin:0;padding-left:1.2rem;">';
+  if(res.error){ box.innerHTML = '<div class="preview" style="border-color:var(--danger);">'+res.error+'</div>'; return; }
+  let h = '<div class="preview" style="border-color:'+(res.ok?'var(--ok)':'var(--danger)')+';"><ul style="margin:0;padding-left:1.2rem;">';
   (res.steps||[]).forEach(s=>{ h += '<li>'+(s.ok?'✓':'✗')+' <strong>'+s.name+'</strong>'+(s.detail?': '+escapeHtml(s.detail):'')+'</li>'; });
   h += '</ul>';
   if(res.unverified){ h += '<p class="muted">Token not cryptographically verified — inspection only.</p>'; }
@@ -104,7 +104,7 @@ async function save(){
   }
   const res = await post('/admin/auth/save', body);
   const box = document.getElementById('save_result');
-  box.innerHTML = '<div class="preview" style="border-color:'+(res.ok?'#16a34a':'#dc2626')+';">'
+  box.innerHTML = '<div class="preview" style="border-color:'+(res.ok?'var(--ok)':'var(--danger)')+';">'
     + (res.ok ? ('Saved: '+res.written.join(', ')+'. <strong>'+res.note+'</strong>') : ('Error: '+res.error)) + '</div>';
 }
 </script>

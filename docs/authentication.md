@@ -91,6 +91,12 @@ Because permissions come only from groups, a freshly-added user can log in but
 can do nothing until placed in a group that appears in
 `AUTHZ_GROUP_PERMISSIONS`.
 
+**Local admins are superusers.** A local user with the `is_admin` flag (or in
+`LOCAL_ADMIN_GROUP`) holds *every* permission regardless of `AUTHZ_GROUP_PERMISSIONS`
+— so the seeded admin can manage the app out of the box. This is a role, not a
+per-user permission binding; `is_admin` is only ever set by the local backend, so
+IdP (Entra/LDAP) users still derive their permissions purely from groups.
+
 ## Interactive enablement & live testing (admin UI)
 
 Users with `manage_users` get an **Auth config** page at **`/admin/auth`** to

@@ -47,6 +47,8 @@ def _run_schema_check() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     backend.validate_config()
+    if settings.dev_mode:
+        log.warning("DEV_MODE is on — MFA is not enforced for local admins. Do not use in production.")
     if backend.kind() == "local":
         from app.auth import local
         local.seed_admin()

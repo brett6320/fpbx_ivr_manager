@@ -59,9 +59,10 @@ def _post_password(request: Request, user: dict):
     """After a valid password: enforce MFA for local admins, else complete login.
 
     is_admin is only set by the local backend, so MFA here applies specifically to
-    LOCAL admins — external IdP users satisfy MFA at the IdP.
+    LOCAL admins — external IdP users satisfy MFA at the IdP. In dev mode MFA is
+    not enforced (no forced enrollment).
     """
-    if user.get("is_admin"):
+    if user.get("is_admin") and not settings.dev_mode:
         stage = "verify" if local.has_mfa(user["email"]) else "enroll"
         request.session["mfa"] = {"user": user, "stage": stage}
         return RedirectResponse("/auth/mfa", status_code=303)

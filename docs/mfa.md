@@ -85,6 +85,12 @@ The seed admin (`LOCAL_ADMIN_USER`/`LOCAL_ADMIN_PASSWORD`) is created with the
 admin flag and placed in `LOCAL_ADMIN_GROUP` on first startup, and must enrol MFA
 at first login.
 
+## Dev mode
+
+Setting `DEV_MODE=true` **disables MFA enforcement for local admins** (no forced
+enrollment or verification) for local development. It logs a startup warning and
+must **never** be enabled in production.
+
 ## Recovery
 
 If an admin loses their factor, another admin runs `manage.py mfa-reset <user>`

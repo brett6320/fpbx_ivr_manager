@@ -52,3 +52,15 @@ def test_no_groups_key_is_safe(monkeypatch):
     monkeypatch.setattr(settings, "authz_group_permissions", "{}")
     authz._group_map.cache_clear()
     assert authz.user_permissions({}) == set()
+
+
+def test_local_admin_is_superuser(monkeypatch):
+    # even with no group mapping, a local admin holds every permission
+    monkeypatch.setattr(settings, "authz_group_permissions", "{}")
+    authz._group_map.cache_clear()
+    admin = {"is_admin": True, "groups": []}
+    assert authz.user_permissions(admin) == set(authz.ALL_PERMISSIONS)
+    assert authz.has_permission(admin, authz.MANAGE_SCHEDULES)
+    assert authz.has_permission(admin, authz.MANAGE_USERS)
+    # non-admin still needs a mapped group
+    assert authz.user_permissions({"is_admin": False, "groups": []}) == set()

@@ -114,3 +114,13 @@ def test_breakglass_restricted_to_admins(client):
     with client as c:
         r = c.post("/auth/local", data={"username": "bob", "password": "pw"}, follow_redirects=False)
         assert r.status_code == 401  # non-admin refused break-glass
+
+
+def test_dev_mode_admin_skips_mfa_and_is_superuser(client, monkeypatch):
+    monkeypatch.setattr(settings, "dev_mode", True)
+    local.create_user("admin", "pw", is_admin=True)  # no groups mapped
+    with client as c:
+        r = c.post("/auth/login", data={"username": "admin", "password": "pw"}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/"  # no MFA gate in dev
+        # local admin is a superuser -> reaches the schedules UI without a mapped group
+        assert c.get("/schedules/new", follow_redirects=False).status_code == 200

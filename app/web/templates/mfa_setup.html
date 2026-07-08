@@ -4,7 +4,7 @@
 <p class="muted">Local administrators must enrol an MFA factor. Choose a passkey
 or an authenticator app (TOTP).</p>
 
-{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+{% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 
 <h2>Option A — Passkey (recommended)</h2>
 <p class="muted">Uses your device biometrics or security key.</p>

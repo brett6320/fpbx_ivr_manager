@@ -4,18 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FusionPBX IVR Manager</title>
+  <script>
+    // apply the saved theme before paint to avoid a flash; default = follow system
+    (function(){ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch(e){} })();
+  </script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    /* follow the system theme by default; the toggle overrides via data-theme */
+    :root { color-scheme: light dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
+    :root {
+      --bg:      light-dark(#ffffff, #0f1115);
+      --fg:      light-dark(#111827, #e5e7eb);
+      --muted:   light-dark(#6b7280, #9ca3af);
+      --border:  light-dark(#d1d5db, #374151);
+      --border-light: light-dark(#eeeeee, #262b33);
+      --accent:  light-dark(#2563eb, #60a5fa);
+      --panel:   light-dark(#f3f4f6, #171a20);
+      --field-bg: light-dark(#ffffff, #12151b);
+      --danger:  light-dark(#dc2626, #f87171);
+      --ok:      light-dark(#16a34a, #34d399);
+      --warn:    light-dark(#d97706, #fbbf24);
+    }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem;
+           background: var(--bg); color: var(--fg); }
+    a { color: var(--accent); }
     label { display: block; margin: .75rem 0 .25rem; font-weight: 600; }
-    input, select, textarea { width: 100%; padding: .5rem; box-sizing: border-box; }
-    button { margin-top: 1rem; padding: .6rem 1.2rem; cursor: pointer; }
-    .preview { background: #f3f4f6; border-left: 4px solid #2563eb; padding: 1rem; margin-top: 1rem; }
+    input, select, textarea { width: 100%; padding: .5rem; box-sizing: border-box;
+           background: var(--field-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; }
+    button { margin-top: 1rem; padding: .6rem 1.2rem; cursor: pointer;
+             background: var(--accent); color: #fff; border: none; border-radius: 4px; }
+    table { border-color: var(--border); }
+    .preview { background: var(--panel); border-left: 4px solid var(--accent); padding: 1rem; margin-top: 1rem; }
     .topbar { display: flex; justify-content: space-between; align-items: center; }
-    .muted { color: #6b7280; font-size: .9rem; }
+    .muted { color: var(--muted); font-size: .9rem; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .theme-switch { position: fixed; bottom: .75rem; right: .75rem; font-size: .8rem; }
+    .theme-switch select { width: auto; padding: .2rem .4rem; }
   </style>
 </head>
 <body>
 {% block body %}{% endblock %}
+<div class="theme-switch muted">
+  <label style="display:inline; font-weight:400;">Theme
+    <select id="themeSel" onchange="setTheme(this.value)">
+      <option value="auto">Auto</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </label>
+</div>
+<script>
+  function setTheme(v){
+    try {
+      if (v === 'auto') { delete document.documentElement.dataset.theme; localStorage.removeItem('theme'); }
+      else { document.documentElement.dataset.theme = v; localStorage.setItem('theme', v); }
+    } catch(e){}
+  }
+  (function(){ try { document.getElementById('themeSel').value = localStorage.getItem('theme') || 'auto'; } catch(e){} })();
+</script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <h1>{{ org }} — Local administrator sign-in</h1>
 <p class="muted">Break-glass access for local administrators. Requires MFA.</p>
 
-{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+{% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 
 <form method="post" action="/auth/local">
   <label>Username</label>

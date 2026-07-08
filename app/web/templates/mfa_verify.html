@@ -3,7 +3,7 @@
 <h1>Verify your identity</h1>
 <p class="muted">This local administrator account requires a second factor.</p>
 
-{% if error %}<div class="preview" style="border-color:#dc2626;">{{ error }}</div>{% endif %}
+{% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 
 {% if has_passkey %}
   <h2>Passkey</h2>

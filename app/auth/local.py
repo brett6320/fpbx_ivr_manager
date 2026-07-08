@@ -18,11 +18,28 @@ from app.config import settings
 
 _ITERATIONS = 210_000
 
+# The built-in seed admin. Named with an "@local" suffix so it is unmistakably
+# the app's local account, distinct from FusionPBX's own "admin" user.
+EMBEDDED_ADMIN_USER = "admin@local"
+LEGACY_ADMIN_USER = "admin"  # older builds seeded this; migrated on first open
+
 
 def _ensure_column(conn, table: str, column: str, ddl: str) -> None:
     cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
     if column not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+
+def _rename_user(conn, old: str, new: str) -> bool:
+    """Rename a local user across every username-keyed table, preserving groups,
+    passkeys and flags. No-op unless `old` exists and `new` is free."""
+    have_old = conn.execute("SELECT 1 FROM users WHERE username=?", (old,)).fetchone()
+    have_new = conn.execute("SELECT 1 FROM users WHERE username=?", (new,)).fetchone()
+    if not have_old or have_new:
+        return False
+    for table in ("users", "user_groups", "webauthn_credentials"):
+        conn.execute(f"UPDATE {table} SET username=? WHERE username=?", (new, old))  # noqa: S608 - constant table names
+    return True
 
 
 @contextmanager
@@ -56,9 +73,18 @@ def _db():
             " sign_count INTEGER NOT NULL DEFAULT 0,"
             " label TEXT)"
         )
+        # key/value marker table for one-time migrations
+        conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
         # additive migrations for existing DBs
         _ensure_column(conn, "users", "is_admin", "is_admin INTEGER NOT NULL DEFAULT 0")
         _ensure_column(conn, "users", "totp_secret", "totp_secret TEXT")
+        # ONE-TIME: rename the legacy embedded admin "admin" -> "admin@local" so it
+        # is distinct from the FusionPBX "admin" (carries its groups/MFA/flags).
+        # Guarded by a marker so it fires only once and never renames an "admin"
+        # a user deliberately creates later.
+        if not conn.execute("SELECT 1 FROM meta WHERE key='admin_renamed'").fetchone():
+            _rename_user(conn, LEGACY_ADMIN_USER, EMBEDDED_ADMIN_USER)
+            conn.execute("INSERT INTO meta (key, value) VALUES ('admin_renamed', '1')")
         yield conn
         conn.commit()
     finally:

@@ -10,11 +10,11 @@
   <p class="muted">No managed IVR menus yet.</p>
 {% else %}
 <table style="width:100%; border-collapse:collapse;">
-  <thead><tr style="text-align:left; border-bottom:1px solid #d1d5db;">
+  <thead><tr style="text-align:left; border-bottom:1px solid var(--border);">
     <th>Ext</th><th>Name</th><th>Status</th><th></th></tr></thead>
   <tbody>
   {% for i in ivrs %}
-    <tr style="border-bottom:1px solid #eee;">
+    <tr style="border-bottom:1px solid var(--border-light);">
       <td>{{ i.extension }}</td>
       <td>{{ i.name }}</td>
       <td>{{ 'enabled' if i.enabled else 'disabled' }}</td>

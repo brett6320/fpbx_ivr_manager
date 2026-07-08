@@ -112,6 +112,45 @@ def user_exists(username: str) -> bool:
         return conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone() is not None
 
 
+def get_user(username: str) -> dict | None:
+    """Full detail for a single user, for admin management."""
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT username, display_name, is_admin FROM users WHERE username=?", (username,)
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "username": row["username"],
+        "display_name": row["display_name"],
+        "is_admin": bool(row["is_admin"]),
+        "groups": groups_for_user(username),
+        "has_mfa": has_mfa(username),
+    }
+
+
+def list_users_detailed() -> list[dict]:
+    return [get_user(u) for u in list_users()]
+
+
+def set_display_name(username: str, display_name: str) -> bool:
+    with _db() as conn:
+        cur = conn.execute(
+            "UPDATE users SET display_name=? WHERE username=?", (display_name, username)
+        )
+        return cur.rowcount > 0
+
+
+def set_groups(username: str, groups: list[str]) -> None:
+    """Make the user's group membership exactly `groups`."""
+    target = {g.strip() for g in groups if g.strip()}
+    current = set(groups_for_user(username))
+    for g in current - target:
+        remove_from_group(username, g)
+    for g in target - current:
+        add_to_group(username, g)
+
+
 def set_admin(username: str, is_admin: bool) -> bool:
     with _db() as conn:
         cur = conn.execute(

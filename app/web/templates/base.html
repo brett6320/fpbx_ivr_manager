@@ -67,6 +67,7 @@
     <a href="/admin/adopt"{% if path.startswith('/admin/adopt') %} class="active"{% endif %}>Adopt</a>
     <a href="/admin/auth"{% if path.startswith('/admin/auth') %} class="active"{% endif %}>Auth</a>
     <a href="/admin/business"{% if path.startswith('/admin/business') %} class="active"{% endif %}>Business</a>
+    {% if nav_local_backend is defined and nav_local_backend() %}<a href="/admin/users"{% if path.startswith('/admin/users') %} class="active"{% endif %}>Users</a>{% endif %}
     <a href="/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
     {% endif %}
     <span class="sep"></span>

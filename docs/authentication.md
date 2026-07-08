@@ -75,7 +75,10 @@ LOCAL_ADMIN_PASSWORD=change-me
 LOCAL_ADMIN_GROUP=ivr-admins        # seed admin is placed in this group
 ```
 
-Manage users and group membership with the CLI:
+Admins (`manage_users`) manage local users in the UI at **`/admin/users`**
+(the **Users** nav link, shown only for the local backend): create/edit/delete
+users, set the admin flag and groups, reset passwords, and reset MFA. The same is
+available from the CLI:
 
 ```bash
 python manage.py add alice --name "Alice A"     # prompts for password

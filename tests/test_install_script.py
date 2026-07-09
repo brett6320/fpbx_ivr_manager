@@ -11,6 +11,18 @@ UNIT = os.path.join(REPO, "deploy", "fpbx-ivr-manager.service")
 TOP = os.path.join(REPO, "install.sh")
 
 
+def test_fusionpbx_installer_is_idempotent_and_verifiable():
+    php = os.path.join(REPO, "fusionpbx-app", "install.sh")
+    assert os.path.exists(php) and os.access(php, os.X_OK)
+    subprocess.run([shutil.which("bash"), "-n", php], check=True)
+    body = open(php).read()
+    assert "--verify" in body                       # validate-only mode
+    assert "verify()" in body                        # validation routine
+    assert "v_permissions" in body and "v_menu_items" in body  # checks registration
+    assert "rsync -a --delete" in body               # re-copy is idempotent
+    assert "Restore Default Menu" in body            # menu guidance
+
+
 def test_top_installer_recommends_and_gates_before_acting():
     assert os.path.exists(TOP) and os.access(TOP, os.X_OK)
     subprocess.run([shutil.which("bash"), "-n", TOP], check=True)

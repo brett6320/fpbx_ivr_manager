@@ -5,6 +5,8 @@
 require_once "root.php";
 require_once "resources/require.php";
 require_once "resources/check_auth.php";
+require_once __DIR__ . "/resources/functions.php";
+require_once __DIR__ . "/resources/classes/ivr_schedule.php";
 
 if (!permission_exists('ivr_manager_schedule_add') && !permission_exists('ivr_manager_schedule_edit')) {
 	echo "access denied";
@@ -17,8 +19,7 @@ $database = new database;
 
 $domain_uuid = $_SESSION['domain_uuid'];
 $domain_name = $_SESSION['domain_name'];
-$rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch']['recordings']['dir'] : '/var/lib/freeswitch/recordings') . '/' . $domain_name;
-$engine = new ivr_schedule($database->db, $domain_uuid, $domain_name, $rec_dir);
+$engine = new ivr_schedule($database->db, $domain_uuid, $domain_name);
 
 // pool bounds from default settings (fallback 9550-9599)
 $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_start']['numeric'] : 9550;
@@ -35,7 +36,7 @@ $ext = isset($_GET['ext']) && $_GET['ext'] !== '' ? (int) $_GET['ext'] : null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$token = new token;
 	if (!$token->validate($_SERVER['PHP_SELF'])) {
-		message::add('Invalid token', 'negative');
+		ivrmgr_message('Invalid token', 'negative');
 		header('Location: schedules.php');
 		exit;
 	}
@@ -63,17 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 
 	if ($name === '' || $open === '' || !count($closures)) {
-		message::add('A name, open destination and at least one closure are required.', 'negative');
+		ivrmgr_message('A name, open destination and at least one closure are required.', 'negative');
 	} else {
 		try {
 			$engine->upsert($extension, $name, $closures, $open);
 			// reload the dialplan so FreeSWITCH applies the change
-			ivr_manager_reloadxml();
-			message::add('Saved.');
+			ivrmgr_reloadxml();
+			ivrmgr_message('Saved.');
 			header('Location: schedules.php');
 			exit;
 		} catch (Exception $e) {
-			message::add('Refused: ' . $e->getMessage(), 'negative');
+			ivrmgr_message('Refused: ' . $e->getMessage(), 'negative');
 		}
 	}
 }
@@ -90,13 +91,13 @@ $t = $token->create($_SERVER['PHP_SELF']);
 
 echo "<form method='post' action='schedule_edit.php" . ($ext !== null ? '?ext=' . urlencode($ext) : '') . "'>\n";
 echo "<div class='action_bar'><div class='heading'><b>" . ($current ? 'Edit' : 'New') . " time condition</b></div>";
-echo "<div class='actions'>" . button::create(array('type' => 'button', 'label' => 'Back', 'icon' => 'chevron-left', 'link' => 'schedules.php'));
-echo button::create(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "</div><div style='clear:both;'></div></div>\n";
+echo "<div class='actions'>" . ivrmgr_button(array('type' => 'button', 'label' => 'Back', 'icon' => 'chevron-left', 'link' => 'schedules.php'));
+echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "</div><div style='clear:both;'></div></div>\n";
 
 echo "<table width='100%'>\n";
-echo "<tr><td class='vncell'>Name</td><td class='vtable'><input class='formfld' name='name' value='" . escape($current ? $current['label'] : '') . "' required></td></tr>\n";
-echo "<tr><td class='vncell'>Open destination</td><td class='vtable'><input class='formfld' name='open_destination' placeholder='e.g. 2000' value='" . escape($current ? $current['open_destination'] : '') . "' required></td></tr>\n";
-echo "<tr><td class='vncell'>Extension</td><td class='vtable'><input class='formfld' name='extension' value='" . ($ext !== null ? escape($ext) : '') . "'" . ($ext !== null ? ' readonly' : '') . " placeholder='blank = auto (" . $pool_start . "-" . $pool_end . ")'></td></tr>\n";
+echo "<tr><td class='vncell'>Name</td><td class='vtable'><input class='formfld' name='name' value='" . ivrmgr_esc($current ? $current['label'] : '') . "' required></td></tr>\n";
+echo "<tr><td class='vncell'>Open destination</td><td class='vtable'><input class='formfld' name='open_destination' placeholder='e.g. 2000' value='" . ivrmgr_esc($current ? $current['open_destination'] : '') . "' required></td></tr>\n";
+echo "<tr><td class='vncell'>Extension</td><td class='vtable'><input class='formfld' name='extension' value='" . ($ext !== null ? ivrmgr_esc($ext) : '') . "'" . ($ext !== null ? ' readonly' : '') . " placeholder='blank = auto (" . $pool_start . "-" . $pool_end . ")'></td></tr>\n";
 echo "</table>\n";
 
 echo "<br><b>Closures</b> <span class='description'>most-specific (shortest) window matches first</span>\n";
@@ -107,7 +108,7 @@ foreach ($rows as $c) {
 }
 echo "</table>\n";
 echo "<input type='button' class='btn' value='+ Add closure' onclick='ivrmgrAddRow();'>\n";
-echo "<input type='hidden' name='" . $token['name'] . "' value='" . $token['hash'] . "'>\n";
+echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
 echo "</form>\n";
 
 // row template for the add button
@@ -138,10 +139,10 @@ function closure_row_html($c, $recordings) {
 	$sel_start = to_input_datetime(isset($c['start']) ? $c['start'] : '');
 	$sel_end = to_input_datetime(isset($c['end']) ? $c['end'] : '');
 	$h = "<tr class='list-row'>";
-	$h .= "<td><input class='formfld' name='c_label[]' value='" . escape($c['label']) . "' placeholder='July 4th'></td>";
-	$h .= "<td><input class='formfld' type='datetime-local' name='c_start[]' value='" . escape($sel_start) . "'></td>";
-	$h .= "<td><input class='formfld' type='datetime-local' name='c_end[]' value='" . escape($sel_end) . "'></td>";
-	$h .= "<td><input class='formfld' name='c_reason[]' value='" . escape(isset($c['reason']) ? $c['reason'] : '') . "' placeholder='a holiday'></td>";
+	$h .= "<td><input class='formfld' name='c_label[]' value='" . ivrmgr_esc($c['label']) . "' placeholder='July 4th'></td>";
+	$h .= "<td><input class='formfld' type='datetime-local' name='c_start[]' value='" . ivrmgr_esc($sel_start) . "'></td>";
+	$h .= "<td><input class='formfld' type='datetime-local' name='c_end[]' value='" . ivrmgr_esc($sel_end) . "'></td>";
+	$h .= "<td><input class='formfld' name='c_reason[]' value='" . ivrmgr_esc(isset($c['reason']) ? $c['reason'] : '') . "' placeholder='a holiday'></td>";
 	$act = isset($c['closed_action']) ? $c['closed_action'] : 'voicemail';
 	$h .= "<td><select class='formfld' name='c_action[]'>"
 		. "<option value='voicemail'" . ($act === 'voicemail' ? ' selected' : '') . ">voicemail</option>"
@@ -149,7 +150,7 @@ function closure_row_html($c, $recordings) {
 	$h .= "<td><select class='formfld' name='c_recording[]'><option value=''>— select —</option>";
 	foreach ($recordings as $r) {
 		$sel = ($r['recording_filename'] === (isset($c['recording_filename']) ? $c['recording_filename'] : '')) ? ' selected' : '';
-		$h .= "<option value='" . escape($r['recording_filename']) . "'" . $sel . ">" . escape($r['recording_name']) . "</option>";
+		$h .= "<option value='" . ivrmgr_esc($r['recording_filename']) . "'" . $sel . ">" . ivrmgr_esc($r['recording_name']) . "</option>";
 	}
 	$h .= "</select></td>";
 	$h .= "</tr>";
@@ -167,16 +168,4 @@ function allocate_extension($pdo, $domain_uuid, $start, $end) {
 	}
 	throw new Exception('extension pool ' . $start . '-' . $end . ' exhausted');
 }
-function ivr_manager_reloadxml() {
-	// best-effort: FusionPBX exposes event_socket; fall back silently
-	if (class_exists('event_socket')) {
-		try {
-			$esl = new event_socket;
-			if ($esl->connect()) {
-				$esl->request('api reloadxml');
-			}
-		} catch (Exception $e) {
-			// ignore — admin can reload from the GUI
-		}
-	}
-}
+// ivrmgr_reloadxml() is provided by resources/functions.php

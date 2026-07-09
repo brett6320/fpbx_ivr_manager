@@ -30,6 +30,17 @@ This is the alternate to the standalone Python app (root of this repo). Pick one
 
 ## Install
 
+The easiest way is the bundled installer — it auto-detects the FusionPBX
+directory and web user, copies the app, and registers it:
+
+```bash
+sudo ./fusionpbx-app/install.sh
+# non-interactive:
+# sudo FUSIONPBX_DIR=/var/www/fusionpbx RUN_UPGRADE=yes ASSUME_YES=1 ./fusionpbx-app/install.sh
+```
+
+Or do it by hand:
+
 ```bash
 # 1. copy the app into your FusionPBX app directory
 sudo cp -r fusionpbx-app/ivr_manager /var/www/fusionpbx/app/ivr_manager
@@ -37,13 +48,52 @@ sudo chown -R www-data:www-data /var/www/fusionpbx/app/ivr_manager   # or the we
 
 # 2. register it: FusionPBX GUI → Advanced → Upgrade → tick
 #    "App Defaults", "Permission Defaults", "Menu Defaults" → Execute
-#    (or CLI: sudo php /var/www/fusionpbx/core/upgrade/upgrade.php)
+#    (or CLI: sudo -u www-data php /var/www/fusionpbx/core/upgrade/upgrade.php)
 ```
 
 Then sign out/in and open **IVR Manager** from the menu (relocate it via
 **Advanced → Menu Manager** if you like). Permissions created:
 `ivr_manager_schedule_view` / `_add` / `_edit` / `_delete` (delete is
 superadmin/admin only by default).
+
+> Tested target: **FusionPBX 4.5.1 on PHP 7.3** (the low end of support). It uses
+> only stable framework calls and shims the parts that differ on older builds
+> (see below), so it should also run unchanged on 5.x.
+
+## FusionPBX integration — how it hooks in
+
+Every integration point reuses FusionPBX rather than reinventing it:
+
+| Concern | How | Notes |
+|---|---|---|
+| **Auth / session** | `resources/check_auth.php` + `$_SESSION` | no separate login; the FusionPBX session is authoritative |
+| **Authorization** | `permission_exists('ivr_manager_schedule_*')` | permissions created from `app_config.php`; bound to groups |
+| **Database** | the FusionPBX `database` object's PDO (`$database->db`) | **no schema changes** — writes go to the existing `v_dialplans` |
+| **Native Time Conditions** | rows stamped with the TC `app_uuid` (`4b821450-…`) | appear in the FusionPBX **Time Conditions** GUI |
+| **Ownership guardrail** | marker comment in `dialplan_xml` | refuses to edit/delete a dialplan it didn't create |
+| **Schema drift (4.x↔5.x)** | `ivr_schedule::save()` inserts only columns that exist | tolerant of column differences across versions |
+| **Recordings** | greeting picked from `v_recordings`; playback uses `$${recordings}/<domain>/<file>` | no host-path/session-key dependency |
+| **Apply changes** | `event_socket` → `api reloadxml` (best-effort) | falls back silently; Reload XML from the GUI works too |
+| **UI chrome** | `resources/header.php` / `footer.php`, `$document['title']` | looks native |
+| **Version shims** | `resources/functions.php` | `button`/`message`/`escape` differ across 4.5.x↔5.x — wrappers feature-detect and fall back to plain HTML/stdlib |
+
+No cron, no daemon, no extra ports, no Composer packages. Uninstall = delete
+`app/ivr_manager/` and remove its menu/permissions in the GUI; the time conditions
+it created remain as normal FusionPBX dialplans.
+
+## Troubleshooting
+
+- **App/menu doesn't appear** → run *Advanced → Upgrade → App/Permission/Menu
+  Defaults*, then sign out/in.
+- **"access denied"** → your group lacks `ivr_manager_schedule_view`; grant it in
+  *Advanced → Group Manager* (or re-run Permission Defaults).
+- **Class not found (`ivr_schedule`)** → the pages `require_once` it explicitly, so
+  this shouldn't happen; ensure the whole folder copied (including
+  `resources/classes/`).
+- **Greeting doesn't play** → confirm the recording exists in *Apps → Recordings*
+  for the domain; the dialplan references `$${recordings}/<domain>/<file>`.
+- **Change not live** → click *Advanced → Reload XML* (the automatic reload is
+  best-effort via `event_socket`).
 
 ## What it does today
 

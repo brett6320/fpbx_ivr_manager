@@ -26,13 +26,11 @@ class ivr_schedule {
 	private $pdo;
 	private $domain_uuid;
 	private $domain_name;
-	private $recordings_dir;
 
-	public function __construct($pdo, $domain_uuid, $domain_name, $recordings_dir) {
+	public function __construct($pdo, $domain_uuid, $domain_name) {
 		$this->pdo = $pdo;
 		$this->domain_uuid = $domain_uuid;
 		$this->domain_name = $domain_name;
-		$this->recordings_dir = rtrim($recordings_dir, '/');
 	}
 
 	private function marker_xml() {
@@ -54,7 +52,10 @@ class ivr_schedule {
 	}
 
 	private function playback_path($filename) {
-		return $this->recordings_dir . '/' . $filename;
+		// Use FreeSWITCH's $${recordings} variable + per-domain path, so we don't
+		// depend on any host-specific recordings dir or session key (portable
+		// across FusionPBX 4.x/5.x and any storage layout).
+		return '$${recordings}/' . $this->domain_name . '/' . $filename;
 	}
 
 	private function duration_seconds($closure) {

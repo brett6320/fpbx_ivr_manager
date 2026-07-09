@@ -127,6 +127,7 @@ def _post_password(request: Request, user: dict):
         request.session["mfa"] = {"user": user, "stage": stage}
         return redirect("/auth/mfa", status_code=303)
     request.session["user"] = user
+    audit.record(_actor(user), "login.success", details={"backend": backend.kind()})
     return redirect("/", status_code=303)
 
 
@@ -137,6 +138,7 @@ def _finish_mfa(request: Request):
     if not ctx:
         return None
     request.session["user"] = ctx["user"]
+    audit.record(_actor(ctx["user"]), "login.success", details={"mfa": True})
     return ctx["user"]
 
 
@@ -165,6 +167,8 @@ async def login_submit(request: Request):
         if candidate and candidate.get("is_admin"):
             user = candidate
     if not user:
+        audit.record(username or "anonymous", "login.failure",
+                     details={"backend": backend.kind()})
         return _login_page(request, error="Invalid username or password", status=401)
     return _post_password(request, user)
 
@@ -185,6 +189,7 @@ async def local_login_submit(request: Request):
     user = local.authenticate(username, password)
     # break-glass is restricted to local administrators
     if not user or not user.get("is_admin"):
+        audit.record(username or "anonymous", "login.failure", details={"backend": "local"})
         return templates.TemplateResponse(
             request,
             "local_login.html",
@@ -202,11 +207,15 @@ def callback(request: Request, code: str = "", state: str = ""):
     result = entra.redeem_code(code)
     user = entra.user_from_claims(result["id_token_claims"])
     request.session["user"] = user
+    audit.record(_actor(user), "login.success", details={"backend": "entra"})
     return redirect("/", status_code=303)
 
 
 @router.get("/auth/logout")
 def logout(request: Request):
+    u = request.session.get("user")
+    if u:
+        audit.record(_actor(u), "logout")
     request.session.clear()
     return redirect("/", status_code=303)
 
@@ -633,6 +642,8 @@ async def apply(request: Request, user: dict = Depends(require_schedules)):
             detail="Refused: the target extension or dialplan was not created by this app "
             "(see server logs for details).",
         ) from None
+    audit.record(_actor(user), "schedule.save",
+                 target=(form.get("extension") or "").strip() or None)
     return templates.TemplateResponse(request, "result.html", {"r": result})
 
 
@@ -844,6 +855,7 @@ async def recycled_delete(request: Request, user: dict = Depends(require_users))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid recycled item.") from None
     delete_recycled(ext, (form.get("recycled_at") or "").strip())
+    audit.record(_actor(user), "recycled.delete", target=str(ext))
     return redirect("/ivrs", status_code=303)
 
 
@@ -898,6 +910,7 @@ async def ivr_create(request: Request, user: dict = Depends(require_schedules)):
             detail="Could not create IVR: check the greeting, options, timeout, and extension "
             "(see server logs for details).",
         ) from None
+    audit.record(_actor(user), "ivr.create", target=str(getattr(req, "extension", "") or "") or None)
     return templates.TemplateResponse(request, "ivr_result.html", {"r": result})
 
 
@@ -950,6 +963,7 @@ async def phrase_create(request: Request, user: dict = Depends(require_schedules
             status_code=409,
             detail="Refused: a recording with that name exists and was not created by this app.",
         ) from None
+    audit.record(_actor(user), "phrase.create", target=(form.get("label") or "").strip() or None)
     return redirect("/phrases", status_code=303)
 
 
@@ -977,6 +991,7 @@ async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_u
     except NotManaged:
         log.warning("ivr recycle refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
+    audit.record(_actor(user), "ivr.recycle", target=str(ext))
     return redirect("/ivrs", status_code=303)
 
 
@@ -1269,4 +1284,7 @@ async def admin_import_commit(request: Request, user: dict = Depends(require_use
             log.warning("import commit failed for item %d", i, exc_info=True)
             results.append({"label": label, "ok": False,
                             "message": "failed — check the item's fields (see server logs)"})
+    audit.record(_actor(user), "import.commit",
+                 details={"items": len(results),
+                          "ok": sum(1 for r in results if r["ok"])})
     return templates.TemplateResponse(request, "import_result.html", {"user": user, "results": results})

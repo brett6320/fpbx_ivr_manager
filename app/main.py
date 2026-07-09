@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.audit_mw import ActivityLogMiddleware
 from app.auth import backend
 from app.config import settings
 from app.web.routes import router
@@ -62,6 +63,9 @@ async def lifespan(app: FastAPI):
 # and generates every internal link with the same prefix, so it works standalone
 # and behind a pass-through reverse proxy without any path stripping.
 app = FastAPI(title="FusionPBX IVR Manager", lifespan=lifespan)
+# Activity logging runs INSIDE the session middleware (added first == innermost)
+# so request.session — and thus the actor — is populated when it records.
+app.add_middleware(ActivityLogMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret_key,

@@ -73,6 +73,8 @@ Every integration point reuses FusionPBX rather than reinventing it:
 | **Ownership guardrail** | marker comment in `dialplan_xml` | refuses to edit/delete a dialplan it didn't create |
 | **Schema drift (4.x↔5.x)** | `ivr_schedule::save()` inserts only columns that exist | tolerant of column differences across versions |
 | **Recordings** | greeting picked from `v_recordings`; playback uses `$${recordings}/<domain>/<file>` | no host-path/session-key dependency |
+| **Google TTS** | RS256 JWT via `openssl_sign` → token → REST synth; stores a `v_recordings` row | no Composer/library; optional |
+| **Secrets** | service-account JSON in the app's own `v_ivr_manager_settings` table | **write-only** in the UI — never rendered back |
 | **Apply changes** | `event_socket` → `api reloadxml` (best-effort) | falls back silently; Reload XML from the GUI works too |
 | **UI chrome** | `resources/header.php` / `footer.php`, `$document['title']` | looks native |
 | **Version shims** | `resources/functions.php` | `button`/`message`/`escape` differ across 4.5.x↔5.x — wrappers feature-detect and fall back to plain HTML/stdlib |
@@ -103,12 +105,25 @@ it created remain as normal FusionPBX dialplans.
   (voicemail/hangup), reason and greeting recording. Closures are emitted
   shortest-window-first so a narrow closure shadows a broader overlap; a trailing
   condition routes to the **open (daytime) destination** when none match.
-- Greeting per closure is picked from existing **recordings** (`v_recordings`).
+- Greeting per closure is either an existing **recording** (`v_recordings`) **or**
+  generated from text via **Google Cloud TTS** (LINEAR16 @ 8 kHz), stored as a
+  recording named `ivrmgr_…`.
 - Reloads the dialplan via `event_socket` after a change (falls back silently — you
   can Reload XML from the GUI).
 
-**Not yet ported** (on the Python app, planned here): Google-TTS greeting
-generation, IVR-menu builder, and the one-flow wizard. Contributions welcome.
+### Google TTS (write-only credentials)
+
+Under **TTS settings** (button on the list page; permission
+`ivr_manager_tts_manage`, admin) you paste the Google **service-account JSON** and
+set the voice/language. The credential is **write-only**: it's stored (in the
+app's own `v_ivr_manager_settings` table, auto-created — never in the browsable
+Default Settings UI) and **never rendered back**. A **Test** button verifies
+validity (mints a token and does a one-word synth, reporting the authenticated
+account) without revealing the key. Auth uses an RS256 JWT signed with
+`openssl_sign` — no Composer/library needed, works on PHP 7.x+.
+
+**Not yet ported** (on the Python app, planned here): IVR-menu builder and the
+one-flow wizard. Contributions welcome.
 
 ## Caveat
 

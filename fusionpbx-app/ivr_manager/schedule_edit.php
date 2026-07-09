@@ -7,6 +7,8 @@ require_once "resources/require.php";
 require_once "resources/check_auth.php";
 require_once __DIR__ . "/resources/functions.php";
 require_once __DIR__ . "/resources/classes/ivr_schedule.php";
+require_once __DIR__ . "/resources/classes/ivr_settings.php";
+require_once __DIR__ . "/resources/classes/ivr_tts.php";
 
 if (!permission_exists('ivr_manager_schedule_add') && !permission_exists('ivr_manager_schedule_edit')) {
 	echo "access denied";
@@ -20,6 +22,14 @@ $database = new database;
 $domain_uuid = $_SESSION['domain_uuid'];
 $domain_name = $_SESSION['domain_name'];
 $engine = new ivr_schedule($database->db, $domain_uuid, $domain_name);
+
+// Google TTS (optional): configured write-only under TTS settings
+$settings = new ivr_settings($database->db, $domain_uuid);
+$tts_creds = $settings->get('tts_credentials', '');
+$tts_voice = $settings->get('tts_voice', 'en-US-Standard-C');
+$tts_lang = $settings->get('tts_language', 'en-US');
+$tts_configured = ($tts_creds !== '');
+$rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch']['recordings']['dir'] : '/var/lib/freeswitch/recordings') . '/' . $domain_name;
 
 // pool bounds from default settings (fallback 9550-9599)
 $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_start']['numeric'] : 9550;
@@ -45,25 +55,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$extension = ($_POST['extension'] !== '') ? (int) $_POST['extension'] : allocate_extension($database->db, $domain_uuid, $pool_start, $pool_end);
 
 	$closures = array();
+	$build_error = null;
 	$labels = isset($_POST['c_label']) ? $_POST['c_label'] : array();
-	foreach ($labels as $i => $label) {
-		$label = trim($label);
-		$start = isset($_POST['c_start'][$i]) ? $_POST['c_start'][$i] : '';
-		$end = isset($_POST['c_end'][$i]) ? $_POST['c_end'][$i] : '';
-		if ($label === '' || $start === '' || $end === '') {
-			continue;
+	try {
+		foreach ($labels as $i => $label) {
+			$label = trim($label);
+			$start = isset($_POST['c_start'][$i]) ? $_POST['c_start'][$i] : '';
+			$end = isset($_POST['c_end'][$i]) ? $_POST['c_end'][$i] : '';
+			if ($label === '' || $start === '' || $end === '') {
+				continue;
+			}
+			$rec = isset($_POST['c_recording'][$i]) ? $_POST['c_recording'][$i] : '';
+			$tts_text = isset($_POST['c_tts'][$i]) ? trim($_POST['c_tts'][$i]) : '';
+			// no recording picked but greeting text given -> synthesize via Google TTS
+			if ($rec === '' && $tts_text !== '') {
+				if (!$tts_configured) {
+					throw new Exception('Google TTS is not configured — set it under TTS settings, or pick an existing recording.');
+				}
+				$tts = new ivr_tts($database->db, $domain_uuid, $domain_name, $tts_creds, $tts_voice, $tts_lang, $rec_dir);
+				$rec = $tts->generate_greeting($extension, $label, $tts_text);
+			}
+			$closures[] = array(
+				'label' => $label,
+				'start' => to_fs_datetime($start),
+				'end' => to_fs_datetime($end),
+				'reason' => isset($_POST['c_reason'][$i]) ? trim($_POST['c_reason'][$i]) : '',
+				'closed_action' => (isset($_POST['c_action'][$i]) && $_POST['c_action'][$i] === 'hangup') ? 'hangup' : 'voicemail',
+				'recording_filename' => $rec,
+			);
 		}
-		$closures[] = array(
-			'label' => $label,
-			'start' => to_fs_datetime($start),
-			'end' => to_fs_datetime($end),
-			'reason' => isset($_POST['c_reason'][$i]) ? trim($_POST['c_reason'][$i]) : '',
-			'closed_action' => (isset($_POST['c_action'][$i]) && $_POST['c_action'][$i] === 'hangup') ? 'hangup' : 'voicemail',
-			'recording_filename' => isset($_POST['c_recording'][$i]) ? $_POST['c_recording'][$i] : '',
-		);
+	} catch (Exception $e) {
+		$build_error = $e->getMessage();
 	}
 
-	if ($name === '' || $open === '' || !count($closures)) {
+	if ($build_error !== null) {
+		ivrmgr_message($build_error, 'negative');
+	} elseif ($name === '' || $open === '' || !count($closures)) {
 		ivrmgr_message('A name, open destination and at least one closure are required.', 'negative');
 	} else {
 		try {
@@ -102,17 +129,20 @@ echo "</table>\n";
 
 echo "<br><b>Closures</b> <span class='description'>most-specific (shortest) window matches first</span>\n";
 echo "<table class='list' id='closures'>\n";
-echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting</th></tr>\n";
+echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting (recording)</th><th>…or generate from text</th></tr>\n";
 foreach ($rows as $c) {
-	echo closure_row_html($c, $recordings);
+	echo closure_row_html($c, $recordings, $tts_configured);
 }
 echo "</table>\n";
+if (!$tts_configured) {
+	echo "<div class='description'>Tip: configure <a href='tts_settings.php'>Google TTS</a> to type a greeting instead of picking a recording.</div>\n";
+}
 echo "<input type='button' class='btn' value='+ Add closure' onclick='ivrmgrAddRow();'>\n";
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
 echo "</form>\n";
 
 // row template for the add button
-echo "<template id='closure_tpl'>" . closure_row_html(array('label' => '', 'start' => '', 'end' => '', 'reason' => '', 'closed_action' => 'voicemail', 'recording_filename' => ''), $recordings) . "</template>\n";
+echo "<template id='closure_tpl'>" . closure_row_html(array('label' => '', 'start' => '', 'end' => '', 'reason' => '', 'closed_action' => 'voicemail', 'recording_filename' => ''), $recordings, $tts_configured) . "</template>\n";
 ?>
 <script>
 function ivrmgrAddRow(){
@@ -135,7 +165,7 @@ function to_input_datetime($fs) {
 	if (!$fs) { return ''; }
 	return substr(str_replace(' ', 'T', $fs), 0, 16);
 }
-function closure_row_html($c, $recordings) {
+function closure_row_html($c, $recordings, $tts_configured = false) {
 	$sel_start = to_input_datetime(isset($c['start']) ? $c['start'] : '');
 	$sel_end = to_input_datetime(isset($c['end']) ? $c['end'] : '');
 	$h = "<tr class='list-row'>";
@@ -153,6 +183,8 @@ function closure_row_html($c, $recordings) {
 		$h .= "<option value='" . ivrmgr_esc($r['recording_filename']) . "'" . $sel . ">" . ivrmgr_esc($r['recording_name']) . "</option>";
 	}
 	$h .= "</select></td>";
+	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.' : 'configure Google TTS to use this';
+	$h .= "<td><input class='formfld' name='c_tts[]' value='' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'" . ($tts_configured ? '' : ' disabled') . "></td>";
 	$h .= "</tr>";
 	return $h;
 }

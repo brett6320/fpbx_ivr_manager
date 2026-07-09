@@ -21,7 +21,7 @@ $text = $language->get();
 $pdo = ivrmgr_pdo();
 $domain_uuid = $_SESSION['domain_uuid'];
 
-$settings = new ivr_settings($pdo, $domain_uuid);
+$ivrmgr_settings = new ivr_settings($pdo, $domain_uuid);
 $dest = new ivr_destinations($pdo, $domain_uuid);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -31,17 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		header('Location: business_settings.php');
 		exit;
 	}
-	$settings->set('dest_on_hours', ivr_destinations::resolve($_POST, 'dest_on_hours'));
-	$settings->set('dest_off_hours', ivr_destinations::resolve($_POST, 'dest_off_hours'));
-	$settings->set('dest_emergency', ivr_destinations::resolve($_POST, 'dest_emergency'));
+	$ivrmgr_settings->set('dest_on_hours', ivr_destinations::resolve($_POST, 'dest_on_hours'));
+	$ivrmgr_settings->set('dest_off_hours', ivr_destinations::resolve($_POST, 'dest_off_hours'));
+	$ivrmgr_settings->set('dest_emergency', ivr_destinations::resolve($_POST, 'dest_emergency'));
 	ivrmgr_message('Saved.');
 	header('Location: business_settings.php');
 	exit;
 }
 
-$on = $settings->get('dest_on_hours', '');
-$off = $settings->get('dest_off_hours', '');
-$emerg = $settings->get('dest_emergency', '');
+$on = $ivrmgr_settings->get('dest_on_hours', '');
+$off = $ivrmgr_settings->get('dest_off_hours', '');
+$emerg = $ivrmgr_settings->get('dest_emergency', '');
 
 $document['title'] = 'IVR Manager — Business';
 require_once "resources/header.php";

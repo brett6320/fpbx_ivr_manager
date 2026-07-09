@@ -8,6 +8,19 @@ import subprocess
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(REPO, "deploy", "install.sh")
 UNIT = os.path.join(REPO, "deploy", "fpbx-ivr-manager.service")
+TOP = os.path.join(REPO, "install.sh")
+
+
+def test_top_installer_recommends_and_gates_before_acting():
+    assert os.path.exists(TOP) and os.access(TOP, os.X_OK)
+    subprocess.run([shutil.which("bash"), "-n", TOP], check=True)
+    body = open(TOP).read()
+    # probes both variants, recommends, and dispatches to each sub-installer
+    assert "Recommendation:" in body
+    assert "deploy/install.sh" in body and "fusionpbx-app/install.sh" in body
+    # verifies compatibility for the CHOSEN variant BEFORE acting (a gate)
+    assert "Refusing:" in body
+    assert "--check" in body                 # can report without acting
 
 
 def test_install_script_is_executable_and_valid_bash():
@@ -24,6 +37,24 @@ def test_install_script_prompts_and_defaults():
     assert "Start the service automatically at boot" in body
     assert "systemctl enable" in body and "systemctl disable" in body  # boot toggle
     assert "useradd --system" in body               # unprivileged service user
+
+
+def test_install_script_enforces_min_python_and_sanitizes_extras():
+    body = open(SCRIPT).read()
+    # picks/validates a Python >= the app minimum, with an override hook
+    assert "pick_python" in body and "MIN_PY_MINOR" in body
+    assert "PYTHON" in body                          # honors a $PYTHON override
+    assert 'tr -d ' in body and "extras" in body     # strips whitespace from extras
+
+
+def test_install_script_min_python_matches_pyproject():
+    import re
+    proj = open(os.path.join(REPO, "pyproject.toml")).read()
+    m = re.search(r'requires-python\s*=\s*">=(\d+)\.(\d+)"', proj)
+    assert m, "requires-python not found in pyproject.toml"
+    major, minor = m.group(1), m.group(2)
+    body = open(SCRIPT).read()
+    assert f"MIN_PY_MAJOR={major}" in body and f"MIN_PY_MINOR={minor}" in body
 
 
 def test_unit_uses_templating_token():

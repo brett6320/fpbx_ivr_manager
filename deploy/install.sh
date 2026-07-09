@@ -20,10 +20,29 @@ SVC_USER=ivrmgr
 # repo root = parent of this script's directory
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+MIN_PY_MAJOR=3
+MIN_PY_MINOR=11   # app requires-python = >=3.11
+
 die() { echo "error: $*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "please run as root (sudo $0)"
 command -v systemctl >/dev/null || die "systemd (systemctl) not found"
-command -v python3   >/dev/null || die "python3 not found"
+
+# Pick a Python interpreter that satisfies the app's minimum. Honors $PYTHON,
+# then tries versioned names newest-first, then a bare python3.
+pick_python() {
+  local c
+  for c in "${PYTHON:-}" python3.14 python3.13 python3.12 python3.11 python3; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || continue
+    if "$c" -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=($MIN_PY_MAJOR,$MIN_PY_MINOR) else 1)" 2>/dev/null; then
+      command -v "$c"; return 0
+    fi
+  done
+  return 1
+}
+PY="$(pick_python)" || die "Python >= ${MIN_PY_MAJOR}.${MIN_PY_MINOR} is required but none was found.
+  Install it and re-run, e.g.:  sudo apt install python3.11 python3.11-venv
+  or point the installer at a specific interpreter:  sudo PYTHON=/usr/bin/python3.11 $0"
 
 ask() {  # ask "prompt" "default" -> echoes answer
   local prompt="$1" default="$2" reply
@@ -37,10 +56,12 @@ ask_yn() {  # ask_yn "prompt" "Y|N" -> returns 0 for yes
 }
 
 echo "== FusionPBX IVR Manager installer =="
+echo "using $("$PY" -V 2>&1) ($PY)"
 
 INSTALL_DIR="${INSTALL_DIR:-$(ask "Install location" "/opt/ivr-manager")}"
 [ "${INSTALL_DIR#/}" != "$INSTALL_DIR" ] || die "install location must be an absolute path"
 EXTRAS="${EXTRAS:-$(ask "Optional Python extras (comma-sep: ldap,passkey,fpbx) or none" "none")}"
+EXTRAS="$(printf '%s' "$EXTRAS" | tr -d '[:space:]')"   # pip rejects spaces in extras
 if [ "${START_AT_BOOT:-}" = "" ]; then
   if ask_yn "Start the service automatically at boot?" "Y"; then START_AT_BOOT=yes; else START_AT_BOOT=no; fi
 fi
@@ -73,12 +94,19 @@ if [ "$SRC_DIR" != "$INSTALL_DIR" ]; then
 fi
 
 # ---- python venv + install ----
-python3 -m venv "$INSTALL_DIR/.venv"
-"$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip
+VPY="$INSTALL_DIR/.venv/bin/python"
+# recreate the venv if it's missing or was built with an too-old interpreter
+if [ -x "$VPY" ] && ! "$VPY" -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=($MIN_PY_MAJOR,$MIN_PY_MINOR) else 1)" 2>/dev/null; then
+  echo "replacing existing venv (built with an older Python)"
+  rm -rf "$INSTALL_DIR/.venv"
+fi
+"$PY" -m venv "$INSTALL_DIR/.venv" 2>/dev/null || die \
+  "could not create the virtualenv with $PY — install the venv module, e.g.: sudo apt install ${PY##*/}-venv"
+"$VPY" -m pip install --quiet --upgrade pip
 if [ "$EXTRAS" = "none" ] || [ -z "$EXTRAS" ]; then
-  "$INSTALL_DIR/.venv/bin/pip" install --quiet "$INSTALL_DIR"
+  "$VPY" -m pip install --quiet "$INSTALL_DIR"
 else
-  "$INSTALL_DIR/.venv/bin/pip" install --quiet "$INSTALL_DIR[$EXTRAS]"
+  "$VPY" -m pip install --quiet "$INSTALL_DIR[$EXTRAS]"
 fi
 chown -R root:root "$INSTALL_DIR"   # app code root-owned; service runs read-only
 

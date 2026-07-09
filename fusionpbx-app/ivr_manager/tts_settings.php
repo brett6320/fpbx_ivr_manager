@@ -119,8 +119,9 @@ echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'sav
 echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'test', 'label' => 'Test', 'icon' => 'flask')) . " ";
 if ($configured) {
 	echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'clear', 'label' => 'Remove credentials', 'icon' => 'trash',
-		'onclick' => "return confirm('Remove the stored Google TTS credentials?')"));
+		'onclick' => "return confirm('Remove the stored Google TTS credentials?')")) . " ";
 }
+echo ivrmgr_button(array('type' => 'button', 'label' => 'Cancel', 'icon' => 'times', 'link' => 'schedules.php')) . "\n";
 echo "</form>\n";
 
 require_once "resources/footer.php";

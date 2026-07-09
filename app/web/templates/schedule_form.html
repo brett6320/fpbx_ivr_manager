@@ -79,6 +79,7 @@ is matched first.</p>
 
   {% if not adopt_uuid %}<button type="button" onclick="addRow()">+ Add closure</button>{% endif %}
   <button type="submit">{{ 'Adopt &amp; manage' if adopt_uuid else ('Save changes' if c else 'Create time condition') }}</button>
+  <a href="{{ base_path }}{{ '/admin/adopt' if adopt_uuid else '/' }}"><button type="button" class="btn-secondary" style="margin-left:.5rem;">Cancel</button></a>
 </form>
 
 <template id="closure_tpl">

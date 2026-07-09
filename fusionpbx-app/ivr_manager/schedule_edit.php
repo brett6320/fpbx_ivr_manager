@@ -135,7 +135,7 @@ $t = $token->create($_SERVER['PHP_SELF']);
 
 echo "<form method='post' action='schedule_edit.php" . ($ext !== null ? '?ext=' . urlencode($ext) : '') . "'>\n";
 echo "<div class='action_bar'><div class='heading'><b>" . ($current ? 'Edit' : 'New') . " time condition</b></div>";
-echo "<div class='actions'>" . ivrmgr_button(array('type' => 'button', 'label' => 'Back', 'icon' => 'chevron-left', 'link' => 'schedules.php'));
+echo "<div class='actions'>" . ivrmgr_button(array('type' => 'button', 'label' => 'Cancel', 'icon' => 'times', 'link' => 'schedules.php'));
 echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "</div><div style='clear:both;'></div></div>\n";
 
 echo "<div class='description' style='border-left:4px solid #d9a441; padding:.3em .8em; margin:.3em 0;'>"

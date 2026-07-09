@@ -23,6 +23,7 @@
     {% if admin_group %} — membership in <code>{{ admin_group }}</code> also grants admin.{% endif %}</p>{% endif %}
 
   <button type="submit">{{ 'Save changes' if u else 'Create user' }}</button>
+  <a href="{{ base_path }}/admin/users"><button type="button" class="btn-secondary" style="margin-left:.5rem;">Cancel</button></a>
 </form>
 <p class="muted" style="margin-top:1rem;"><a href="{{ base_path }}/admin/users">← All users</a></p>
 {% endblock %}

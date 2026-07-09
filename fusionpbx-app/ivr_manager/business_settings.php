@@ -111,7 +111,8 @@ echo "<tr><td class='vncell'>Emergency</td><td class='vtable'>" . $dest->render_
 echo "</table>\n";
 
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
-echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "\n";
+echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . " ";
+echo ivrmgr_button(array('type' => 'button', 'label' => 'Cancel', 'icon' => 'times', 'link' => 'schedules.php')) . "\n";
 echo "</form>\n";
 
 echo "<template id='tmpl_row_tpl'>" . tmpl_row_html('', '') . "</template>\n";

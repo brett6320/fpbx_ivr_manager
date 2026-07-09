@@ -1,6 +1,7 @@
 # FusionPBX IVR Manager
 
-[![CI](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml)
+[![Python tests](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/ci.yml)
+[![PHP lint](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/php-lint.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/php-lint.yml)
 [![CodeQL](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/codeql.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/codeql.yml)
 [![Release](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/release.yml/badge.svg)](https://github.com/brett6320/fpbx_ivr_manager/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/brett6320/fpbx_ivr_manager?logo=github)](https://github.com/brett6320/fpbx_ivr_manager/releases)

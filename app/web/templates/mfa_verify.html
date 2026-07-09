@@ -7,6 +7,7 @@
 
 {% if has_passkey %}
   <h2>Passkey</h2>
+  <p class="muted">Prompting for your passkey… if it doesn't appear, use the button.</p>
   <button type="button" onclick="passkeyAuth()">Use a passkey</button>
 {% endif %}
 
@@ -14,11 +15,19 @@
   <h2 style="margin-top:2rem;">Authenticator code</h2>
   <form method="post" action="{{ base_path }}/auth/mfa/totp/verify">
     <label>6-digit code</label>
-    <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus>
+    <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required{% if not has_passkey %} autofocus{% endif %}>
     <button type="submit">Verify</button>
   </form>
 {% endif %}
 
 <p class="muted" style="margin-top:1.5rem;"><a href="{{ base_path }}/auth/logout">Cancel</a></p>
 {% include "_passkey.html" %}
+{% if has_passkey %}
+<script>
+  // Auto-prompt for the passkey on load so the user doesn't have to click first.
+  // Requires a user-activation-free WebAuthn get(); browsers allow this on
+  // navigation. Any failure/cancel silently falls back to the manual button/TOTP.
+  window.addEventListener('DOMContentLoaded', function(){ passkeyAuth(); });
+</script>
+{% endif %}
 {% endblock %}

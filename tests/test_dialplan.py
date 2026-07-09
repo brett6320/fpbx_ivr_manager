@@ -10,9 +10,9 @@ from app.fpbx.time_conditions import (
 )
 
 
-def _cl(label, start, end, action="voicemail", rec="g.wav", reason=""):
+def _cl(label, start, end, action="voicemail", rec="g.wav", reason="", reopen=""):
     return Closure(label=label, start=start, end=end, closed_action=action,
-                   recording_filename=rec, reason=reason)
+                   recording_filename=rec, reason=reason, reopen=reopen)
 
 
 def test_time_conditions_app_uuid_is_the_fusionpbx_constant():
@@ -33,6 +33,23 @@ def test_single_closure_roundtrip_voicemail():
     assert c["closed_action"] == "voicemail"
     assert c["label"] == "Summer" and c["reason"] == "a holiday"
     assert c["recording_filename"] == "schedule_9550_july.wav"
+
+
+def test_reopen_roundtrips_in_closure_metadata():
+    start, end = datetime(2026, 7, 3, 0, 0, 0), datetime(2026, 7, 3, 23, 59, 0)
+    xml = build_dialplan_xml(
+        9551, [_cl("Independence", start, end, reopen="2026-07-06 09:00:00")],
+        open_destination="2000", domain="pbx.test",
+    )
+    p = parse_closures(xml)
+    assert p["closures"][0]["reopen"] == "2026-07-06 09:00:00"
+
+
+def test_missing_reopen_parses_empty():
+    start, end = datetime(2026, 7, 3, 0, 0, 0), datetime(2026, 7, 3, 23, 59, 0)
+    xml = build_dialplan_xml(9552, [_cl("Plain", start, end)],
+                             open_destination="2000", domain="pbx.test")
+    assert parse_closures(xml)["closures"][0]["reopen"] == ""
 
 
 def test_hangup_roundtrip():

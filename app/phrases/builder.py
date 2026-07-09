@@ -94,6 +94,16 @@ def describe_window(start: datetime, end: datetime) -> str:
     )
 
 
+def reopen_sentence(reopen: datetime | None, has_time: bool = False) -> str:
+    """'We will reopen on <date>[ at <time>].' — empty when no reopen date."""
+    if reopen is None:
+        return ""
+    s = f"We will reopen on {_fmt_date(reopen)}"
+    if has_time:
+        s += f" at {_fmt_time(reopen)}"
+    return s + "."
+
+
 def build_phrase(
     start: datetime,
     end: datetime,
@@ -102,16 +112,21 @@ def build_phrase(
     reason: str | None = None,
     opening: str | None = None,
     closing: str | None = None,
+    reopen: datetime | None = None,
+    reopen_has_time: bool = False,
 ) -> Phrase:
     """Assemble opening + body + closing greeting.
 
     opening/closing override the fixed parts (from the Business profile); when
     None the defaults are used. The opening's {org} placeholder is filled with
-    org_name.
+    org_name. An optional reopen date/time is appended to the body.
     """
     opening = (opening or DEFAULT_OPENING).replace("{org}", org_name)
     body = describe_window(start, end)
     if reason:
         body = f"{body} This closure is for {reason}."
+    reopen_txt = reopen_sentence(reopen, reopen_has_time)
+    if reopen_txt:
+        body = f"{body} {reopen_txt}"
     closing = closing or DEFAULT_CLOSING
     return Phrase(opening=opening, body=body, closing=closing)

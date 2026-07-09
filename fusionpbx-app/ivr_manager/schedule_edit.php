@@ -76,13 +76,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			}
 			$rec = isset($_POST['c_recording'][$i]) ? $_POST['c_recording'][$i] : '';
 			$tts_text = isset($_POST['c_tts'][$i]) ? trim($_POST['c_tts'][$i]) : '';
+			// optional "return to normal operations" date (+ optional time)
+			$reopen_date = isset($_POST['c_reopen_date'][$i]) ? trim($_POST['c_reopen_date'][$i]) : '';
+			$reopen_time = isset($_POST['c_reopen_time'][$i]) ? trim($_POST['c_reopen_time'][$i]) : '';
+			$reopen = $reopen_date !== '' ? ($reopen_date . ($reopen_time !== '' ? ' ' . $reopen_time . ':00' : '')) : '';
 			// no recording picked but greeting text given -> synthesize via Google TTS
 			if ($rec === '' && $tts_text !== '') {
 				if (!$tts_configured) {
 					throw new Exception('Google TTS is not configured — set it under TTS settings, or pick an existing recording.');
 				}
+				$greeting = $business->render($tts_text);
+				if ($reopen !== '') { $greeting = rtrim($greeting) . ' ' . reopen_sentence($reopen); }
 				$tts = new ivr_tts($pdo, $domain_uuid, $domain_name, $tts_creds, $tts_voice, $tts_lang, $rec_dir);
-				$rec = $tts->generate_greeting($extension, $label, $business->render($tts_text));
+				$rec = $tts->generate_greeting($extension, $label, $greeting);
 			}
 			$closures[] = array(
 				'label' => $label,
@@ -90,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				'end' => to_fs_datetime($end),
 				'reason' => isset($_POST['c_reason'][$i]) ? trim($_POST['c_reason'][$i]) : '',
 				'closed_action' => (isset($_POST['c_action'][$i]) && $_POST['c_action'][$i] === 'hangup') ? 'hangup' : 'voicemail',
+				'reopen' => $reopen,
 				'recording_filename' => $rec,
 			);
 		}
@@ -145,7 +152,7 @@ echo "</table>\n";
 
 echo "<br><b>Closures</b> <span class='description'>most-specific (shortest) window matches first</span>\n";
 echo "<table class='list' id='closures'>\n";
-echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting (recording)</th><th>…or generate from text</th></tr>\n";
+echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting (recording)</th><th>…or generate from text</th><th>Reopen date</th><th>time</th></tr>\n";
 foreach ($rows as $c) {
 	echo closure_row_html($c, $recordings, $tts_configured);
 }
@@ -219,8 +226,23 @@ function closure_row_html($c, $recordings, $tts_configured = false) {
 	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.'
 		: 'type greeting text (needs Google TTS — configure it under TTS settings)';
 	$h .= "<td><textarea class='formfld' name='c_tts[]' rows='2' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'></textarea></td>";
+	// optional "return to normal operations" date (+ optional time), spoken in a
+	// generated greeting
+	$reopen = isset($c['reopen']) ? $c['reopen'] : '';
+	$rd = $reopen !== '' ? substr($reopen, 0, 10) : '';
+	$rt = strlen($reopen) > 10 ? substr($reopen, 11, 5) : '';
+	$h .= "<td><input class='formfld' type='date' name='c_reopen_date[]' value='" . ivrmgr_esc($rd) . "'></td>";
+	$h .= "<td><input class='formfld' type='time' name='c_reopen_time[]' value='" . ivrmgr_esc($rt) . "'></td>";
 	$h .= "</tr>";
 	return $h;
+}
+
+function reopen_sentence($reopen) {
+	$ts = strtotime($reopen);
+	if ($ts === false || $reopen === '') { return ''; }
+	$s = 'We will reopen on ' . date('l, F jS', $ts);
+	if (strlen(trim($reopen)) > 10) { $s .= ' at ' . date('g:i A', $ts); }
+	return $s . '.';
 }
 function allocate_extension($pdo, $domain_uuid, $start, $end) {
 	$used = array();

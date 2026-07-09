@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from app.phrases.builder import build_phrase, describe_window
+from app.phrases.builder import build_phrase, describe_window, reopen_sentence
 
 
 def d(y, m, day, hh=0, mm=0):
@@ -62,3 +62,24 @@ def test_build_phrase_honors_custom_opening_and_closing():
     # the varying body is still inserted between them
     assert "closed all day Tuesday, July 7th" in p.text
     assert p.text.rstrip().endswith("So long.")
+
+
+def test_reopen_sentence_none():
+    assert reopen_sentence(None) == ""
+
+
+def test_reopen_sentence_date_only():
+    assert reopen_sentence(d(2026, 7, 7)) == "We will reopen on Tuesday, July 7th."
+
+
+def test_reopen_sentence_with_time():
+    assert reopen_sentence(d(2026, 7, 7, 9, 0), has_time=True) == \
+        "We will reopen on Tuesday, July 7th at 9:00 AM."
+
+
+def test_build_phrase_appends_reopen():
+    p = build_phrase(
+        d(2026, 7, 3, 0, 0), d(2026, 7, 3, 23, 59), org_name="Acme",
+        reopen=d(2026, 7, 6, 9, 0), reopen_has_time=True,
+    )
+    assert "We will reopen on Monday, July 6th at 9:00 AM." in p.text

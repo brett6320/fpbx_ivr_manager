@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -460,14 +461,29 @@ async def remove_schedule(request: Request, ext: int, user: dict = Depends(requi
     return RedirectResponse("/", status_code=303)
 
 
+def _parse_reopen(date_val, time_val) -> tuple[datetime | None, bool]:
+    """Combine a reopen date field (+ optional time) into (datetime, has_time).
+    Returns (None, False) when no date is given."""
+    date_val = (date_val or "").strip()
+    if not date_val:
+        return None, False
+    time_val = (time_val or "").strip()
+    if time_val:
+        return datetime.fromisoformat(f"{date_val}T{time_val}"), True
+    return datetime.fromisoformat(f"{date_val}T00:00"), False
+
+
 def _parse(form) -> ScheduleRequest:
     """A single closure — used for greeting preview."""
+    reopen, reopen_has_time = _parse_reopen(form.get("reopen_date"), form.get("reopen_time"))
     return ScheduleRequest(
         label=form.get("label") or "closure",
         start=form["start"],
         end=form["end"],
         reason=form.get("reason") or None,
         closed_action=form.get("closed_action", "voicemail"),
+        reopen=reopen,
+        reopen_has_time=reopen_has_time,
     )
 
 
@@ -482,10 +498,15 @@ def _parse_closures(form) -> list[Closure]:
         start, end = form.get(f"c_start_{i}"), form.get(f"c_end_{i}")
         if not (label and start and end):
             continue
+        reopen, reopen_has_time = _parse_reopen(
+            form.get(f"c_reopen_date_{i}"), form.get(f"c_reopen_time_{i}")
+        )
         closures.append(Closure(
             label=label, start=start, end=end,
             reason=(form.get(f"c_reason_{i}") or None),
             closed_action=form.get(f"c_action_{i}", "voicemail"),
+            reopen=reopen,
+            reopen_has_time=reopen_has_time,
         ))
     return closures
 

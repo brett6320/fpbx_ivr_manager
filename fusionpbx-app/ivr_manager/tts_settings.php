@@ -18,9 +18,9 @@ if (!permission_exists('ivr_manager_tts_manage')) {
 
 $language = new text;
 $text = $language->get();
-$database = new database;
+$pdo = ivrmgr_pdo();
 $domain_uuid = $_SESSION['domain_uuid'];
-$settings = new ivr_settings($database->db, $domain_uuid);
+$settings = new ivr_settings($pdo, $domain_uuid);
 
 $test_result = null;
 

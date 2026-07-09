@@ -18,14 +18,14 @@ if (!permission_exists('ivr_manager_schedule_add') && !permission_exists('ivr_ma
 
 $language = new text;
 $text = $language->get();
-$database = new database;
+$pdo = ivrmgr_pdo();
 
 $domain_uuid = $_SESSION['domain_uuid'];
 $domain_name = $_SESSION['domain_name'];
-$engine = new ivr_schedule($database->db, $domain_uuid, $domain_name);
+$engine = new ivr_schedule($pdo, $domain_uuid, $domain_name);
 
 // Google TTS (optional): configured write-only under TTS settings
-$settings = new ivr_settings($database->db, $domain_uuid);
+$settings = new ivr_settings($pdo, $domain_uuid);
 $tts_creds = $settings->get('tts_credentials', '');
 $tts_voice = $settings->get('tts_voice', 'en-US-Standard-C');
 $tts_lang = $settings->get('tts_language', 'en-US');
@@ -33,7 +33,7 @@ $tts_configured = ($tts_creds !== '');
 $rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch']['recordings']['dir'] : '/var/lib/freeswitch/recordings') . '/' . $domain_name;
 
 // destination picker (includes time conditions) + the configured on-hours default
-$destinations = new ivr_destinations($database->db, $domain_uuid);
+$destinations = new ivr_destinations($pdo, $domain_uuid);
 $default_open = $settings->get('dest_on_hours', '');
 
 // pool bounds from default settings (fallback 9550-9599)
@@ -41,7 +41,7 @@ $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric'])
 $pool_end = isset($_SESSION['ivr_manager']['extension_pool_end']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_end']['numeric'] : 9599;
 
 // recordings for the greeting picker
-$stmt = $database->db->prepare("select recording_name, recording_filename from v_recordings where domain_uuid = :d and recording_filename is not null order by recording_name");
+$stmt = $pdo->prepare("select recording_name, recording_filename from v_recordings where domain_uuid = :d and recording_filename is not null order by recording_name");
 $stmt->execute(array(':d' => $domain_uuid));
 $recordings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 	$name = trim($_POST['name']);
 	$open = ivr_destinations::resolve($_POST, 'open_destination');
-	$extension = ($_POST['extension'] !== '') ? (int) $_POST['extension'] : allocate_extension($database->db, $domain_uuid, $pool_start, $pool_end);
+	$extension = ($_POST['extension'] !== '') ? (int) $_POST['extension'] : allocate_extension($pdo, $domain_uuid, $pool_start, $pool_end);
 
 	$closures = array();
 	$build_error = null;
@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				if (!$tts_configured) {
 					throw new Exception('Google TTS is not configured — set it under TTS settings, or pick an existing recording.');
 				}
-				$tts = new ivr_tts($database->db, $domain_uuid, $domain_name, $tts_creds, $tts_voice, $tts_lang, $rec_dir);
+				$tts = new ivr_tts($pdo, $domain_uuid, $domain_name, $tts_creds, $tts_voice, $tts_lang, $rec_dir);
 				$rec = $tts->generate_greeting($extension, $label, $tts_text);
 			}
 			$closures[] = array(

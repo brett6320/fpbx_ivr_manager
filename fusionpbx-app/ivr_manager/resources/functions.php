@@ -72,6 +72,26 @@ if (!function_exists('ivrmgr_render_flash')) {
 	}
 }
 
+if (!function_exists('ivrmgr_pdo')) {
+	/**
+	 * Return a connected PDO from the FusionPBX database class. The `database`
+	 * object does NOT populate its PDO until connect() is called (and the property
+	 * name has varied), so this connects and finds the handle defensively.
+	 */
+	function ivrmgr_pdo() {
+		$database = new database;
+		if (method_exists($database, 'connect')) {
+			$database->connect();
+		}
+		foreach (array('db', 'pdo', 'conn') as $p) {
+			if (isset($database->$p) && $database->$p instanceof PDO) {
+				return $database->$p;
+			}
+		}
+		throw new Exception('could not obtain a database connection from FusionPBX');
+	}
+}
+
 if (!function_exists('ivrmgr_reloadxml')) {
 	/** Ask FreeSWITCH to reloadxml after a change (best-effort). */
 	function ivrmgr_reloadxml() {

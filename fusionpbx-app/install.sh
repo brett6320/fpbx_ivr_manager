@@ -71,5 +71,8 @@ fi
 
 echo
 echo "== done =="
-echo "Sign out/in, then open 'IVR Manager' from the menu."
+echo "IMPORTANT: to show it in the menu, go to Advanced > Menu Manager, open your"
+echo "menu (usually 'default') and click 'Restore Default Menu' (App Defaults does"
+echo "NOT build the menu). Then sign out/in."
+echo "Meanwhile it's reachable directly at: /app/ivr_manager/schedules.php"
 echo "Set the extension pool under Advanced > Default Settings > category 'ivr_manager'."

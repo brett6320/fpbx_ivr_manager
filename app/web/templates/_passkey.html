@@ -5,7 +5,7 @@ function bufToB64url(buf){let bin='';const b=new Uint8Array(buf);for(const x of 
 
 async function passkeyRegister(){
   try{
-    const opts = await (await fetch('/auth/mfa/passkey/register-options',{method:'POST'})).json();
+    const opts = await (await fetch('{{ base_path }}/auth/mfa/passkey/register-options',{method:'POST'})).json();
     opts.challenge = b64urlToBuf(opts.challenge);
     opts.user.id = b64urlToBuf(opts.user.id);
     (opts.excludeCredentials||[]).forEach(c=>c.id=b64urlToBuf(c.id));
@@ -14,7 +14,7 @@ async function passkeyRegister(){
       response:{clientDataJSON:bufToB64url(cred.response.clientDataJSON),
                 attestationObject:bufToB64url(cred.response.attestationObject)},
       clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {}};
-    const res = await (await fetch('/auth/mfa/passkey/register',{method:'POST',
+    const res = await (await fetch('{{ base_path }}/auth/mfa/passkey/register',{method:'POST',
       headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})).json();
     if(res.ok){location.href=res.redirect;} else {alert(res.error||'registration failed');}
   }catch(e){alert('Passkey error: '+e);}
@@ -22,7 +22,7 @@ async function passkeyRegister(){
 
 async function passkeyAuth(){
   try{
-    const opts = await (await fetch('/auth/mfa/passkey/auth-options',{method:'POST'})).json();
+    const opts = await (await fetch('{{ base_path }}/auth/mfa/passkey/auth-options',{method:'POST'})).json();
     opts.challenge = b64urlToBuf(opts.challenge);
     (opts.allowCredentials||[]).forEach(c=>c.id=b64urlToBuf(c.id));
     const cred = await navigator.credentials.get({publicKey:opts});
@@ -31,7 +31,7 @@ async function passkeyAuth(){
       response:{clientDataJSON:bufToB64url(r.clientDataJSON), authenticatorData:bufToB64url(r.authenticatorData),
                 signature:bufToB64url(r.signature), userHandle:r.userHandle?bufToB64url(r.userHandle):null},
       clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {}};
-    const res = await (await fetch('/auth/mfa/passkey/auth',{method:'POST',
+    const res = await (await fetch('{{ base_path }}/auth/mfa/passkey/auth',{method:'POST',
       headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})).json();
     if(res.ok){location.href=res.redirect;} else {alert(res.error||'assertion failed');}
   }catch(e){alert('Passkey error: '+e);}

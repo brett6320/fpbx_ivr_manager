@@ -5,7 +5,7 @@
 as a managed recording (prefixed <code>ivrmgr_</code>) and becomes selectable as
 an “existing phrase” when building schedules and IVRs.</p>
 
-<form id="f" method="post" action="/phrases">
+<form id="f" method="post" action="{{ base_path }}/phrases">
   <label>Name</label>
   <input name="label" placeholder="Main greeting" required>
   <label>Text</label>
@@ -19,7 +19,7 @@ an “existing phrase” when building schedules and IVRs.</p>
 
 <script>
 async function preview(){
-  const res = await fetch('/phrases/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
+  const res = await fetch('{{ base_path }}/phrases/preview', { method: 'POST', body: new FormData(document.getElementById('f')) });
   document.getElementById('preview').innerHTML = await res.text();
 }
 </script>

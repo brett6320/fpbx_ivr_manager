@@ -85,7 +85,10 @@ def require(permission: str):
     def _dep(request: Request) -> dict:
         user = request.session.get("user")
         if not user:
-            raise HTTPException(status_code=307, headers={"Location": "/auth/login"})
+            raise HTTPException(
+                status_code=307,
+                headers={"Location": f"{settings.base_path}/auth/login"},
+            )
         if not has_permission(user, permission):
             raise HTTPException(status_code=403, detail=f"requires permission: {permission}")
         return user

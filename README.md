@@ -59,9 +59,15 @@ apology, but admins can override them in the Business profile
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cp .env.example .env         # DB/XMLRPC point at localhost; fill auth + Google TTS
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8082   # default port 8082
 .venv/bin/pytest             # unit tests (no live services needed)
 ```
+
+The app can be served at the site root **or under a sub-path** (e.g.
+`https://host/ivr-manager`). Set `BASE_PATH=/ivr-manager` — or just put the
+sub-path in `APP_BASE_URL` and it's derived automatically — and every route,
+link, redirect, and cookie is scoped under it. The app owns the whole prefix, so
+a reverse proxy should pass it through unchanged (no path stripping).
 
 ## Deploy
 

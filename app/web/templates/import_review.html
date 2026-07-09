@@ -4,7 +4,7 @@
 <p class="muted">Check the items you want to import and edit any item's fields before
 committing. Unchecked items are ignored — nothing is committed until you submit.</p>
 
-<form method="post" action="/admin/import/commit">
+<form method="post" action="{{ base_path }}/admin/import/commit">
   <input type="hidden" name="count" value="{{ rows | length }}">
   {% for r in rows %}
   <div style="border:1px solid var(--border); border-radius:6px; padding:.6rem; margin-bottom:.8rem;">
@@ -17,6 +17,6 @@ committing. Unchecked items are ignored — nothing is committed until you submi
   </div>
   {% endfor %}
   <button type="submit">Commit selected</button>
-  <a href="/admin/import"><button type="button">Cancel</button></a>
+  <a href="{{ base_path }}/admin/import"><button type="button">Cancel</button></a>
 </form>
 {% endblock %}

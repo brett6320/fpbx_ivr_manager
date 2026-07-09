@@ -34,7 +34,7 @@ group <code>cn</code>; Local / FusionPBX: group name).</p>
 <div id="sec_local" class="backend-sec">
   <h2>Local users</h2>
   <p class="muted">Sign-in is handled by the built-in user store — no external
-  provider to configure. Manage accounts under <a href="/admin/users">Users</a>.</p>
+  provider to configure. Manage accounts under <a href="{{ base_path }}/admin/users">Users</a>.</p>
 </div>
 
 <div id="sec_fpbx" class="backend-sec">
@@ -113,7 +113,7 @@ async function loadFpbxGroups(){
   const box = document.getElementById('group_map');
   box.innerHTML = '<p class="muted">Loading…</p>';
   let data;
-  try { data = await (await fetch('/admin/auth/fpbx-groups')).json(); }
+  try { data = await (await fetch('{{ base_path }}/admin/auth/fpbx-groups')).json(); }
   catch(e){ box.innerHTML = '<div class="preview" style="border-color:var(--danger);">Request failed.</div>'; return; }
   if (data.error){ box.innerHTML = '<div class="preview" style="border-color:var(--danger);">'+escapeHtml(data.error)+'</div>'; return; }
   let current = {}; try { current = JSON.parse(authz() || '{}'); } catch(e){}
@@ -170,21 +170,21 @@ function render(el, res){
 function escapeHtml(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
 async function testEntra(){
-  render('entra_result', await post('/admin/auth/test/entra',
+  render('entra_result', await post('{{ base_path }}/admin/auth/test/entra',
     {tenant_id:e_tenant.value, client_id:e_client.value, client_secret:e_secret.value}));
 }
 async function testToken(){
-  render('token_result', await post('/admin/auth/test/token',
+  render('token_result', await post('{{ base_path }}/admin/auth/test/token',
     {id_token:e_token.value, group_permissions:authz()}));
 }
 async function testLdap(){
-  render('ldap_result', await post('/admin/auth/test/ldap',
+  render('ldap_result', await post('{{ base_path }}/admin/auth/test/ldap',
     {uri:l_uri.value, bind_dn_template:l_bind.value, base_dn:l_base.value, user_filter:l_userf.value,
      group_base_dn:l_gbase.value, group_filter:l_gfilter.value, start_tls:l_tls.checked,
      test_user:l_tuser.value, test_password:l_tpass.value, group_permissions:authz()}));
 }
 async function testFpbx(){
-  render('fpbx_result', await post('/admin/auth/test/fpbx',
+  render('fpbx_result', await post('{{ base_path }}/admin/auth/test/fpbx',
     {test_user:f_tuser.value, test_password:f_tpass.value, group_permissions:authz()}));
 }
 async function save(){
@@ -198,7 +198,7 @@ async function save(){
     body.LDAP_USER_FILTER=l_userf.value; body.LDAP_GROUP_BASE_DN=l_gbase.value;
     body.LDAP_GROUP_FILTER=l_gfilter.value; body.LDAP_START_TLS=String(l_tls.checked);
   }
-  const res = await post('/admin/auth/save', body);
+  const res = await post('{{ base_path }}/admin/auth/save', body);
   const box = document.getElementById('save_result');
   box.innerHTML = '<div class="preview" style="border-color:'+(res.ok?'var(--ok)':'var(--danger)')+';">'
     + (res.ok ? ('Saved: '+res.written.join(', ')+'. <strong>'+res.note+'</strong>') : ('Error: '+res.error)) + '</div>';

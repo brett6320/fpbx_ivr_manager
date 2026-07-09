@@ -63,6 +63,22 @@ Serve over HTTPS behind nginx (`deploy/nginx-fpbx-ivr-manager.conf`). Set
 cookies, and the WebAuthn/passkey origin. Passkeys **require** a secure context
 and a stable hostname.
 
+The service listens on **127.0.0.1:8082** by default (override with `APP_PORT`
+in the systemd env, or the `--port` flag / published port for Docker).
+
+### 5a. Serving under a sub-path
+
+To mount the app under a sub-path instead of the site root (e.g.
+`https://<hostname>/ivr-manager`), set `BASE_PATH=/ivr-manager` — or simply
+include the path in `APP_BASE_URL` (`https://<hostname>/ivr-manager`) and it is
+derived automatically. Every route, internal link, redirect, and the session
+cookie is then scoped under the prefix. The app serves the entire prefix itself,
+so the reverse proxy must pass it through **unchanged** (do not strip it):
+
+```nginx
+location /ivr-manager/ { proxy_pass http://127.0.0.1:8082; }
+```
+
 ---
 
 ## Option A — Docker
@@ -96,7 +112,7 @@ cp .env.example .env && chmod 600 .env
 ```bash
 docker compose up -d
 docker compose logs -f
-curl -sf http://127.0.0.1:8080/healthz     # {"ok":true}
+curl -sf http://127.0.0.1:8082/healthz     # {"ok":true}
 ```
 
 `compose.yaml` maps `host.docker.internal` to the host gateway so the container
@@ -197,7 +213,7 @@ sudo cp deploy/fpbx-ivr-manager.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now fpbx-ivr-manager
 systemctl status fpbx-ivr-manager
-curl -sf http://127.0.0.1:8080/healthz
+curl -sf http://127.0.0.1:8082/healthz
 ```
 
 Manage local users/admins with the CLI (runs as the service user):

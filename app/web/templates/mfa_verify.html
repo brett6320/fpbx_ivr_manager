@@ -12,13 +12,13 @@
 
 {% if has_totp %}
   <h2 style="margin-top:2rem;">Authenticator code</h2>
-  <form method="post" action="/auth/mfa/totp/verify">
+  <form method="post" action="{{ base_path }}/auth/mfa/totp/verify">
     <label>6-digit code</label>
     <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus>
     <button type="submit">Verify</button>
   </form>
 {% endif %}
 
-<p class="muted" style="margin-top:1.5rem;"><a href="/auth/logout">Cancel</a></p>
+<p class="muted" style="margin-top:1.5rem;"><a href="{{ base_path }}/auth/logout">Cancel</a></p>
 {% include "_passkey.html" %}
 {% endblock %}

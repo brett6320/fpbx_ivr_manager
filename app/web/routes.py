@@ -55,7 +55,7 @@ def require_login(request: Request) -> dict:
     """Any authenticated user (no specific permission needed), e.g. own account."""
     user = request.session.get("user")
     if not user:
-        raise HTTPException(status_code=307, headers={"Location": "/auth/login"})
+        raise HTTPException(status_code=307, headers={"Location": app_url("/auth/login")})
     return user
 
 
@@ -76,6 +76,19 @@ templates.env.globals["nav_can_admin"] = (
     lambda u: bool(u) and authz.has_permission(u, MANAGE_USERS)
 )
 templates.env.globals["nav_local_backend"] = lambda: backend.kind() == "local"
+# so templates can prefix every internal link/fetch with the mount sub-path
+templates.env.globals["base_path"] = settings.base_path
+
+
+def app_url(path: str) -> str:
+    """Prefix an app-internal absolute path with the configured mount sub-path.
+    `path` must start with '/'. Query strings are preserved."""
+    return f"{settings.base_path}{path}"
+
+
+def redirect(path: str, status_code: int = 303) -> RedirectResponse:
+    """RedirectResponse to an app-internal path, prefixed with the mount sub-path."""
+    return RedirectResponse(app_url(path), status_code=status_code)
 
 
 # ---- auth ----
@@ -99,9 +112,9 @@ def _post_password(request: Request, user: dict):
     if user.get("is_admin") and not settings.dev_mode:
         stage = "verify" if local.has_mfa(user["email"]) else "enroll"
         request.session["mfa"] = {"user": user, "stage": stage}
-        return RedirectResponse("/auth/mfa", status_code=303)
+        return redirect("/auth/mfa", status_code=303)
     request.session["user"] = user
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 def _finish_mfa(request: Request):
@@ -126,7 +139,7 @@ def login(request: Request):
 @router.post("/auth/login")
 async def login_submit(request: Request):
     if backend.is_sso():
-        return RedirectResponse("/auth/login", status_code=303)
+        return redirect("/auth/login", status_code=303)
     form = await request.form()
     username = (form.get("username") or "").strip()
     password = form.get("password") or ""
@@ -176,13 +189,13 @@ def callback(request: Request, code: str = "", state: str = ""):
     result = entra.redeem_code(code)
     user = entra.user_from_claims(result["id_token_claims"])
     request.session["user"] = user
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 @router.get("/auth/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 # ---- self-service account (own name/password if local; else read-only identity) ----
@@ -239,7 +252,7 @@ async def account_update(request: Request, user: dict = Depends(require_login)):
         local.set_display_name(username, display_name)
         request.session["user"] = {**user, "name": display_name}  # reflect in the nav
 
-    return RedirectResponse("/account?saved=1", status_code=303)
+    return redirect("/account?saved=1", status_code=303)
 
 
 # ---- MFA (local admins) ----
@@ -256,9 +269,9 @@ def _mfa_username(request: Request) -> str | None:
 def mfa_home(request: Request):
     ctx = _mfa_ctx(request)
     if not ctx:
-        return RedirectResponse("/auth/login", status_code=307)
+        return redirect("/auth/login", status_code=307)
     if ctx["stage"] == "enroll":
-        return RedirectResponse("/auth/mfa/setup", status_code=303)
+        return redirect("/auth/mfa/setup", status_code=303)
     username = ctx["user"]["email"]
     return templates.TemplateResponse(
         request,
@@ -276,7 +289,7 @@ def mfa_home(request: Request):
 def mfa_setup(request: Request):
     ctx = _mfa_ctx(request)
     if not ctx:
-        return RedirectResponse("/auth/login", status_code=307)
+        return redirect("/auth/login", status_code=307)
     username = ctx["user"]["email"]
     secret = request.session.get("mfa_totp_pending")
     if not secret:
@@ -294,7 +307,7 @@ def mfa_setup(request: Request):
 async def mfa_totp_enroll(request: Request):
     ctx = _mfa_ctx(request)
     if not ctx:
-        return RedirectResponse("/auth/login", status_code=307)
+        return redirect("/auth/login", status_code=307)
     secret = request.session.get("mfa_totp_pending")
     form = await request.form()
     code = form.get("code") or ""
@@ -309,14 +322,14 @@ async def mfa_totp_enroll(request: Request):
         )
     local.set_totp_secret(ctx["user"]["email"], secret)
     _finish_mfa(request)
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 @router.post("/auth/mfa/totp/verify")
 async def mfa_totp_verify(request: Request):
     ctx = _mfa_ctx(request)
     if not ctx:
-        return RedirectResponse("/auth/login", status_code=307)
+        return redirect("/auth/login", status_code=307)
     username = ctx["user"]["email"]
     form = await request.form()
     code = form.get("code") or ""
@@ -330,7 +343,7 @@ async def mfa_totp_verify(request: Request):
             status_code=401,
         )
     _finish_mfa(request)
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 # ---- MFA: passkey (WebAuthn) JSON endpoints ----
@@ -365,7 +378,7 @@ async def passkey_register(request: Request):
         log.warning("passkey registration failed", exc_info=True)
         return JSONResponse({"error": "registration failed"}, status_code=400)
     _finish_mfa(request)
-    return JSONResponse({"ok": True, "redirect": "/"})
+    return JSONResponse({"ok": True, "redirect": app_url("/")})
 
 
 @router.post("/auth/mfa/passkey/auth-options")
@@ -388,7 +401,7 @@ async def passkey_auth(request: Request):
     if not _passkey().verify_authentication(ctx["user"]["email"], body, challenge):
         return JSONResponse({"error": "assertion failed"}, status_code=401)
     _finish_mfa(request)
-    return JSONResponse({"ok": True, "redirect": "/"})
+    return JSONResponse({"ok": True, "redirect": app_url("/")})
 
 
 # ---- UI ----
@@ -458,7 +471,7 @@ async def remove_schedule(request: Request, ext: int, user: dict = Depends(requi
             detail="Refused: the target extension or dialplan was not created by this app "
             "(see server logs for details).",
         ) from None
-    return RedirectResponse("/", status_code=303)
+    return redirect("/", status_code=303)
 
 
 def _parse_reopen(date_val, time_val) -> tuple[datetime | None, bool]:
@@ -760,7 +773,7 @@ async def recycled_delete(request: Request, user: dict = Depends(require_users))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid recycled item.") from None
     delete_recycled(ext, (form.get("recycled_at") or "").strip())
-    return RedirectResponse("/ivrs", status_code=303)
+    return redirect("/ivrs", status_code=303)
 
 
 @router.get("/ivrs/new", response_class=HTMLResponse)
@@ -825,7 +838,7 @@ async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_us
     except NotManaged:
         log.warning("ivr delete refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
-    return RedirectResponse("/ivrs", status_code=303)
+    return redirect("/ivrs", status_code=303)
 
 
 @router.get("/phrases", response_class=HTMLResponse)
@@ -865,7 +878,7 @@ async def phrase_create(request: Request, user: dict = Depends(require_schedules
             status_code=409,
             detail="Refused: a recording with that name exists and was not created by this app.",
         ) from None
-    return RedirectResponse("/phrases", status_code=303)
+    return redirect("/phrases", status_code=303)
 
 
 @router.post("/phrases/{name}/delete")
@@ -879,7 +892,7 @@ async def phrase_delete(request: Request, name: str, user: dict = Depends(requir
         raise HTTPException(
             status_code=409, detail="Refused: that phrase was not created by this app.",
         ) from None
-    return RedirectResponse("/phrases", status_code=303)
+    return redirect("/phrases", status_code=303)
 
 
 @router.post("/ivrs/{ext}/recycle")
@@ -891,7 +904,7 @@ async def ivr_recycle(request: Request, ext: int, user: dict = Depends(require_u
     except NotManaged:
         log.warning("ivr recycle refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
-    return RedirectResponse("/ivrs", status_code=303)
+    return redirect("/ivrs", status_code=303)
 
 
 # ---- one-flow call-flow wizard (inbound route -> time condition -> IVR) ----
@@ -984,7 +997,7 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
         closure_closing=(form.get("closure_closing") or "").strip(),
         destinations=destinations,
     )
-    return RedirectResponse("/admin/business?saved=1", status_code=303)
+    return redirect("/admin/business?saved=1", status_code=303)
 
 
 # ---- local user management (admins; only when AUTH_BACKEND=local) ----
@@ -1057,7 +1070,7 @@ async def user_create(request: Request, user: dict = Depends(require_users)):
     local.create_user(username, password, (form.get("display_name") or "").strip() or username,
                       is_admin=bool(form.get("is_admin")))
     local.set_groups(username, (form.get("groups") or "").split(","))
-    return RedirectResponse("/admin/users", status_code=303)
+    return redirect("/admin/users", status_code=303)
 
 
 @router.post("/admin/users/{username}")
@@ -1073,14 +1086,14 @@ async def user_update(request: Request, username: str, user: dict = Depends(requ
     local.set_display_name(username, display)
     if with_pw:
         local.set_password(username, with_pw)
-    return RedirectResponse("/admin/users", status_code=303)
+    return redirect("/admin/users", status_code=303)
 
 
 @router.post("/admin/users/{username}/mfa-reset")
 def user_mfa_reset(request: Request, username: str, user: dict = Depends(require_users)):
     _require_local()
     local.reset_mfa(username)
-    return RedirectResponse("/admin/users", status_code=303)
+    return redirect("/admin/users", status_code=303)
 
 
 @router.post("/admin/users/{username}/delete")
@@ -1090,7 +1103,7 @@ async def user_delete(request: Request, username: str, user: dict = Depends(requ
     if username == user.get("email"):
         raise HTTPException(status_code=400, detail="You cannot delete the account you are signed in as.")
     local.delete_user(username)
-    return RedirectResponse("/admin/users", status_code=303)
+    return redirect("/admin/users", status_code=303)
 
 
 # ---- export / import of managed items (admins) ----

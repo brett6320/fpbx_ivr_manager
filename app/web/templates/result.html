@@ -8,5 +8,5 @@
 <p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
 <p class="muted">Sample greeting (most specific closure):</p>
 <div class="preview">{{ r.phrase_text }}</div>
-<p><a href="/">← Back to time conditions</a> · <a href="/schedules/new">Plan another</a></p>
+<p><a href="{{ base_path }}/">← Back to time conditions</a> · <a href="{{ base_path }}/schedules/new">Plan another</a></p>
 {% endblock %}

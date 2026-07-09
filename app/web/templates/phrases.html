@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Phrases</h1>
-<p><a href="/phrases/new"><button>+ New phrase</button></a></p>
+<p><a href="{{ base_path }}/phrases/new"><button>+ New phrase</button></a></p>
 <p class="muted">Greeting/prompt recordings this app created. They also appear
 natively in FusionPBX under <strong>Apps → Recordings</strong>, and in the
 “existing phrase” pickers when building schedules and IVRs.
@@ -25,7 +25,7 @@ natively in FusionPBX under <strong>Apps → Recordings</strong>, and in the
       <td class="muted">{{ 'generated (TTS)' if p.generated else 'managed' }}</td>
       {% if can_admin %}
       <td style="white-space:nowrap;">
-        <form method="post" action="/phrases/{{ p.name | urlencode }}/delete" style="display:inline;"
+        <form method="post" action="{{ base_path }}/phrases/{{ p.name | urlencode }}/delete" style="display:inline;"
               class="js-confirm" data-confirm="Delete phrase {{ p.name }}? Any schedule or IVR still using it will lose its audio.">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>

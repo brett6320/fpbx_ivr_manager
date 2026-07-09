@@ -17,8 +17,10 @@ Type=simple
 User=ivrmgr
 Group=freeswitch
 WorkingDirectory=/opt/ivr-manager
+# Default listen port; override by setting APP_PORT in the EnvironmentFile below.
+Environment=APP_PORT=8082
 EnvironmentFile=/etc/fpbx-ivr-manager/env
-ExecStart=/opt/ivr-manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+ExecStart=/opt/ivr-manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port ${APP_PORT}
 Restart=on-failure
 RestartSec=3
 

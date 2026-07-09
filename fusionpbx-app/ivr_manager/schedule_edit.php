@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				'recording_filename' => $rec,
 			);
 		}
-	} catch (Exception $e) {
+	} catch (\Throwable $e) {
 		$build_error = $e->getMessage();
 	}
 
@@ -117,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ---- prefill for edit ----
 $current = $ext !== null ? $engine->get_schedule($ext) : null;
+$raw_xml = $ext !== null ? $engine->get_xml($ext) : null;
 $rows = ($current && count($current['closures'])) ? $current['closures'] : array(array('label' => '', 'start' => '', 'end' => '', 'reason' => '', 'closed_action' => 'voicemail', 'recording_filename' => ''));
 
 $document['title'] = 'IVR Manager';
@@ -129,6 +130,10 @@ echo "<form method='post' action='schedule_edit.php" . ($ext !== null ? '?ext=' 
 echo "<div class='action_bar'><div class='heading'><b>" . ($current ? 'Edit' : 'New') . " time condition</b></div>";
 echo "<div class='actions'>" . ivrmgr_button(array('type' => 'button', 'label' => 'Back', 'icon' => 'chevron-left', 'link' => 'schedules.php'));
 echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "</div><div style='clear:both;'></div></div>\n";
+
+echo "<div class='description' style='border-left:4px solid #d9a441; padding:.3em .8em; margin:.3em 0;'>"
+	. "Edit here — not in the native <b>Time Conditions</b> app (saving it there erases this schedule)."
+	. "</div>\n";
 
 echo "<table width='100%'>\n";
 echo "<tr><td class='vncell'>Name</td><td class='vtable'><input class='formfld' name='name' value='" . ivrmgr_esc($current ? $current['label'] : '') . "' required></td></tr>\n";
@@ -156,12 +161,19 @@ if (!$tts_configured) {
 		echo implode(', ', $parts) . " (set under <a href='business_settings.php'>Business</a>).</div>\n";
 	}
 }
-echo "<input type='button' class='btn' value='+ Add closure' onclick='ivrmgrAddRow();'>\n";
+echo ivrmgr_button(array('type' => 'button', 'label' => '+ Add closure', 'icon' => 'plus', 'onclick' => 'ivrmgrAddRow()')) . "\n";
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
 echo "</form>\n";
 
 // row template for the add button
 echo "<template id='closure_tpl'>" . closure_row_html(array('label' => '', 'start' => '', 'end' => '', 'reason' => '', 'closed_action' => 'voicemail', 'recording_filename' => ''), $recordings, $tts_configured) . "</template>\n";
+
+// raw dialplan XML (edit mode) — click to expand
+if ($raw_xml !== null) {
+	echo "<details style='margin-top:1rem;'><summary style='cursor:pointer;'>View raw dialplan XML</summary>";
+	echo "<pre style='overflow:auto; padding:.6em; border:1px solid #ccc; background:#f6f6f6;'>" . ivrmgr_esc($raw_xml) . "</pre>";
+	echo "<div class='description'>Read-only — managed by this app. Editing it in native Time Conditions will erase it.</div></details>\n";
+}
 ?>
 <script>
 function ivrmgrAddRow(){
@@ -202,8 +214,11 @@ function closure_row_html($c, $recordings, $tts_configured = false) {
 		$h .= "<option value='" . ivrmgr_esc($r['recording_filename']) . "'" . $sel . ">" . ivrmgr_esc($r['recording_name']) . "</option>";
 	}
 	$h .= "</select></td>";
-	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.' : 'configure Google TTS to use this';
-	$h .= "<td><input class='formfld' name='c_tts[]' value='' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'" . ($tts_configured ? '' : ' disabled') . "></td>";
+	// always enabled — if TTS isn't configured, the save-time check reports it
+	// clearly (a disabled field would silently submit nothing).
+	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.'
+		: 'type greeting text (needs Google TTS — configure it under TTS settings)';
+	$h .= "<td><textarea class='formfld' name='c_tts[]' rows='2' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'></textarea></td>";
 	$h .= "</tr>";
 	return $h;
 }

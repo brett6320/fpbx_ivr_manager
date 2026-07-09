@@ -75,17 +75,22 @@ def _find_user(cur, username: str, d: str) -> dict | None:
         return None
     rows.sort(key=lambda r: 0 if r["domain_uuid"] == d else 1)  # domain match first
     for r in rows:
-        if (r["user_enabled"] or "true") == "true":
+        # user_enabled may be a real boolean (this schema) or a "true"/"false"
+        # string (older FusionPBX). Treat NULL as enabled (FusionPBX default).
+        ue = r["user_enabled"]
+        if ue is None or ue is True or (
+            isinstance(ue, str) and ue.strip().lower() in ("true", "t", "1", "yes", "y")
+        ):
             return r
     return None
 
 
 def _user_groups(cur, user_uuid: str, d: str) -> list[str]:
-    # FusionPBX maps users to groups in v_group_users (not v_user_groups). Join
+    # This FusionPBX schema maps users to groups in v_user_groups. Join
     # v_groups on group_uuid so we don't depend on the denormalized group_name
-    # column that some schema versions omit from v_group_users.
+    # column that some schema versions omit from the membership table.
     cur.execute(
-        "SELECT g.group_name FROM v_group_users gu "
+        "SELECT g.group_name FROM v_user_groups gu "
         "JOIN v_groups g ON g.group_uuid = gu.group_uuid "
         "WHERE gu.user_uuid = %s AND (gu.domain_uuid = %s OR gu.domain_uuid IS NULL)",
         (user_uuid, d),

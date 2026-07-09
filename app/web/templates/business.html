@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import '_dest_macros.html' as dest %}
 {% block body %}
 <h1>Business profile</h1>
 {% if saved %}<div class="preview" style="border-left-color:var(--ok);">Saved. New greetings will use these values.</div>{% endif %}
@@ -8,6 +9,17 @@
   <input name="business_name" value="{{ business_name }}" placeholder="{{ org_fallback }}">
   <p class="muted">Referenced in prompts as <code>{business_name}</code>. Falls back to
   “{{ org_fallback }}” if blank.</p>
+
+  <h2 style="margin-top:1.5rem;">Default destinations</h2>
+  <p class="muted">Reusable defaults for building schedules — each may be a time
+  condition, ring group, IVR, extension or voicemail. The <strong>on-hours</strong>
+  default pre-fills a new time condition's fall-through destination.</p>
+  <label>On-hours (normal daytime)</label>
+  {{ dest.dest_select('dest_on_hours', dests.on_hours, destinations) }}
+  <label>Off-hours</label>
+  {{ dest.dest_select('dest_off_hours', dests.off_hours, destinations) }}
+  <label>Emergency</label>
+  {{ dest.dest_select('dest_emergency', dests.emergency, destinations) }}
 
   <h2 style="margin-top:1.5rem;">Closure message</h2>
   <p class="muted">The fixed opening and closing lines of the schedule (closure)

@@ -36,24 +36,42 @@ def load() -> dict:
         return {}
 
 
+# default call destinations, keyed by these names (numbers/targets, not secret)
+DESTINATION_KEYS = ("on_hours", "off_hours", "emergency")
+
+
 def save(
     business_name: str,
     templates: dict[str, str],
     *,
     closure_opening: str = "",
     closure_closing: str = "",
+    destinations: dict[str, str] | None = None,
 ) -> None:
     path = _path()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    dests = destinations or {}
     payload = {
         "business_name": (business_name or "").strip(),
         "templates": {k.strip(): v.strip() for k, v in templates.items() if k.strip()},
         "closure_opening": (closure_opening or "").strip(),
         "closure_closing": (closure_closing or "").strip(),
+        "destinations": {k: (dests.get(k) or "").strip() for k in DESTINATION_KEYS},
     }
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(payload, f, indent=2)
+
+
+def default_destinations() -> dict[str, str]:
+    """The configured default destinations (on_hours/off_hours/emergency)."""
+    d = load().get("destinations")
+    d = d if isinstance(d, dict) else {}
+    return {k: (d.get(k) or "") for k in DESTINATION_KEYS}
+
+
+def default_destination(name: str) -> str:
+    return default_destinations().get(name, "")
 
 
 def business_name() -> str:

@@ -105,6 +105,11 @@ it created remain as normal FusionPBX dialplans.
   (voicemail/hangup), reason and greeting recording. Closures are emitted
   shortest-window-first so a narrow closure shadows a broader overlap; a trailing
   condition routes to the **open (daytime) destination** when none match.
+- The **open (fall-through) destination** is a picker of the domain's real
+  destinations — including **other time conditions** — so a closure TC can fall
+  through to your office-hours TC (inbound → closure TC → office-hours TC).
+- **Business** page: default destinations for **on-hours / off-hours / emergency**;
+  the on-hours default pre-fills a new time condition's fall-through.
 - Greeting per closure is either an existing **recording** (`v_recordings`) **or**
   generated from text via **Google Cloud TTS** (LINEAR16 @ 8 kHz), stored as a
   recording named `ivrmgr_…`.

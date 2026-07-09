@@ -65,6 +65,34 @@ def list_destinations() -> list[dict]:
                         "value": transfer_action(num)})
 
         cur.execute(
+            "SELECT ivr_menu_extension, ivr_menu_name FROM v_ivr_menus "
+            "WHERE domain_uuid = %s ORDER BY ivr_menu_extension",
+            (d,),
+        )
+        for r in cur.fetchall():
+            num = str(r["ivr_menu_extension"])
+            label = f"IVR menu {num} — {r['ivr_menu_name']}"
+            out.append({"kind": "ivr_menu", "number": num, "label": label,
+                        "value": transfer_action(num)})
+
+        # Time conditions (native + app-managed) — so a schedule can fall through
+        # to another time condition, e.g. a closure TC -> the office-hours TC.
+        from app.fpbx.time_conditions import TIME_CONDITIONS_APP_UUID
+        cur.execute(
+            "SELECT dialplan_number, dialplan_name, dialplan_description FROM v_dialplans "
+            "WHERE domain_uuid = %s AND app_uuid = %s ORDER BY dialplan_number",
+            (d, TIME_CONDITIONS_APP_UUID),
+        )
+        for r in cur.fetchall():
+            num = r["dialplan_number"]
+            if not (num and str(num).isdigit()):
+                continue
+            name = r["dialplan_description"] or r["dialplan_name"]
+            out.append({"kind": "time_condition", "number": str(num),
+                        "label": f"Time condition {num} — {name}",
+                        "value": transfer_action(str(num))})
+
+        cur.execute(
             "SELECT voicemail_id, voicemail_description FROM v_voicemails "
             "WHERE domain_uuid = %s ORDER BY voicemail_id",
             (d,),

@@ -21,3 +21,14 @@ _DEFAULTS = {
 }
 for k, v in _DEFAULTS.items():
     os.environ.setdefault(k, v)
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _stub_db_destinations(monkeypatch):
+    """Form renders now list DB destinations; there's no live DB in tests, so
+    default it to empty. Tests that assert specific destinations override this."""
+    from app.web import routes
+    monkeypatch.setattr(routes, "list_destinations", lambda: [], raising=False)
+    yield

@@ -399,6 +399,9 @@ def _form_ctx(user: dict, c: dict | None = None, adopt_uuid: str | None = None) 
         "c": c,  # prefill dict for edit mode, else None
         "adopt_uuid": adopt_uuid,  # set => adoption mode (posts to /admin/adopt)
         "placeholders": business.placeholder_keys(),
+        # destination picker (incl. time conditions) + on-hours default for new schedules
+        "destinations": list_destinations(),
+        "default_open": business.default_destination("on_hours"),
     }
 
 
@@ -487,10 +490,18 @@ def _parse_closures(form) -> list[Closure]:
     return closures
 
 
+def _resolve_dest(form, name: str) -> str:
+    """A destination picker submits a `<name>` select plus a `<name>_manual`
+    text field; resolve them to the chosen number."""
+    sel = (form.get(name) or "").strip()
+    manual = (form.get(f"{name}_manual") or "").strip()
+    return manual if sel in ("", "__manual__") else sel
+
+
 def _parse_tc(form) -> TimeConditionRequest:
     return TimeConditionRequest(
         name=(form.get("name") or "").strip(),
-        open_destination=(form.get("open_destination") or "").strip(),
+        open_destination=_resolve_dest(form, "open_destination"),
         extension=int(form["extension"]) if form.get("extension") else None,
         closures=_parse_closures(form),
     )
@@ -506,7 +517,7 @@ async def preview(request: Request, user: dict = Depends(require_schedules)):
 @router.post("/apply", response_class=HTMLResponse)
 async def apply(request: Request, user: dict = Depends(require_schedules)):
     form = await request.form()
-    if not (form.get("open_destination") or "").strip():
+    if not _resolve_dest(form, "open_destination"):
         raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
     try:
         result = apply_time_condition(_parse_tc(form))
@@ -670,7 +681,7 @@ async def admin_adopt_apply(request: Request, user: dict = Depends(require_users
     adopt_uuid = (form.get("adopt_uuid") or "").strip()
     if not adopt_uuid:
         raise HTTPException(status_code=400, detail="No time condition was selected to adopt.")
-    open_dest = (form.get("open_destination") or "").strip()
+    open_dest = _resolve_dest(form, "open_destination")
     if not open_dest:
         raise HTTPException(status_code=400, detail="A normal daytime (open) destination is required.")
     closures = _parse_closures(form)
@@ -924,6 +935,8 @@ def admin_business(request: Request, user: dict = Depends(require_users), saved:
             "default_opening": builder.DEFAULT_OPENING,
             "default_closing": builder.DEFAULT_CLOSING,
             "placeholders": business.placeholder_keys(),
+            "destinations": list_destinations(),
+            "dests": business.default_destinations(),
             "saved": bool(saved),
         },
     )
@@ -943,10 +956,12 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
         tname = (form.get(key) or "").strip()
         if tname:
             tmpls[tname] = (form.get(f"tmpl_value_{suffix}") or "").strip()
+    destinations = {k: _resolve_dest(form, f"dest_{k}") for k in business.DESTINATION_KEYS}
     business.save(
         name, tmpls,
         closure_opening=(form.get("closure_opening") or "").strip(),
         closure_closing=(form.get("closure_closing") or "").strip(),
+        destinations=destinations,
     )
     return RedirectResponse("/admin/business?saved=1", status_code=303)
 

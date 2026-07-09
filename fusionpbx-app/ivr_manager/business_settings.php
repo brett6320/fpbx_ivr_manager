@@ -18,11 +18,11 @@ if (!permission_exists('ivr_manager_business_manage')) {
 
 $language = new text;
 $text = $language->get();
-$database = new database;
+$pdo = ivrmgr_pdo();
 $domain_uuid = $_SESSION['domain_uuid'];
 
-$settings = new ivr_settings($database->db, $domain_uuid);
-$dest = new ivr_destinations($database->db, $domain_uuid);
+$settings = new ivr_settings($pdo, $domain_uuid);
+$dest = new ivr_destinations($pdo, $domain_uuid);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$token = new token;

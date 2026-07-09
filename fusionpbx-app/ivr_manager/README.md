@@ -85,8 +85,12 @@ it created remain as normal FusionPBX dialplans.
 
 ## Troubleshooting
 
-- **App/menu doesn't appear** → run *Advanced → Upgrade → App/Permission/Menu
-  Defaults*, then sign out/in.
+- **App doesn't appear in the menu** → *App Defaults* alone does **not** build the
+  menu. Go to **Advanced → Menu Manager**, open your active menu (usually
+  `default`), click **Restore Default Menu**, then **sign out/in**. (You can always
+  reach it directly at `/app/ivr_manager/schedules.php` meanwhile.)
+- **Fatal "prepare() on null"** → an old copy without the DB-connect fix; re-copy
+  the app.
 - **"access denied"** → your group lacks `ivr_manager_schedule_view`; grant it in
   *Advanced → Group Manager* (or re-run Permission Defaults).
 - **Class not found (`ivr_schedule`)** → the pages `require_once` it explicitly, so

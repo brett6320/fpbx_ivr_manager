@@ -14,12 +14,12 @@ if (!permission_exists('ivr_manager_schedule_delete')) {
 	exit;
 }
 
-$database = new database;
+$pdo = ivrmgr_pdo();
 $domain_uuid = $_SESSION['domain_uuid'];
 $domain_name = $_SESSION['domain_name'];
 
 $ext = isset($_GET['ext']) ? (int) $_GET['ext'] : 0;
-$engine = new ivr_schedule($database->db, $domain_uuid, $domain_name);
+$engine = new ivr_schedule($pdo, $domain_uuid, $domain_name);
 
 try {
 	if ($ext && $engine->delete_schedule($ext)) {

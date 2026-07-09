@@ -16,12 +16,12 @@ if (!permission_exists('ivr_manager_schedule_view')) {
 // multilingual + db
 $language = new text;
 $text = $language->get();
-$database = new database;
+$pdo = ivrmgr_pdo();
 
 $domain_uuid = $_SESSION['domain_uuid'];
 $domain_name = $_SESSION['domain_name'];
 
-$engine = new ivr_schedule($database->db, $domain_uuid, $domain_name);
+$engine = new ivr_schedule($pdo, $domain_uuid, $domain_name);
 $schedules = $engine->list_schedules();
 
 $document['title'] = 'IVR Manager';

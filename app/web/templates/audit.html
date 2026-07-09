@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Audit log</h1>
+
+{% if integrity.ok %}
+  <p class="muted">✓ Chain verified — {{ integrity.count }}
+     entr{{ 'y' if integrity.count == 1 else 'ies' }}, no tampering detected.</p>
+{% else %}
+  <p style="color: var(--danger, #c0392b); font-weight: 600;">
+    ⚠ Integrity check FAILED at entry #{{ integrity.bad_seq }} —
+    the log has been altered or an entry was removed.
+  </p>
+{% endif %}
+
+{% if not entries %}
+  <p class="muted">No audit entries yet.</p>
+{% else %}
+<div style="overflow-x: auto;">
+<table style="width: 100%; border-collapse: collapse;">
+  <thead><tr style="text-align: left; border-bottom: 1px solid var(--border);">
+    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Action</th>
+    <th>Target</th><th>Details</th><th>Hash</th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+  <tr style="border-bottom: 1px solid var(--border-light);">
+    <td class="muted">{{ e.seq }}</td>
+    <td style="white-space: nowrap;">{{ e.ts }}</td>
+    <td>{{ e.actor }}</td>
+    <td><code>{{ e.action }}</code></td>
+    <td>{{ e.target or '' }}</td>
+    <td class="muted" style="font-size: .85rem;">{{ e.details or '' }}</td>
+    <td class="muted" style="font-family: monospace; font-size: .8rem;"
+        title="hash {{ e.hash }}&#10;prev {{ e.prev_hash }}">{{ e.hash[:12] }}…</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<p class="muted" style="margin-top: 1rem;">
+  Showing {{ offset + 1 }}–{{ offset + entries | length }} of {{ total }}.
+  {% if offset > 0 %}
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ [offset - limit, 0] | max }}">← Newer</a>
+  {% endif %}
+  {% if offset + entries | length < total %}
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ offset + limit }}">Older →</a>
+  {% endif %}
+</p>
+{% endif %}
+{% endblock %}

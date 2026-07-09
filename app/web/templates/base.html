@@ -90,6 +90,10 @@
     {% if nav_local_backend is defined and nav_local_backend() %}<a href="{{ base_path }}/admin/users"{% if path.startswith('/admin/users') %} class="active"{% endif %}>Users</a>{% endif %}
     <a href="{{ base_path }}/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
     {% endif %}
+    {# audit log: gated on the separate view_audit permission (admin-only by default) #}
+    {% if nav_can_audit is defined and nav_can_audit(nav_user) %}
+    <a href="{{ base_path }}/admin/audit"{% if path.startswith('/admin/audit') %} class="active"{% endif %}>Audit</a>
+    {% endif %}
     <span class="sep"></span>
     <a href="{{ base_path }}/account"{% if path.startswith('/account') %} class="active"{% endif %} title="Your account">{{ nav_user.name }}</a>
     <a href="{{ base_path }}/auth/logout">Sign&nbsp;out</a>

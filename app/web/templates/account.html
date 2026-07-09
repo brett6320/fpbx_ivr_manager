@@ -29,6 +29,51 @@ your display name or password below.</p>
   <button type="submit">Save changes</button>
 </form>
 
+<h2 style="margin-top:1.5rem;">Passkeys</h2>
+<p class="muted">Passkeys let you sign in with your device (Touch&nbsp;ID, Windows&nbsp;Hello,
+a security key) instead of a password prompt.</p>
+<table style="width:100%; border-collapse:collapse; margin-bottom:.75rem;">
+  <thead><tr style="border-bottom:1px solid var(--border);">
+    <th style="text-align:left;">Name</th><th style="text-align:left; width:14rem;">Added</th><th style="width:6rem;"></th>
+  </tr></thead>
+  <tbody>
+  {% for k in passkeys %}
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td>{{ k.label or 'passkey' }}</td>
+      <td class="muted">{{ (k.created_at[:10]) if k.created_at else '—' }}</td>
+      <td style="text-align:right;">
+        <form method="post" action="{{ base_path }}/account/passkeys/delete" class="js-confirm"
+              data-confirm="Remove this passkey? You won't be able to sign in with it anymore."
+              data-confirm-label="Remove" style="margin:0;">
+          <input type="hidden" name="credential_id" value="{{ k.credential_id }}">
+          <button type="submit" class="btn-danger" style="margin:0; padding:.3rem .7rem;">Remove</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3" class="muted">No passkeys yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if passkeys_supported %}
+<div class="grid2" style="align-items:end;">
+  <div><label for="pk_label">New passkey name</label>
+    <input id="pk_label" placeholder="e.g. MacBook Touch ID"></div>
+  <div><button type="button" id="pk_add" style="margin:0;">Add passkey</button></div>
+</div>
+{% include "_passkey.html" %}
+<script>
+  document.getElementById('pk_add').addEventListener('click', async function(){
+    const btn = this; btn.disabled = true;
+    try { await accountPasskeyRegister(document.getElementById('pk_label').value); }
+    finally { btn.disabled = false; }
+  });
+</script>
+{% else %}
+<p class="muted">Adding a passkey needs the optional <code>passkey</code> server
+dependency; existing passkeys can still be removed here.</p>
+{% endif %}
+
 <h2 style="margin-top:1.5rem;">Groups</h2>
 {% if profile.groups %}
 <p class="muted">{% for g in profile.groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>

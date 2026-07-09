@@ -64,6 +64,14 @@ A partially-authenticated admin (password accepted, MFA not yet completed) holds
 - Enrolment and verification happen in the browser via the WebAuthn API; the
   server issues/verifies challenges (`app/mfa/passkey.py`) and stores the
   credential id + public key in the `webauthn_credentials` table.
+- On the verify step the browser is prompted for the passkey **automatically**;
+  the "Use a passkey" button is a manual fallback.
+
+**Self-service management.** Any local user can manage their own passkeys on the
+**Your account** page (`/account`): register a new passkey (with a name), see
+when each was added, and remove one. Deletes are scoped to the signed-in user, so
+you can only remove your own. (Registering needs the optional `passkey` extra;
+existing passkeys can be removed even without it.)
 
 ### TOTP (authenticator app)
 

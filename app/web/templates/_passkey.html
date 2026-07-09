@@ -20,6 +20,25 @@ async function passkeyRegister(){
   }catch(e){alert('Passkey error: '+e);}
 }
 
+// self-service registration from the account page (adds a labelled passkey)
+async function accountPasskeyRegister(label){
+  try{
+    const opts = await (await fetch('{{ base_path }}/account/passkeys/register-options',{method:'POST'})).json();
+    opts.challenge = b64urlToBuf(opts.challenge);
+    opts.user.id = b64urlToBuf(opts.user.id);
+    (opts.excludeCredentials||[]).forEach(c=>c.id=b64urlToBuf(c.id));
+    const cred = await navigator.credentials.create({publicKey:opts});
+    const body = {id:cred.id, rawId:bufToB64url(cred.rawId), type:cred.type,
+      response:{clientDataJSON:bufToB64url(cred.response.clientDataJSON),
+                attestationObject:bufToB64url(cred.response.attestationObject)},
+      clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {}};
+    const url = '{{ base_path }}/account/passkeys/register?label='+encodeURIComponent(label||'');
+    const res = await (await fetch(url,{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})).json();
+    if(res.ok){location.href=res.redirect;} else {alert(res.error||'registration failed');}
+  }catch(e){alert('Passkey error: '+e);}
+}
+
 async function passkeyAuth(){
   try{
     const opts = await (await fetch('{{ base_path }}/auth/mfa/passkey/auth-options',{method:'POST'})).json();

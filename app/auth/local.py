@@ -13,6 +13,7 @@ import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
+from datetime import UTC, datetime
 
 from app.config import settings
 
@@ -78,6 +79,8 @@ def _db():
         # additive migrations for existing DBs
         _ensure_column(conn, "users", "is_admin", "is_admin INTEGER NOT NULL DEFAULT 0")
         _ensure_column(conn, "users", "totp_secret", "totp_secret TEXT")
+        # when each passkey was registered (shown in self-service management)
+        _ensure_column(conn, "webauthn_credentials", "created_at", "created_at TEXT")
         # ONE-TIME: rename the legacy embedded admin "admin" -> "admin@local" so it
         # is distinct from the FusionPBX "admin" (carries its groups/MFA/flags).
         # Guarded by a marker so it fires only once and never renames an "admin"
@@ -239,11 +242,12 @@ def get_totp_secret(username: str) -> str | None:
 
 # ---- MFA: passkeys (WebAuthn) ----
 def add_credential(username: str, credential_id: str, public_key: str, sign_count: int, label: str = "") -> None:
+    created_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     with _db() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO webauthn_credentials "
-            "(credential_id, username, public_key, sign_count, label) VALUES (?,?,?,?,?)",
-            (credential_id, username, public_key, sign_count, label),
+            "(credential_id, username, public_key, sign_count, label, created_at) VALUES (?,?,?,?,?,?)",
+            (credential_id, username, public_key, sign_count, label, created_at),
         )
 
 
@@ -252,11 +256,22 @@ def get_credentials(username: str) -> list[dict]:
         return [
             dict(r)
             for r in conn.execute(
-                "SELECT credential_id, public_key, sign_count, label "
-                "FROM webauthn_credentials WHERE username=?",
+                "SELECT credential_id, public_key, sign_count, label, created_at "
+                "FROM webauthn_credentials WHERE username=? ORDER BY created_at",
                 (username,),
             )
         ]
+
+
+def delete_credential(username: str, credential_id: str) -> bool:
+    """Remove one passkey, scoped to its owner so a user can only delete their own.
+    Returns True if a row was deleted."""
+    with _db() as conn:
+        cur = conn.execute(
+            "DELETE FROM webauthn_credentials WHERE credential_id=? AND username=?",
+            (credential_id, username),
+        )
+        return cur.rowcount > 0
 
 
 def get_credential(credential_id: str) -> dict | None:

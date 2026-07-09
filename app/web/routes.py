@@ -212,6 +212,9 @@ def _account_ctx(request: Request, user: dict, *, saved: bool = False, error: st
             "email": user.get("email"),
             "groups": user.get("groups") or [],
         },
+        # self-service passkeys (local accounts only)
+        "passkeys": local.get_credentials(username) if is_local else [],
+        "passkeys_supported": _passkey_available(),
         "saved": saved,
         "error": error,
     }
@@ -252,6 +255,58 @@ async def account_update(request: Request, user: dict = Depends(require_login)):
         local.set_display_name(username, display_name)
         request.session["user"] = {**user, "name": display_name}  # reflect in the nav
 
+    return redirect("/account?saved=1", status_code=303)
+
+
+# ---- self-service passkey management (local accounts) ----
+def _passkey_available() -> bool:
+    """Whether the optional py_webauthn dependency is installed."""
+    try:
+        from app.mfa import passkey
+        passkey._lib()
+    except Exception:  # noqa: BLE001 - optional dependency not installed
+        return False
+    return True
+
+
+def _require_local_username(user: dict) -> str:
+    """The logged-in user's local account name, or 403 for external identities."""
+    username = user.get("email")
+    if not (username and local.get_user(username)):
+        raise HTTPException(status_code=403, detail="Passkeys are only for local accounts.")
+    return username
+
+
+@router.post("/account/passkeys/register-options")
+def account_passkey_register_options(request: Request, user: dict = Depends(require_login)):
+    username = _require_local_username(user)
+    options, challenge = _passkey().registration_options(username, user.get("name") or username)
+    request.session["account_webauthn_challenge"] = challenge
+    return HTMLResponse(options, media_type="application/json")
+
+
+@router.post("/account/passkeys/register")
+async def account_passkey_register(request: Request, label: str = "", user: dict = Depends(require_login)):
+    username = _require_local_username(user)
+    challenge = request.session.pop("account_webauthn_challenge", None)
+    if not challenge:
+        return JSONResponse({"error": "no pending registration"}, status_code=400)
+    body = (await request.body()).decode()
+    try:
+        _passkey().verify_registration(username, body, challenge, label=(label.strip() or "passkey"))
+    except Exception:  # noqa: BLE001 - verification failure; detail to logs, not client
+        log.warning("account passkey registration failed", exc_info=True)
+        return JSONResponse({"error": "registration failed"}, status_code=400)
+    return JSONResponse({"ok": True, "redirect": app_url("/account?saved=1")})
+
+
+@router.post("/account/passkeys/delete")
+async def account_passkey_delete(request: Request, user: dict = Depends(require_login)):
+    username = _require_local_username(user)
+    form = await request.form()
+    credential_id = (form.get("credential_id") or "").strip()
+    if credential_id:
+        local.delete_credential(username, credential_id)
     return redirect("/account?saved=1", status_code=303)
 
 

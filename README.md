@@ -91,7 +91,8 @@ If you'd rather not run a separate service — or your host's Python is too old
 (e.g. Debian 10) — there's a **native FusionPBX PHP app** in
 [`fusionpbx-app/ivr_manager/`](fusionpbx-app/ivr_manager/) that runs inside
 FusionPBX (its PHP, auth, DB), compatible with **FusionPBX 4.x → 5.x**. It covers
-the core time-condition manager today (IVR/TTS are being ported). See its
+time-condition schedules, business templating, and Google TTS greetings today;
+native **IVR-menu** management remains Python-only. See its
 [README](fusionpbx-app/ivr_manager/README.md).
 
 ### Not sure which? Let the installer decide
@@ -113,6 +114,7 @@ permissions attach to groups, never to individual users. Full setup guides:
 - [docs/ldap.md](docs/ldap.md) — LDAP/AD bind, group resolution, TLS
 - [docs/fpbx-auth.md](docs/fpbx-auth.md) — authenticate against FusionPBX `v_users` (bcrypt + legacy MD5)
 - [docs/mfa.md](docs/mfa.md) — MFA (passkey/TOTP) for local admins + break-glass access
+- [docs/audit.md](docs/audit.md) — tamper-evident (hash-chained) admin audit log at `/admin/audit`
 
 **Local admins are retained even under an external IdP** and must complete MFA
 (passkey or TOTP). They always authenticate against the local DB — from the normal

@@ -35,6 +35,9 @@ echo "	<div class='actions'>\n";
 if (permission_exists('ivr_manager_schedule_add')) {
 	echo ivrmgr_button(array('type' => 'button', 'label' => 'Add', 'icon' => 'plus', 'link' => 'schedule_edit.php'));
 }
+if (permission_exists('ivr_manager_business_manage')) {
+	echo " " . ivrmgr_button(array('type' => 'button', 'label' => 'Business', 'icon' => 'building', 'link' => 'business_settings.php'));
+}
 if (permission_exists('ivr_manager_tts_manage')) {
 	echo " " . ivrmgr_button(array('type' => 'button', 'label' => 'TTS settings', 'icon' => 'volume-up', 'link' => 'tts_settings.php'));
 }

@@ -34,6 +34,8 @@ $apps[] = array(
 			'groups' => array('superadmin', 'admin')),
 		array('name' => 'ivr_manager_tts_manage',
 			'groups' => array('superadmin', 'admin')),
+		array('name' => 'ivr_manager_business_manage',
+			'groups' => array('superadmin', 'admin')),
 	),
 
 	// ---- menu (top level; relocate via Menu Manager if desired) ----

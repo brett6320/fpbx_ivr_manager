@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import '_dest_macros.html' as dest %}
 {% set dt = '%Y-%m-%dT%H:%M' %}
 {% block body %}
 <h1>{{ 'Adopt time condition' if adopt_uuid else ('Edit time condition' if c else 'Plan a time condition') }}</h1>
@@ -24,9 +25,10 @@ is matched first.</p>
 
   <div class="grid2">
     <div>
-      <label>Normal daytime destination (open)</label>
-      <input name="open_destination" placeholder="e.g. 2000 (main IVR)"
-             value="{{ c.open_destination if c }}" required>
+      <label>Open (fall-through) destination</label>
+      {{ dest.dest_select('open_destination', (c.open_destination if c else default_open), destinations) }}
+      <p class="muted">Where callers go when no closure is active — e.g. your
+      office-hours <strong>time condition</strong>.</p>
     </div>
     <div>
       <label>Extension {{ '(existing time condition)' if adopt_uuid else ('(fixed for edit)' if c else '(blank = auto-allocate)') }}</label>

@@ -9,6 +9,7 @@ require_once __DIR__ . "/resources/functions.php";
 require_once __DIR__ . "/resources/classes/ivr_schedule.php";
 require_once __DIR__ . "/resources/classes/ivr_settings.php";
 require_once __DIR__ . "/resources/classes/ivr_tts.php";
+require_once __DIR__ . "/resources/classes/ivr_destinations.php";
 
 if (!permission_exists('ivr_manager_schedule_add') && !permission_exists('ivr_manager_schedule_edit')) {
 	echo "access denied";
@@ -31,6 +32,10 @@ $tts_lang = $settings->get('tts_language', 'en-US');
 $tts_configured = ($tts_creds !== '');
 $rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch']['recordings']['dir'] : '/var/lib/freeswitch/recordings') . '/' . $domain_name;
 
+// destination picker (includes time conditions) + the configured on-hours default
+$destinations = new ivr_destinations($database->db, $domain_uuid);
+$default_open = $settings->get('dest_on_hours', '');
+
 // pool bounds from default settings (fallback 9550-9599)
 $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_start']['numeric'] : 9550;
 $pool_end = isset($_SESSION['ivr_manager']['extension_pool_end']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_end']['numeric'] : 9599;
@@ -51,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		exit;
 	}
 	$name = trim($_POST['name']);
-	$open = trim($_POST['open_destination']);
+	$open = ivr_destinations::resolve($_POST, 'open_destination');
 	$extension = ($_POST['extension'] !== '') ? (int) $_POST['extension'] : allocate_extension($database->db, $domain_uuid, $pool_start, $pool_end);
 
 	$closures = array();
@@ -123,7 +128,9 @@ echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check
 
 echo "<table width='100%'>\n";
 echo "<tr><td class='vncell'>Name</td><td class='vtable'><input class='formfld' name='name' value='" . ivrmgr_esc($current ? $current['label'] : '') . "' required></td></tr>\n";
-echo "<tr><td class='vncell'>Open destination</td><td class='vtable'><input class='formfld' name='open_destination' placeholder='e.g. 2000' value='" . ivrmgr_esc($current ? $current['open_destination'] : '') . "' required></td></tr>\n";
+$open_current = $current ? $current['open_destination'] : $default_open;   // new TCs default to the on-hours destination
+echo "<tr><td class='vncell'>Open (fall-through) destination</td><td class='vtable'>" . $destinations->render_select('open_destination', (string) $open_current)
+	. "<div class='description'>Where callers go when no closure is active — e.g. your office-hours <b>time condition</b>.</div></td></tr>\n";
 echo "<tr><td class='vncell'>Extension</td><td class='vtable'><input class='formfld' name='extension' value='" . ($ext !== null ? ivrmgr_esc($ext) : '') . "'" . ($ext !== null ? ' readonly' : '') . " placeholder='blank = auto (" . $pool_start . "-" . $pool_end . ")'></td></tr>\n";
 echo "</table>\n";
 

@@ -1,0 +1,13 @@
+{# A destination picker: a <select> of real destinations (incl. time conditions)
+   plus a "manual" escape hatch. Pairs with routes._resolve_dest(form, field). #}
+{% macro dest_select(field, current, destinations) %}
+{% set nums = destinations | map(attribute='number') | map('string') | list %}
+{% set cur = (current or '') | string %}
+<select name="{{ field }}">
+  <option value="">— none —</option>
+  {% for d in destinations %}<option value="{{ d.number }}"{% if d.number|string == cur %} selected{% endif %}>{{ d.label }}</option>{% endfor %}
+  <option value="__manual__"{% if cur and cur not in nums %} selected{% endif %}>— enter manually —</option>
+</select>
+<input name="{{ field }}_manual" placeholder="or a number" style="width:auto; display:inline-block;"
+       value="{% if cur and cur not in nums %}{{ cur }}{% endif %}">
+{% endmacro %}

@@ -50,6 +50,18 @@ def test_closure_message_roundtrip(store):
     assert business.closure_closing() == "Bye."
 
 
+def test_default_destinations_roundtrip(store):
+    business.save("Acme", {}, destinations={"on_hours": "2001", "off_hours": "3000", "emergency": "911"})
+    assert business.default_destinations() == {"on_hours": "2001", "off_hours": "3000", "emergency": "911"}
+    assert business.default_destination("on_hours") == "2001"
+    assert business.default_destination("missing") == ""
+
+
+def test_default_destinations_empty_by_default(store):
+    business.save("Acme", {})
+    assert business.default_destinations() == {"on_hours": "", "off_hours": "", "emergency": ""}
+
+
 def test_closure_message_defaults_empty(store):
     business.save("Acme Co", {})
     assert business.closure_opening() == ""

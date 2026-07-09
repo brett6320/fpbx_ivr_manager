@@ -1,9 +1,19 @@
 # Business profile & prompt templates
 
-Admins (`manage_users`) set a **business name** and any number of reusable, named
-**templates** at **`/admin/business`**. These become **placeholders** that can be
-dropped into any prompt (schedule reason, IVR greeting, call-flow greeting) — and
-into other templates — and are plugged in when the audio is generated.
+Admins (`manage_users`) set a **business name**, reusable named **templates**, and
+**default destinations** at **`/admin/business`**. The templates become
+**placeholders** that can be dropped into any prompt (schedule reason, IVR
+greeting, call-flow greeting) — and into other templates — and are plugged in when
+the audio is generated.
+
+## Default destinations
+
+Three reusable default destinations — **on-hours** (normal daytime), **off-hours**,
+and **emergency** — each chosen from the same destination picker used elsewhere
+(extensions, ring groups, IVR menus, voicemail, and **time conditions**), with a
+manual-number fallback. The **on-hours** default pre-fills a new time condition's
+**open (fall-through) destination**, so a closure schedule naturally falls through
+to your normal daytime route (e.g. the office-hours time condition).
 
 ## Placeholders
 

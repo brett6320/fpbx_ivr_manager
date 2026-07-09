@@ -55,7 +55,9 @@ cp .env.example .env         # DB/XMLRPC point at localhost; fill auth + Google 
 
 ## Deploy
 
-Two supported paths, both least-privilege — see **[docs/deployment.md](docs/deployment.md)**:
+The standalone **Python app** runs two least-privilege ways (a native **PHP
+FusionPBX app** is a third option — see below). Full guide:
+**[docs/deployment.md](docs/deployment.md)**:
 
 - **Docker** — `Dockerfile` + `compose.yaml` (non-root, read-only rootfs, all caps
   dropped, loopback-only). Pull `ghcr.io/brett6320/fpbx_ivr_manager:latest`
@@ -66,6 +68,23 @@ Both use a scoped PostgreSQL role (`sql/least_privilege_role.sql`) instead of th
 FusionPBX owner, sit behind nginx TLS (`deploy/nginx-fpbx-ivr-manager.conf`), and
 prefer `FPBX_RECORDING_STORAGE=db` to avoid host filesystem access. Images and
 versioned releases are published to GHCR on every merge to `main`.
+
+### Native FusionPBX PHP app (alternate)
+
+If you'd rather not run a separate service — or your host's Python is too old
+(e.g. Debian 10) — there's a **native FusionPBX PHP app** in
+[`fusionpbx-app/ivr_manager/`](fusionpbx-app/ivr_manager/) that runs inside
+FusionPBX (its PHP, auth, DB), compatible with **FusionPBX 4.x → 5.x**. It covers
+the core time-condition manager today (IVR/TTS are being ported). See its
+[README](fusionpbx-app/ivr_manager/README.md).
+
+### Not sure which? Let the installer decide
+
+`sudo ./install.sh` **probes the host, checks compatibility, and recommends** a
+variant (Python service vs. FusionPBX PHP app) before doing anything — then
+dispatches to the right sub-installer. `./install.sh --check` just prints the
+report. On an old-Python FusionPBX host it recommends the PHP app; where Python
+3.11+/Docker is available it recommends the full-featured Python service.
 
 ## Authentication & authorization
 

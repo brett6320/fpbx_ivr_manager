@@ -1,8 +1,21 @@
 # Deployment
 
-The app runs two ways — a **Docker container** or a **standalone systemd
-service**. Both are designed to run on (or next to) the FusionPBX host and both
-follow least-privilege principles. Pick one.
+There are three ways to run it:
+
+- **Docker container** (Python app) — bundles its own Python; good when the host
+  Python is old.
+- **Standalone systemd service** (Python app) — hardened unit, dedicated user;
+  needs Python 3.11+ on the host.
+- **Native FusionPBX PHP app** — runs *inside* FusionPBX (its PHP, auth, DB); no
+  separate service and no Python. Best on old hosts (e.g. Debian 10) or when you
+  want it native on the PBX. See
+  [`fusionpbx-app/ivr_manager/`](../fusionpbx-app/ivr_manager/README.md).
+
+**Not sure which?** Run **`sudo ./install.sh`** at the repo root — it probes the
+host, **checks compatibility, recommends** a variant, and only then dispatches to
+the right sub-installer (`./install.sh --check` just prints the report). The
+Docker and systemd paths below are the Python variant; the PHP app has its own
+one-command installer (`sudo ./fusionpbx-app/install.sh`).
 
 ## Shared prerequisites (do these first, either path)
 

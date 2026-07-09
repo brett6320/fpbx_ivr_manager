@@ -163,6 +163,21 @@ It auto-detects the `freeswitch` group (for local recording storage) and falls
 back to a private group + db storage when it's absent. Non-interactive:
 `sudo INSTALL_DIR=/srv/ivr START_AT_BOOT=no EXTRAS=fpbx ASSUME_YES=1 ./deploy/install.sh`.
 
+**Safe to re-run — it won't clobber your config.** The installer is idempotent and
+tracks the checksum of the config it writes (in `/etc/fpbx-ivr-manager/.install-manifest`):
+
+- the **env file** is created once and never overwritten;
+- the **systemd unit** is only replaced when it's still the installer's own
+  unchanged output (a genuine version upgrade) — and even then the previous file
+  is saved as `*.bak.<timestamp>` and `daemon-reload` runs only if it changed;
+- if you **edited the unit yourself** (port, resource limits, `ReadWritePaths`…),
+  the installer detects the drift and **keeps your file**, writing the new version
+  alongside as `*.new` for you to review/merge (interactively it offers to
+  overwrite, backing up first; with `ASSUME_YES=1` it always preserves yours).
+
+(The PHP app stores its settings in the FusionPBX database, not on disk, so its
+installer has nothing to clobber.)
+
 **Python 3.11+ is required.** The installer picks the newest suitable interpreter
 (`python3.14`…`python3.11`) and errors clearly if none is found. If your distro's
 default `python3` is older than 3.11 (common on the FusionPBX Debian base), install

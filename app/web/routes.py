@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app import business
+from app import audit, business
 from app.auth import authz, backend, config_store, entra, local, probe
-from app.auth.authz import MANAGE_SCHEDULES, MANAGE_USERS
+from app.auth.authz import MANAGE_SCHEDULES, MANAGE_USERS, VIEW_AUDIT
 from app.config import settings
 from app.fpbx import destinations
 from app.fpbx.time_conditions import NotManaged
@@ -49,6 +49,8 @@ from app.service import (
 require_schedules = authz.require(MANAGE_SCHEDULES)
 # auth administration requires the manage_users permission
 require_users = authz.require(MANAGE_USERS)
+# the audit log is admin-only (view_audit permission)
+require_audit = authz.require(VIEW_AUDIT)
 
 
 def require_login(request: Request) -> dict:
@@ -57,6 +59,13 @@ def require_login(request: Request) -> dict:
     if not user:
         raise HTTPException(status_code=307, headers={"Location": app_url("/auth/login")})
     return user
+
+
+def _actor(user: dict | None) -> str:
+    """Best-effort identity string for an audit entry."""
+    if not user:
+        return "?"
+    return user.get("email") or user.get("name") or "?"
 
 
 # how a user's identity is sourced, for the read-only account view
@@ -74,6 +83,10 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # used by the shared top nav to show admin-only links
 templates.env.globals["nav_can_admin"] = (
     lambda u: bool(u) and authz.has_permission(u, MANAGE_USERS)
+)
+# audit log link is shown only to holders of the view_audit permission
+templates.env.globals["nav_can_audit"] = (
+    lambda u: bool(u) and authz.has_permission(u, VIEW_AUDIT)
 )
 templates.env.globals["nav_local_backend"] = lambda: backend.kind() == "local"
 # so templates can prefix every internal link/fetch with the mount sub-path
@@ -526,6 +539,7 @@ async def remove_schedule(request: Request, ext: int, user: dict = Depends(requi
             detail="Refused: the target extension or dialplan was not created by this app "
             "(see server logs for details).",
         ) from None
+    audit.record(_actor(user), "schedule.delete", target=str(ext))
     return redirect("/", status_code=303)
 
 
@@ -731,6 +745,8 @@ async def admin_save(request: Request, user: dict = Depends(require_users)):
         return JSONResponse(
             {"ok": False, "error": "one or more keys are not permitted"}, status_code=400
         )
+    # record only the key names — never the secret values
+    audit.record(_actor(user), "auth_config.save", details={"keys": sorted(written)})
     return JSONResponse(
         {"ok": True, "written": written, "restart_required": True,
          "note": "Saved. Restart the service to apply the new auth configuration."}
@@ -893,6 +909,7 @@ async def ivr_remove(request: Request, ext: int, user: dict = Depends(require_us
     except NotManaged:
         log.warning("ivr delete refused", exc_info=True)
         raise HTTPException(status_code=409, detail="Refused: that IVR was not created by this app.") from None
+    audit.record(_actor(user), "ivr.delete", target=str(ext))
     return redirect("/ivrs", status_code=303)
 
 
@@ -947,6 +964,7 @@ async def phrase_delete(request: Request, name: str, user: dict = Depends(requir
         raise HTTPException(
             status_code=409, detail="Refused: that phrase was not created by this app.",
         ) from None
+    audit.record(_actor(user), "phrase.delete", target=name)
     return redirect("/phrases", status_code=303)
 
 
@@ -1052,6 +1070,7 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
         closure_closing=(form.get("closure_closing") or "").strip(),
         destinations=destinations,
     )
+    audit.record(_actor(user), "business.save", target=name or None)
     return redirect("/admin/business?saved=1", status_code=303)
 
 
@@ -1125,6 +1144,9 @@ async def user_create(request: Request, user: dict = Depends(require_users)):
     local.create_user(username, password, (form.get("display_name") or "").strip() or username,
                       is_admin=bool(form.get("is_admin")))
     local.set_groups(username, (form.get("groups") or "").split(","))
+    audit.record(_actor(user), "user.create", target=username,
+                 details={"is_admin": bool(form.get("is_admin")),
+                          "groups": (form.get("groups") or "").strip()})
     return redirect("/admin/users", status_code=303)
 
 
@@ -1141,6 +1163,10 @@ async def user_update(request: Request, username: str, user: dict = Depends(requ
     local.set_display_name(username, display)
     if with_pw:
         local.set_password(username, with_pw)
+    audit.record(_actor(user), "user.update", target=username,
+                 details={"is_admin": bool(form.get("is_admin")),
+                          "groups": (form.get("groups") or "").strip(),
+                          "password_changed": bool(with_pw)})
     return redirect("/admin/users", status_code=303)
 
 
@@ -1148,6 +1174,7 @@ async def user_update(request: Request, username: str, user: dict = Depends(requ
 def user_mfa_reset(request: Request, username: str, user: dict = Depends(require_users)):
     _require_local()
     local.reset_mfa(username)
+    audit.record(_actor(user), "user.mfa_reset", target=username)
     return redirect("/admin/users", status_code=303)
 
 
@@ -1158,7 +1185,26 @@ async def user_delete(request: Request, username: str, user: dict = Depends(requ
     if username == user.get("email"):
         raise HTTPException(status_code=400, detail="You cannot delete the account you are signed in as.")
     local.delete_user(username)
+    audit.record(_actor(user), "user.delete", target=username)
     return redirect("/admin/users", status_code=303)
+
+
+# ---- audit log (admin-only; hash-chained, tamper-evident) ----
+@router.get("/admin/audit", response_class=HTMLResponse)
+def admin_audit(request: Request, user: dict = Depends(require_audit),
+                limit: int = 200, offset: int = 0):
+    rows = audit.entries(limit=limit, offset=offset)
+    return templates.TemplateResponse(
+        request, "audit.html",
+        {
+            "user": user,
+            "entries": rows,
+            "integrity": audit.verify(),
+            "total": audit.count(),
+            "limit": limit,
+            "offset": offset,
+        },
+    )
 
 
 # ---- export / import of managed items (admins) ----

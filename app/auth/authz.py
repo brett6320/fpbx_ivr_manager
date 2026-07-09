@@ -23,15 +23,19 @@ from app.config import settings
 # Known permissions
 MANAGE_SCHEDULES = "manage_schedules"
 MANAGE_USERS = "manage_users"
-ALL_PERMISSIONS = {MANAGE_SCHEDULES, MANAGE_USERS}
+# Read the hash-chained audit log. Admin-only by default (see the group map
+# below and ALL_PERMISSIONS, which the local is_admin superuser always holds).
+VIEW_AUDIT = "view_audit"
+ALL_PERMISSIONS = {MANAGE_SCHEDULES, MANAGE_USERS, VIEW_AUDIT}
 
 # Default group->permission map used when AUTH_BACKEND=fpbx and no explicit
 # AUTHZ_GROUP_PERMISSIONS is configured — keyed by FusionPBX's common group names.
+# view_audit is granted only to the admin-tier groups.
 FPBX_DEFAULT_GROUP_PERMISSIONS: dict[str, list[str]] = {
-    "ivr-admins": [MANAGE_SCHEDULES, MANAGE_USERS],
+    "ivr-admins": [MANAGE_SCHEDULES, MANAGE_USERS, VIEW_AUDIT],
     "ivr-editors": [MANAGE_SCHEDULES],
-    "admin": [MANAGE_SCHEDULES],
-    "superadmin": [MANAGE_SCHEDULES, MANAGE_USERS],
+    "admin": [MANAGE_SCHEDULES, VIEW_AUDIT],
+    "superadmin": [MANAGE_SCHEDULES, MANAGE_USERS, VIEW_AUDIT],
     "user": [MANAGE_SCHEDULES],
 }
 

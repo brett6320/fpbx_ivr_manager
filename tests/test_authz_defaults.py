@@ -21,17 +21,18 @@ def _set(monkeypatch, backend, mapping):
 
 def test_fpbx_default_applies_when_unset(monkeypatch):
     _set(monkeypatch, "fpbx", "")  # unset
-    assert authz.permissions_for(["superadmin"]) == {"manage_schedules", "manage_users"}
-    assert authz.permissions_for(["ivr-admins"]) == {"manage_schedules", "manage_users"}
+    # view_audit is granted to the admin-tier groups only
+    assert authz.permissions_for(["superadmin"]) == {"manage_schedules", "manage_users", "view_audit"}
+    assert authz.permissions_for(["ivr-admins"]) == {"manage_schedules", "manage_users", "view_audit"}
     assert authz.permissions_for(["ivr-editors"]) == {"manage_schedules"}
-    assert authz.permissions_for(["admin"]) == {"manage_schedules"}
+    assert authz.permissions_for(["admin"]) == {"manage_schedules", "view_audit"}
     assert authz.permissions_for(["user"]) == {"manage_schedules"}
     assert authz.permissions_for(["nobody"]) == set()
 
 
 def test_fpbx_empty_braces_also_triggers_default(monkeypatch):
     _set(monkeypatch, "fpbx", "{}")
-    assert authz.permissions_for(["superadmin"]) == {"manage_schedules", "manage_users"}
+    assert authz.permissions_for(["superadmin"]) == {"manage_schedules", "manage_users", "view_audit"}
 
 
 def test_explicit_config_overrides_default(monkeypatch):
@@ -50,5 +51,5 @@ def test_default_is_fpbx_only(monkeypatch):
 def test_group_permissions_json_reflects_default(monkeypatch):
     _set(monkeypatch, "fpbx", "")
     data = json.loads(authz.group_permissions_json())
-    assert data["superadmin"] == ["manage_schedules", "manage_users"]
+    assert data["superadmin"] == ["manage_schedules", "manage_users", "view_audit"]
     assert data["user"] == ["manage_schedules"]

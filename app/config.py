@@ -42,6 +42,8 @@ class Settings(BaseSettings):
 
     # local auth (default backend)
     local_auth_db: str = Field(alias="LOCAL_AUTH_DB", default="data/users.db")
+    # Hash-chained, admin-only audit log (see app.audit). Lives in the state dir.
+    audit_db: str = Field(alias="AUDIT_DB", default="data/audit.db")
     local_admin_user: str = Field(alias="LOCAL_ADMIN_USER", default="")
     local_admin_password: str = Field(alias="LOCAL_ADMIN_PASSWORD", default="")
     local_admin_group: str = Field(alias="LOCAL_ADMIN_GROUP", default="ivr-admins")

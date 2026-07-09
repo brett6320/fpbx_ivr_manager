@@ -55,6 +55,70 @@ ask_yn() {  # ask_yn "prompt" "Y|N" -> returns 0 for yes
   case "$ans" in [Yy]*) return 0;; *) return 1;; esac
 }
 
+# ---- config-clobber protection -------------------------------------------
+# We record the sha256 of each config file at the moment we write it, in a
+# manifest. On re-run we can tell whether the installed file is still our
+# pristine output (safe to upgrade) or was edited by the operator (must not be
+# silently clobbered).
+MANIFEST=${ENV_DIR}/.install-manifest
+sha256() {  # sha256 <file> -> hex digest
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+  else shasum -a 256 "$1" | awk '{print $1}'; fi
+}
+manifest_get() {  # manifest_get <key> -> recorded hash (empty if none)
+  [ -f "$MANIFEST" ] || return 0
+  awk -v k="$1" -F'\t' '$1==k{print $2}' "$MANIFEST"
+}
+manifest_set() {  # manifest_set <key> <hash>
+  local key="$1" h="$2" tmp; tmp="$(mktemp)"
+  [ -f "$MANIFEST" ] && awk -v k="$key" -F'\t' '$1!=k' "$MANIFEST" > "$tmp" || true
+  printf '%s\t%s\n' "$key" "$h" >> "$tmp"
+  install -m 600 -o root -g root "$tmp" "$MANIFEST"; rm -f "$tmp"
+}
+# safe_install <generated-file> <dest> <manifest-key> <mode>
+# Installs <generated-file> to <dest>, but never silently overwrites operator
+# edits: unchanged -> no-op; pristine prior output -> upgrade (with backup);
+# locally modified -> keep it, prompt (interactive) or preserve + write .new.
+safe_install() {
+  local gen="$1" dest="$2" key="$3" mode="$4"
+  local newhash curhash recorded backup
+  newhash="$(sha256 "$gen")"
+  if [ ! -e "$dest" ]; then
+    install -m "$mode" "$gen" "$dest"; manifest_set "$key" "$newhash"
+    echo "installed $dest"; CONFIG_CHANGED=1; return 0
+  fi
+  curhash="$(sha256 "$dest")"
+  if [ "$curhash" = "$newhash" ]; then
+    manifest_set "$key" "$newhash"; return 0   # already current
+  fi
+  recorded="$(manifest_get "$key")"
+  backup="${dest}.bak.$(date +%Y%m%d%H%M%S)"
+  if [ -n "$recorded" ] && [ "$curhash" = "$recorded" ]; then
+    # exactly what we last wrote -> a genuine version upgrade, safe to replace
+    cp -a "$dest" "$backup"
+    install -m "$mode" "$gen" "$dest"; manifest_set "$key" "$newhash"
+    echo "updated $dest (backup: $backup)"; CONFIG_CHANGED=1; return 0
+  fi
+  # differs from our last output (or unrecorded) -> treat as operator-modified
+  echo
+  echo "NOTICE: $dest has local changes (differs from the version this installer manages)."
+  if [ "${ASSUME_YES:-}" = "1" ]; then
+    # non-interactive: never discard edits silently — keep theirs, drop ours alongside
+    install -m "$mode" "$gen" "${dest}.new"
+    echo "  kept your $dest; new version written to ${dest}.new — review and merge."
+    CONFIG_DEFERRED=1; return 0
+  fi
+  if ask_yn "  Overwrite with the new version (a backup is saved first)?" "N"; then
+    cp -a "$dest" "$backup"
+    install -m "$mode" "$gen" "$dest"; manifest_set "$key" "$newhash"
+    echo "  overwrote $dest (backup: $backup)"; CONFIG_CHANGED=1
+  else
+    install -m "$mode" "$gen" "${dest}.new"
+    echo "  kept your $dest; new version written to ${dest}.new — review and merge."
+    CONFIG_DEFERRED=1
+  fi
+}
+
 echo "== FusionPBX IVR Manager installer =="
 echo "using $("$PY" -V 2>&1) ($PY)"
 
@@ -118,9 +182,13 @@ if [ ! -f "$ENV_FILE" ]; then
   secret="$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')"
   sed -i "s|^APP_SECRET_KEY=.*|APP_SECRET_KEY=${secret}|" "$ENV_FILE"
   ENV_CREATED=1
+else
+  echo "existing $ENV_FILE kept (never overwritten)"
 fi
 
 # ---- systemd unit, templated to the chosen paths ----
+# Generated fresh each run, then installed through safe_install so an operator
+# who tuned the unit (port, limits, paths) isn't silently clobbered on re-run.
 tmp_unit="$(mktemp)"
 sed -e "s|/opt/ivr-manager|$INSTALL_DIR|g" \
     -e "s|^Group=freeswitch|Group=$SVC_GROUP|" \
@@ -128,9 +196,10 @@ sed -e "s|/opt/ivr-manager|$INSTALL_DIR|g" \
 if [ "$SVC_GROUP" != freeswitch ]; then
   sed -i '\|ReadWritePaths=/var/lib/freeswitch/storage|d' "$tmp_unit"
 fi
-install -m 644 "$tmp_unit" "$UNIT"
+safe_install "$tmp_unit" "$UNIT" unit 644
 rm -f "$tmp_unit"
-systemctl daemon-reload
+# reload only when the unit actually changed on disk
+[ "${CONFIG_CHANGED:-}" = 1 ] && systemctl daemon-reload || true
 
 # ---- enable/start per the boot choice ----
 if [ "$START_AT_BOOT" = yes ]; then
@@ -156,4 +225,10 @@ else
   echo
   echo "Existing env kept. Apply the update with: sudo systemctl restart $SERVICE"
   if [ "$START_AT_BOOT" = yes ]; then systemctl start "$SERVICE" || true; fi
+fi
+if [ "${CONFIG_DEFERRED:-}" = 1 ]; then
+  echo
+  echo "ACTION NEEDED: one or more config files you had modified were left in place."
+  echo "  The new versions were written alongside as *.new — review and merge them,"
+  echo "  then 'sudo systemctl daemon-reload && sudo systemctl restart $SERVICE'."
 fi

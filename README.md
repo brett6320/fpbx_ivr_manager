@@ -55,7 +55,9 @@ cp .env.example .env         # DB/XMLRPC point at localhost; fill auth + Google 
 
 ## Deploy
 
-Two supported paths, both least-privilege — see **[docs/deployment.md](docs/deployment.md)**:
+The standalone **Python app** runs two least-privilege ways (a native **PHP
+FusionPBX app** is a third option — see below). Full guide:
+**[docs/deployment.md](docs/deployment.md)**:
 
 - **Docker** — `Dockerfile` + `compose.yaml` (non-root, read-only rootfs, all caps
   dropped, loopback-only). Pull `ghcr.io/brett6320/fpbx_ivr_manager:latest`

@@ -45,6 +45,14 @@ echo "	</div>\n";
 echo "	<div style='clear: both;'></div>\n";
 echo "</div>\n";
 
+echo "<div class='description' style='border-left:4px solid #d9a441; padding:.4em .8em; margin:.4em 0;'>"
+	. "Manage these schedules <b>here</b>. They also appear in the native <b>Time Conditions</b> app, but that "
+	. "editor reads FusionPBX detail rows this app doesn't use — so they look <b>blank</b> there, and "
+	. "<b>saving them in that editor will erase the schedule</b>. Don't edit them in native Time Conditions."
+	. "</div>\n";
+
+$can_edit = permission_exists('ivr_manager_schedule_edit');
+
 echo "<table class='list' width='100%'>\n";
 echo "<tr class='list-header'>\n";
 echo "	<th>Extension</th><th>Name</th><th>Closures</th><th>Open destination</th><th class='center'>Enabled</th><th class='action-button'>&nbsp;</th>\n";
@@ -52,7 +60,8 @@ echo "</tr>\n";
 
 foreach ($schedules as $s) {
 	$ext = (int) $s['extension'];
-	echo "<tr class='list-row'>\n";
+	$row_click = $can_edit ? " style='cursor:pointer;' onclick=\"window.location='schedule_edit.php?ext=" . urlencode($ext) . "'\"" : "";
+	echo "<tr class='list-row'$row_click>\n";
 	echo "	<td>" . ivrmgr_esc($ext) . "</td>\n";
 	echo "	<td>" . ivrmgr_esc($s['label']) . "</td>\n";
 	echo "	<td>";
@@ -70,7 +79,7 @@ foreach ($schedules as $s) {
 	echo "</td>\n";
 	echo "	<td>" . ivrmgr_esc($s['open_destination']) . "</td>\n";
 	echo "	<td class='center'>" . ($s['enabled'] ? 'true' : 'false') . "</td>\n";
-	echo "	<td class='action-button'>";
+	echo "	<td class='action-button' onclick='event.stopPropagation();'>";
 	if (permission_exists('ivr_manager_schedule_edit')) {
 		echo ivrmgr_button(array('type' => 'button', 'title' => 'Edit', 'label' => 'Edit', 'icon' => 'pencil-alt', 'link' => 'schedule_edit.php?ext=' . urlencode($ext)));
 	}

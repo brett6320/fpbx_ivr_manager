@@ -252,6 +252,12 @@ class ivr_schedule {
 		return $uuid;
 	}
 
+	/** The stored dialplan XML for a managed schedule, or null. */
+	public function get_xml($extension) {
+		$existing = $this->find_managed($extension);
+		return $existing ? $existing['dialplan_xml'] : null;
+	}
+
 	public function delete_schedule($extension) {
 		$existing = $this->find_managed($extension);
 		if (!$existing) {

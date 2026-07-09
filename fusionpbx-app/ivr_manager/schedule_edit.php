@@ -10,6 +10,7 @@ require_once __DIR__ . "/resources/classes/ivr_schedule.php";
 require_once __DIR__ . "/resources/classes/ivr_settings.php";
 require_once __DIR__ . "/resources/classes/ivr_tts.php";
 require_once __DIR__ . "/resources/classes/ivr_destinations.php";
+require_once __DIR__ . "/resources/classes/ivr_business.php";
 
 if (!permission_exists('ivr_manager_schedule_add') && !permission_exists('ivr_manager_schedule_edit')) {
 	echo "access denied";
@@ -35,6 +36,9 @@ $rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch'
 // destination picker (includes time conditions) + the configured on-hours default
 $destinations = new ivr_destinations($pdo, $domain_uuid);
 $default_open = $ivrmgr_settings->get('dest_on_hours', '');
+
+// business templating — {business_name} and named templates resolved in TTS text
+$business = new ivr_business($ivrmgr_settings, $domain_name);
 
 // pool bounds from default settings (fallback 9550-9599)
 $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_start']['numeric'] : 9550;
@@ -78,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					throw new Exception('Google TTS is not configured — set it under TTS settings, or pick an existing recording.');
 				}
 				$tts = new ivr_tts($pdo, $domain_uuid, $domain_name, $tts_creds, $tts_voice, $tts_lang, $rec_dir);
-				$rec = $tts->generate_greeting($extension, $label, $tts_text);
+				$rec = $tts->generate_greeting($extension, $label, $business->render($tts_text));
 			}
 			$closures[] = array(
 				'label' => $label,
@@ -143,6 +147,14 @@ foreach ($rows as $c) {
 echo "</table>\n";
 if (!$tts_configured) {
 	echo "<div class='description'>Tip: configure <a href='tts_settings.php'>Google TTS</a> to type a greeting instead of picking a recording.</div>\n";
+} else {
+	$phs = $business->placeholder_keys();
+	if ($phs) {
+		echo "<div class='description'>Greeting text may use placeholders: ";
+		$parts = array();
+		foreach ($phs as $p) { $parts[] = "<code>" . ivrmgr_esc($p) . "</code>"; }
+		echo implode(', ', $parts) . " (set under <a href='business_settings.php'>Business</a>).</div>\n";
+	}
 }
 echo "<input type='button' class='btn' value='+ Add closure' onclick='ivrmgrAddRow();'>\n";
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";

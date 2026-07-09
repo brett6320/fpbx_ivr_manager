@@ -5,13 +5,16 @@ another instance from the **Backup** page (`/admin/import`).
 
 ## Export
 
-`GET /admin/export` downloads a JSON document with:
+`GET /admin/export` downloads a JSON document (current `version` = 2) with:
 
 - **business** — business name + templates
-- **schedules** — each managed schedule (extension, label, window, closed action,
-  open destination)
+- **schedules** — each managed **time condition** (extension, name, open
+  destination) with its list of **closures** (label, window, reason, closed
+  action) — a time condition can hold several closures
 - **ivrs** — each managed IVR (extension, name, greeting recording, timeout
   destination, and options)
+
+Older `version: 1` documents (a single flat closure per schedule) still import.
 
 ## Import — reviewed item by item
 
@@ -27,11 +30,11 @@ Item types: `business`, `schedule`, `ivr`.
 
 ## Notes
 
-- Importing a **schedule** or **IVR** re-generates its greeting audio via Google
-  TTS on the target — so the target needs `GOOGLE_TTS_CREDENTIALS_FILE` set. A
-  schedule's original *reason* text isn't recoverable from the dialplan (edit it
-  on the review page if you want it in the greeting). An IVR exports its greeting
-  **recording** filename; to re-synthesize instead, clear `greeting_recording`
-  and set `greeting_text` on the review page.
+- Importing a **schedule** (time condition) or **IVR** re-generates greeting audio
+  via Google TTS on the target — so the target needs `GOOGLE_TTS_CREDENTIALS_FILE`
+  set. Each closure's *reason* round-trips (it's stored in the dialplan and
+  re-exported), so greetings regenerate faithfully; you can still edit it on the
+  review page. An IVR exports its greeting **recording** filename; to re-synthesize
+  instead, clear `greeting_recording` and set `greeting_text` on the review page.
 - Guardrails still apply on commit: the app refuses to overwrite records it didn't
   create, and new schedules/IVRs must land in the managed extension pool.

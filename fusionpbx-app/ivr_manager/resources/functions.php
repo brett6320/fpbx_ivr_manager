@@ -95,15 +95,35 @@ if (!function_exists('ivrmgr_pdo')) {
 if (!function_exists('ivrmgr_reloadxml')) {
 	/** Ask FreeSWITCH to reloadxml after a change (best-effort). */
 	function ivrmgr_reloadxml() {
-		if (class_exists('event_socket')) {
-			try {
-				$esl = new event_socket;
-				if (method_exists($esl, 'connect') && $esl->connect()) {
-					$esl->request('api reloadxml');
+		if (!class_exists('event_socket')) {
+			return;
+		}
+		try {
+			// Preferred: FusionPBX's static API connects using the configured
+			// event-socket settings itself (works on 4.x and 5.x).
+			if (method_exists('event_socket', 'create')) {
+				$fp = event_socket::create();
+				if ($fp) {
+					if (method_exists('event_socket', 'command')) {
+						event_socket::command('reloadxml');
+					} elseif (method_exists('event_socket', 'api')) {
+						event_socket::api('reloadxml');
+					}
 				}
-			} catch (Exception $e) {
-				// ignore — the admin can Reload XML from the GUI
+				return;
 			}
+			// Fallback: instance connect. 5.x's connect() needs (host,port,pass);
+			// older signatures ignore the extra args, so passing 3 is safe on both.
+			$esl = new event_socket;
+			$es = isset($_SESSION['event_socket']) ? $_SESSION['event_socket'] : array();
+			$host = isset($es['host']['text']) ? $es['host']['text'] : '127.0.0.1';
+			$port = isset($es['port']['text']) ? $es['port']['text'] : '8021';
+			$pass = isset($es['password']['text']) ? $es['password']['text'] : 'ClueCon';
+			if ($esl->connect($host, $port, $pass) && method_exists($esl, 'request')) {
+				$esl->request('api reloadxml');
+			}
+		} catch (\Throwable $e) {
+			// ignore — the admin can Reload XML from the GUI
 		}
 	}
 }

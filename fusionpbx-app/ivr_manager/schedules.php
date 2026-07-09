@@ -75,8 +75,8 @@ foreach ($schedules as $s) {
 		echo ivrmgr_button(array('type' => 'button', 'title' => 'Edit', 'label' => 'Edit', 'icon' => 'pencil-alt', 'link' => 'schedule_edit.php?ext=' . urlencode($ext)));
 	}
 	if (permission_exists('ivr_manager_schedule_delete')) {
-		// plain confirm-anchor: identical behavior on 4.5.x and 5.x
-		echo "<a href='schedule_delete.php?ext=" . urlencode($ext) . "' class='btn' "
+		// styled confirm-anchor (native button look; identical behavior 4.5.x/5.x)
+		echo "<a href='schedule_delete.php?ext=" . urlencode($ext) . "' class='btn btn-default button' "
 			. "onclick=\"return confirm('Delete time condition " . $ext . " and all its closures?');\">Delete</a>";
 	}
 	echo "</td>\n";

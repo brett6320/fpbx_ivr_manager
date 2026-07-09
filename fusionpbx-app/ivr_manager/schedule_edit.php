@@ -156,7 +156,7 @@ if (!$tts_configured) {
 		echo implode(', ', $parts) . " (set under <a href='business_settings.php'>Business</a>).</div>\n";
 	}
 }
-echo "<input type='button' class='btn' value='+ Add closure' onclick='ivrmgrAddRow();'>\n";
+echo ivrmgr_button(array('type' => 'button', 'label' => '+ Add closure', 'icon' => 'plus', 'onclick' => 'ivrmgrAddRow()')) . "\n";
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
 echo "</form>\n";
 

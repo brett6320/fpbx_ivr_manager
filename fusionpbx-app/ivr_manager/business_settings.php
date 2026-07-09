@@ -93,7 +93,7 @@ foreach ($rows as $tn => $tv) {
 	echo tmpl_row_html($tn, $tv);
 }
 echo "</table>\n";
-echo "<input type='button' class='btn' value='+ Add template' onclick='ivrmgrAddTmpl();'>\n";
+echo ivrmgr_button(array('type' => 'button', 'label' => '+ Add template', 'icon' => 'plus', 'onclick' => 'ivrmgrAddTmpl()')) . "\n";
 
 // ---- closure message ----
 echo "<h2 style='margin-top:1.25rem;'>Closure message</h2>\n";
@@ -111,7 +111,7 @@ echo "<tr><td class='vncell'>Emergency</td><td class='vtable'>" . $dest->render_
 echo "</table>\n";
 
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
-echo "<button type='submit' class='btn' style='margin-top:1rem;'>Save</button>\n";
+echo ivrmgr_button(array('type' => 'submit', 'label' => 'Save', 'icon' => 'check')) . "\n";
 echo "</form>\n";
 
 echo "<template id='tmpl_row_tpl'>" . tmpl_row_html('', '') . "</template>\n";
@@ -129,8 +129,8 @@ require_once "resources/footer.php";
 
 function tmpl_row_html($name, $value) {
 	return "<tr class='list-row'>"
-		. "<td><input class='formfld' name='tmpl_name[]' value='" . ivrmgr_esc($name) . "' placeholder='greeting'></td>"
-		. "<td><input class='formfld' name='tmpl_value[]' value='" . ivrmgr_esc($value) . "' placeholder='Thank you for calling {business_name}.'></td>"
-		. "<td><input type='button' class='btn' value='Remove' onclick='ivrmgrRmTmpl(this);'></td>"
+		. "<td style='vertical-align:top;'><input class='formfld' name='tmpl_name[]' value='" . ivrmgr_esc($name) . "' placeholder='greeting'></td>"
+		. "<td><textarea class='formfld' name='tmpl_value[]' rows='3' placeholder='Thank you for calling {business_name}.'>" . ivrmgr_esc($value) . "</textarea></td>"
+		. "<td>" . ivrmgr_button(array('type' => 'button', 'label' => 'Remove', 'onclick' => 'ivrmgrRmTmpl(this)')) . "</td>"
 		. "</tr>";
 }

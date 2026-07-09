@@ -26,20 +26,27 @@ if (!function_exists('ivrmgr_button')) {
 		if (class_exists('button') && method_exists('button', 'create')) {
 			return button::create($opts);
 		}
+		// Fallback (older FusionPBX without the button class): render a real
+		// <button> with FusionPBX's button classes so it looks native, honoring
+		// name/value for submit buttons.
 		$type = isset($opts['type']) ? $opts['type'] : 'button';
 		$label = isset($opts['label']) ? $opts['label'] : (isset($opts['title']) ? $opts['title'] : '');
 		$onclick = isset($opts['onclick']) ? $opts['onclick'] : '';
+		$cls = "class='btn btn-default button'";
+		$e = function ($v) { return htmlspecialchars($v, ENT_QUOTES); };
+		$name_attr = !empty($opts['name']) ? " name='" . $e($opts['name']) . "'" : "";
+		$value_attr = isset($opts['value']) ? " value='" . $e($opts['value']) . "'" : "";
 		if ($type === 'submit') {
-			return "<input type='submit' class='btn' value='" . htmlspecialchars($label, ENT_QUOTES) . "'"
-				. ($onclick !== '' ? " onclick=\"" . htmlspecialchars($onclick, ENT_QUOTES) . "\"" : "") . ">";
+			$oc = $onclick !== '' ? " onclick=\"" . $e($onclick) . "\"" : "";
+			return "<button type='submit' $cls$name_attr$value_attr$oc>" . $e($label) . "</button>";
 		}
 		if (!empty($opts['link'])) {
-			$nav = "window.location.href='" . htmlspecialchars($opts['link'], ENT_QUOTES) . "';";
+			$nav = "window.location.href='" . $e($opts['link']) . "';";
 			$guard = ($onclick !== '') ? "if(" . $onclick . "){" . $nav . "}" : $nav;
-			return "<input type='button' class='btn' value='" . htmlspecialchars($label, ENT_QUOTES) . "' onclick=\"" . htmlspecialchars($guard, ENT_QUOTES) . "\">";
+			return "<button type='button' $cls onclick=\"" . $e($guard) . "\">" . $e($label) . "</button>";
 		}
-		return "<input type='button' class='btn' value='" . htmlspecialchars($label, ENT_QUOTES) . "'"
-			. ($onclick !== '' ? " onclick=\"" . htmlspecialchars($onclick, ENT_QUOTES) . "\"" : "") . ">";
+		$oc = $onclick !== '' ? " onclick=\"" . $e($onclick) . "\"" : "";
+		return "<button type='button' $cls$oc>" . $e($label) . "</button>";
 	}
 }
 

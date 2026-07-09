@@ -115,10 +115,11 @@ echo "<tr><td class='vncell'>Service-account JSON</td><td class='vtable'>"
 echo "</table>\n";
 
 echo "<input type='hidden' name='" . $t['name'] . "' value='" . $t['hash'] . "'>\n";
-echo "<button type='submit' name='action' value='save' class='btn'>Save</button> ";
-echo "<button type='submit' name='action' value='test' class='btn'>Test</button> ";
+echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'save', 'label' => 'Save', 'icon' => 'check')) . " ";
+echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'test', 'label' => 'Test', 'icon' => 'flask')) . " ";
 if ($configured) {
-	echo "<button type='submit' name='action' value='clear' class='btn' onclick=\"return confirm('Remove the stored Google TTS credentials?');\">Remove credentials</button>";
+	echo ivrmgr_button(array('type' => 'submit', 'name' => 'action', 'value' => 'clear', 'label' => 'Remove credentials', 'icon' => 'trash',
+		'onclick' => "return confirm('Remove the stored Google TTS credentials?')"));
 }
 echo "</form>\n";
 

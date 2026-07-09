@@ -15,7 +15,7 @@ is matched first.</p>
 </div>
 {% endif %}
 
-<form id="f" method="post" action="{{ '/admin/adopt' if adopt_uuid else '/apply' }}">
+<form id="f" method="post" action="{{ base_path }}{{ '/admin/adopt' if adopt_uuid else '/apply' }}">
   {% if adopt_uuid %}<input type="hidden" name="adopt_uuid" value="{{ adopt_uuid }}">{% endif %}
 
   {% if not adopt_uuid %}
@@ -141,7 +141,7 @@ async function previewRow(btn){
   const rt = row.querySelector('input[name^=c_reopen_time_]');
   if (rd) fd.append('reopen_date', rd.value);
   if (rt) fd.append('reopen_time', rt.value);
-  const res = await fetch('/preview', { method: 'POST', body: fd });
+  const res = await fetch('{{ base_path }}/preview', { method: 'POST', body: fd });
   row.querySelector('.preview-out').innerHTML = await res.text();
 }
 document.querySelectorAll('.closure-row').forEach(wireRow);

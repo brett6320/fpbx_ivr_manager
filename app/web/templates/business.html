@@ -4,7 +4,7 @@
 <h1>Business profile</h1>
 {% if saved %}<div class="preview" style="border-left-color:var(--ok);">Saved. New greetings will use these values.</div>{% endif %}
 
-<form method="post" action="/admin/business">
+<form method="post" action="{{ base_path }}/admin/business">
   <label>Business name</label>
   <input name="business_name" value="{{ business_name }}" placeholder="{{ org_fallback }}">
   <p class="muted">Referenced in prompts as <code>{business_name}</code>. Falls back to

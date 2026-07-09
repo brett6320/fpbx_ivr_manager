@@ -58,14 +58,18 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# The app serves its own routes under BASE_PATH (via include_router prefix below)
+# and generates every internal link with the same prefix, so it works standalone
+# and behind a pass-through reverse proxy without any path stripping.
 app = FastAPI(title="FusionPBX IVR Manager", lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret_key,
     https_only=settings.session_https_only,
     same_site="lax",
+    path=settings.base_path or "/",
 )
-app.include_router(router)
+app.include_router(router, prefix=settings.base_path)
 
 
 @app.exception_handler(StarletteHTTPException)

@@ -12,7 +12,7 @@ Extensions auto-allocate from {{ pool }}.</p>
 </select>
 {% endmacro %}
 
-<form method="post" action="/flow">
+<form method="post" action="{{ base_path }}/flow">
 
   <h2>1. Inbound number (Destination)</h2>
   <label>Inbound DID (optional — pick an existing destination to point at this flow)</label>

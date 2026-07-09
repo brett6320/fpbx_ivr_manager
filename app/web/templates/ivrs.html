@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>IVR menus</h1>
-<p><a href="/ivrs/new"><button>+ New IVR</button></a></p>
+<p><a href="{{ base_path }}/ivrs/new"><button>+ New IVR</button></a></p>
 
 {% if not ivrs %}
   <p class="muted">No managed IVR menus yet.</p>
@@ -17,13 +17,13 @@
       <td>{{ 'enabled' if i.enabled else 'disabled' }}</td>
       {% if can_admin %}
       <td style="white-space:nowrap;">
-        <form method="post" action="/ivrs/{{ i.extension }}/recycle" style="display:inline;"
+        <form method="post" action="{{ base_path }}/ivrs/{{ i.extension }}/recycle" style="display:inline;"
               class="js-confirm" data-confirm-label="Recycle"
               data-confirm="Recycle extension {{ i.extension }}? The IVR is removed and the number freed for reuse; its previous use is logged.">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Recycle</button>
         </form>
-        <form method="post" action="/ivrs/{{ i.extension }}/delete" style="display:inline;"
+        <form method="post" action="{{ base_path }}/ivrs/{{ i.extension }}/delete" style="display:inline;"
               class="js-confirm" data-confirm="Delete IVR on {{ i.extension }}? (No history is kept — use Recycle to log the previous use.)">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>
@@ -57,7 +57,7 @@ callers into it (inbound route → time condition → IVR).
       <td>{{ 'available for reuse' if e.available else 'in use again' }}</td>
       {% if can_admin %}
       <td style="white-space:nowrap;">
-        <form method="post" action="/ivrs/recycled/delete" style="display:inline;"
+        <form method="post" action="{{ base_path }}/ivrs/recycled/delete" style="display:inline;"
               class="js-confirm" data-confirm="Delete this recycled record for extension {{ e.extension }}? This removes the history entry only.">
           <input type="hidden" name="confirm" value="yes">
           <input type="hidden" name="extension" value="{{ e.extension }}">

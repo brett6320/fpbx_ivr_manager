@@ -6,7 +6,7 @@
   (<code>AUTH_BACKEND=local</code>). This instance uses an external identity provider,
   so users and groups are managed there.</p>
 {% else %}
-<p><a href="/admin/users/new"><button>+ New user</button></a></p>
+<p><a href="{{ base_path }}/admin/users/new"><button>+ New user</button></a></p>
 {% if not users %}
   <p class="muted">No users yet.</p>
 {% else %}
@@ -22,14 +22,14 @@
     <td>{{ 'enrolled' if u.has_mfa else '—' }}</td>
     <td class="muted">{{ u.groups | join(', ') }}</td>
     <td style="white-space:nowrap;">
-      <a href="/admin/users/{{ u.username }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
+      <a href="{{ base_path }}/admin/users/{{ u.username }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
       {% if u.has_mfa %}
-      <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline;"
+      <form method="post" action="{{ base_path }}/admin/users/{{ u.username }}/mfa-reset" style="display:inline;"
             class="js-confirm" data-confirm-label="Reset MFA"
             data-confirm="Reset MFA for {{ u.username }}?">
         <button type="submit" style="margin:0; padding:.2rem .5rem;">Reset MFA</button></form>
       {% endif %}
-      <form method="post" action="/admin/users/{{ u.username }}/delete" style="display:inline;"
+      <form method="post" action="{{ base_path }}/admin/users/{{ u.username }}/delete" style="display:inline;"
             class="js-confirm" data-confirm="Delete user {{ u.username }}?">
         <input type="hidden" name="confirm" value="yes">
         <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button></form>

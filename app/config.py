@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # web
     app_secret_key: str = Field(alias="APP_SECRET_KEY")
     app_base_url: str = Field(alias="APP_BASE_URL")
+    # Sub-path the app is served under, e.g. "/ivr-manager". Empty = served at the
+    # site root. When unset, it is derived from the path of APP_BASE_URL so a single
+    # setting covers both the external URL and internal link generation.
+    base_path_raw: str = Field(alias="BASE_PATH", default="")
     app_org_name: str = Field(alias="APP_ORG_NAME", default="Our office")
     # App-writable JSON store for the business profile (name + hours templates),
     # managed via the admin UI. Lives in the app's state dir.
@@ -133,6 +137,17 @@ class Settings(BaseSettings):
         if raw:
             return raw in ("1", "true", "yes", "on")
         return self.app_base_url.lower().startswith("https")
+
+    @property
+    def base_path(self) -> str:
+        """Normalized mount sub-path: "" at root, else "/prefix" (no trailing
+        slash). Explicit BASE_PATH wins; otherwise derived from APP_BASE_URL's
+        path so setting the full external URL is enough."""
+        from urllib.parse import urlparse
+
+        raw = self.base_path_raw.strip() or urlparse(self.app_base_url).path
+        raw = raw.strip("/")
+        return f"/{raw}" if raw else ""
 
     @property
     def redirect_uri(self) -> str:

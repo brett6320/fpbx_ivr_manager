@@ -9,7 +9,7 @@
 <p class="muted">Your account lives in the app's <strong>{{ source }}</strong>. Update
 your display name or password below.</p>
 
-<form method="post" action="/account">
+<form method="post" action="{{ base_path }}/account">
   <label>Display name</label>
   <input name="display_name" value="{{ profile.name }}" required>
 

@@ -5,12 +5,12 @@
 
 {% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 
-<form method="post" action="/auth/local">
+<form method="post" action="{{ base_path }}/auth/local">
   <label>Username</label>
   <input name="username" autocomplete="username" required autofocus>
   <label>Password</label>
   <input name="password" type="password" autocomplete="current-password" required>
   <button type="submit">Sign in</button>
 </form>
-<p class="muted"><a href="/auth/login">← Back to primary sign-in</a></p>
+<p class="muted"><a href="{{ base_path }}/auth/login">← Back to primary sign-in</a></p>
 {% endblock %}

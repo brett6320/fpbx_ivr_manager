@@ -6,10 +6,10 @@
 
 {% if sso %}
   <p class="muted">Sign in with your organization account.</p>
-  <a href="/auth/login"><button>Sign in with Microsoft Entra ID</button></a>
+  <a href="{{ base_path }}/auth/login"><button>Sign in with Microsoft Entra ID</button></a>
 {% else %}
   <p class="muted">Sign in to manage planned IVR schedules.</p>
-  <form method="post" action="/auth/login">
+  <form method="post" action="{{ base_path }}/auth/login">
     <label>Username</label>
     <input name="username" autocomplete="username" required autofocus>
     <label>Password</label>
@@ -20,7 +20,7 @@
 
 {% if show_local_admin %}
   <p class="muted" style="margin-top:1.5rem;">
-    <a href="/auth/local">Local administrator sign-in</a> (break-glass)
+    <a href="{{ base_path }}/auth/local">Local administrator sign-in</a> (break-glass)
   </p>
 {% endif %}
 {% endblock %}

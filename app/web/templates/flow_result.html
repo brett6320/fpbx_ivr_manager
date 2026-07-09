@@ -11,5 +11,5 @@
 {% if r.inbound_number %}<p><strong>Inbound route:</strong> {{ r.inbound_number }} → {{ r.schedule_extension }}</p>
 {% else %}<p class="muted">No inbound DID given — point your inbound route at extension {{ r.schedule_extension }}.</p>{% endif %}
 <p><strong>FreeSWITCH reloadxml:</strong> {{ "OK" if r.reloaded else "FAILED — reload manually" }}</p>
-<p><a href="/">← Schedules</a> · <a href="/ivrs">IVRs</a> · <a href="/flow/new">Build another</a></p>
+<p><a href="{{ base_path }}/">← Schedules</a> · <a href="{{ base_path }}/ivrs">IVRs</a> · <a href="{{ base_path }}/flow/new">Build another</a></p>
 {% endblock %}

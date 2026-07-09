@@ -5,12 +5,12 @@
 <h2>Export</h2>
 <p class="muted">Download all app-managed items — business profile, schedules, and
 IVR menus — as a single JSON file.</p>
-<p><a href="/admin/export"><button>Download export</button></a></p>
+<p><a href="{{ base_path }}/admin/export"><button>Download export</button></a></p>
 
 <h2 style="margin-top:1.5rem;">Import</h2>
 <p class="muted">Upload an export file. <strong>Nothing is imported
 automatically</strong> — you review and edit each item, then choose what to commit.</p>
-<form method="post" action="/admin/import" enctype="multipart/form-data">
+<form method="post" action="{{ base_path }}/admin/import" enctype="multipart/form-data">
   <label>Export file</label>
   <input type="file" name="file" accept="application/json,.json" required>
   <button type="submit">Review import</button>

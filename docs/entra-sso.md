@@ -24,7 +24,7 @@ Applications → App registrations → New registration**:
    ```
 
    This must exactly equal `{APP_BASE_URL}/auth/callback`. Register one per
-   environment (prod, staging, `https://localhost:8080/auth/callback` for local).
+   environment (prod, staging, `https://localhost:8082/auth/callback` for local).
 4. Click **Register**. Copy the **Application (client) ID** and **Directory
    (tenant) ID** from the Overview page.
 

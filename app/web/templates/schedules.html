@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Time conditions</h1>
-<p><a href="/schedules/new"><button>New time condition</button></a></p>
+<p><a href="{{ base_path }}/schedules/new"><button>New time condition</button></a></p>
 
 {% if summary %}
 <div class="grid2" style="margin-bottom:1.25rem;">
@@ -10,7 +10,7 @@
     {% if summary.active %}
     <ul style="margin:.4rem 0 0; padding-left:1.1rem;">
       {% for a in summary.active %}
-      <li><a href="/schedules/{{ a.extension }}/edit">{{ a.tc_label }}</a> —
+      <li><a href="{{ base_path }}/schedules/{{ a.extension }}/edit">{{ a.tc_label }}</a> —
         {{ a.label }}, until {{ a.end.strftime('%b %-d, %-I:%M %p') }}
         (ext {{ a.extension }})</li>
       {% endfor %}
@@ -22,7 +22,7 @@
     {% if summary.upcoming %}
     <ul style="margin:.4rem 0 0; padding-left:1.1rem;">
       {% for u in summary.upcoming[:5] %}
-      <li><a href="/schedules/{{ u.extension }}/edit">{{ u.tc_label }}</a> —
+      <li><a href="{{ base_path }}/schedules/{{ u.extension }}/edit">{{ u.tc_label }}</a> —
         {{ u.label }}, {{ u.start.strftime('%b %-d, %-I:%M %p') }} → {{ u.end.strftime('%b %-d, %-I:%M %p') }}</li>
       {% endfor %}
     </ul>
@@ -59,8 +59,8 @@
       </td>
       <td>{{ c.open_destination or '?' }}</td>
       <td style="white-space:nowrap;">
-        <a href="/schedules/{{ c.extension }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
-        <form method="post" action="/schedules/{{ c.extension }}/delete" style="display:inline;"
+        <a href="{{ base_path }}/schedules/{{ c.extension }}/edit"><button type="button" style="margin:0; padding:.2rem .5rem;">Edit</button></a>
+        <form method="post" action="{{ base_path }}/schedules/{{ c.extension }}/delete" style="display:inline;"
               class="js-confirm" data-confirm="Delete time condition {{ c.extension }} and all its closures?">
           <input type="hidden" name="confirm" value="yes">
           <button type="submit" style="margin:0; padding:.2rem .5rem;">Delete</button>

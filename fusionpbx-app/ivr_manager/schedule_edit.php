@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				'recording_filename' => $rec,
 			);
 		}
-	} catch (Exception $e) {
+	} catch (\Throwable $e) {
 		$build_error = $e->getMessage();
 	}
 
@@ -214,8 +214,11 @@ function closure_row_html($c, $recordings, $tts_configured = false) {
 		$h .= "<option value='" . ivrmgr_esc($r['recording_filename']) . "'" . $sel . ">" . ivrmgr_esc($r['recording_name']) . "</option>";
 	}
 	$h .= "</select></td>";
-	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.' : 'configure Google TTS to use this';
-	$h .= "<td><input class='formfld' name='c_tts[]' value='' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'" . ($tts_configured ? '' : ' disabled') . "></td>";
+	// always enabled — if TTS isn't configured, the save-time check reports it
+	// clearly (a disabled field would silently submit nothing).
+	$ph = $tts_configured ? 'e.g. We are closed for {reason}. Please call back during business hours.'
+		: 'type greeting text (needs Google TTS — configure it under TTS settings)';
+	$h .= "<td><textarea class='formfld' name='c_tts[]' rows='2' placeholder='" . htmlspecialchars($ph, ENT_QUOTES) . "'></textarea></td>";
 	$h .= "</tr>";
 	return $h;
 }

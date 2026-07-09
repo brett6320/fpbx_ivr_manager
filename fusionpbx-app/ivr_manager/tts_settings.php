@@ -20,7 +20,7 @@ $language = new text;
 $text = $language->get();
 $pdo = ivrmgr_pdo();
 $domain_uuid = $_SESSION['domain_uuid'];
-$settings = new ivr_settings($pdo, $domain_uuid);
+$ivrmgr_settings = new ivr_settings($pdo, $domain_uuid);
 
 $test_result = null;
 
@@ -37,14 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$pasted = trim($_POST['credentials']);   // may be empty = "keep current"
 
 	// voice/language are not secret — persist them
-	$settings->set('tts_voice', $voice);
-	$settings->set('tts_language', $lang);
+	$ivrmgr_settings->set('tts_voice', $voice);
+	$ivrmgr_settings->set('tts_language', $lang);
 
 	// which creds to act on: freshly pasted (if any), else the stored ones
-	$creds = $pasted !== '' ? $pasted : $settings->get('tts_credentials', '');
+	$creds = $pasted !== '' ? $pasted : $ivrmgr_settings->get('tts_credentials', '');
 
 	if ($action === 'clear') {
-		$settings->delete('tts_credentials');
+		$ivrmgr_settings->delete('tts_credentials');
 		ivrmgr_message('Credentials removed.');
 		header('Location: tts_settings.php');
 		exit;
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		if (!is_array($sa) || empty($sa['client_email']) || empty($sa['private_key'])) {
 			ivrmgr_message('That does not look like a service-account JSON (needs client_email and private_key).', 'negative');
 		} else {
-			$settings->set('tts_credentials', $pasted);
+			$ivrmgr_settings->set('tts_credentials', $pasted);
 			if ($action === 'save') {
 				ivrmgr_message('Saved.');
 				header('Location: tts_settings.php');
@@ -84,9 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 }
 
-$configured = $settings->has('tts_credentials');
-$voice = $settings->get('tts_voice', 'en-US-Standard-C');
-$lang = $settings->get('tts_language', 'en-US');
+$configured = $ivrmgr_settings->has('tts_credentials');
+$voice = $ivrmgr_settings->get('tts_voice', 'en-US-Standard-C');
+$lang = $ivrmgr_settings->get('tts_language', 'en-US');
 
 $document['title'] = 'IVR Manager — TTS';
 require_once "resources/header.php";

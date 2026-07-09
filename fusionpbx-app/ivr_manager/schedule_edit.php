@@ -25,16 +25,16 @@ $domain_name = $_SESSION['domain_name'];
 $engine = new ivr_schedule($pdo, $domain_uuid, $domain_name);
 
 // Google TTS (optional): configured write-only under TTS settings
-$settings = new ivr_settings($pdo, $domain_uuid);
-$tts_creds = $settings->get('tts_credentials', '');
-$tts_voice = $settings->get('tts_voice', 'en-US-Standard-C');
-$tts_lang = $settings->get('tts_language', 'en-US');
+$ivrmgr_settings = new ivr_settings($pdo, $domain_uuid);
+$tts_creds = $ivrmgr_settings->get('tts_credentials', '');
+$tts_voice = $ivrmgr_settings->get('tts_voice', 'en-US-Standard-C');
+$tts_lang = $ivrmgr_settings->get('tts_language', 'en-US');
 $tts_configured = ($tts_creds !== '');
 $rec_dir = (isset($_SESSION['switch']['recordings']['dir']) ? $_SESSION['switch']['recordings']['dir'] : '/var/lib/freeswitch/recordings') . '/' . $domain_name;
 
 // destination picker (includes time conditions) + the configured on-hours default
 $destinations = new ivr_destinations($pdo, $domain_uuid);
-$default_open = $settings->get('dest_on_hours', '');
+$default_open = $ivrmgr_settings->get('dest_on_hours', '');
 
 // pool bounds from default settings (fallback 9550-9599)
 $pool_start = isset($_SESSION['ivr_manager']['extension_pool_start']['numeric']) ? (int) $_SESSION['ivr_manager']['extension_pool_start']['numeric'] : 9550;

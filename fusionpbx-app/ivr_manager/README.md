@@ -20,9 +20,9 @@ This is the alternate to the standalone Python app (root of this repo). Pick one
   default settings) and writes only to columns that exist on the running schema
   (`resources/classes/ivr_schedule.php` → `save()`), so schema drift across versions
   is tolerated.
-- **PHP 7.0+** (the FusionPBX 4.x floor) through **8.x** — no version-specific
-  syntax. CI (`.github/workflows/php-lint.yml`) `php -l`s every file on 7.0, 7.3
-  and 8.3.
+- **PHP 7.0** (the FusionPBX 4.x floor) through the **current GA (8.5)** — no
+  version-specific syntax. CI (`.github/workflows/php-lint.yml`) `php -l`s every
+  file on 7.0, 7.3, 8.3, 8.4 and 8.5.
 - Records are stamped with FusionPBX's Time Conditions `app_uuid`
   (`4b821450-…`), so they appear as **native Time Conditions** in the GUI, and with
   an **ownership marker** comment so the app never edits/deletes a dialplan it

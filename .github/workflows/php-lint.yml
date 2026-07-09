@@ -1,7 +1,7 @@
 name: php-lint
 
-# Syntax-check the FusionPBX PHP app across the PHP range it must run under:
-# 7.0 is the floor for FusionPBX 4.x hosts; 8.3 covers current 5.x.
+# Syntax-check the FusionPBX PHP app across the full PHP range it must run under:
+# 7.0 is the floor for FusionPBX 4.x hosts; 8.4/8.5 are the current GA line.
 on:
   push:
     paths:
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['7.0', '7.3', '8.3']
+        php-version: ['7.0', '7.3', '8.3', '8.4', '8.5']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2

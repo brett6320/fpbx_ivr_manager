@@ -152,7 +152,7 @@ echo "</table>\n";
 
 echo "<br><b>Closures</b> <span class='description'>most-specific (shortest) window matches first</span>\n";
 echo "<table class='list' id='closures'>\n";
-echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting (recording)</th><th>…or generate from text</th><th>Reopen date</th><th>time</th></tr>\n";
+echo "<tr class='list-header'><th>Label</th><th>Closed from</th><th>Closed until</th><th>Reason</th><th>When closed</th><th>Greeting (recording)</th><th>…or generate from text</th><th>Reopen date</th><th>time</th><th>&nbsp;</th></tr>\n";
 foreach ($rows as $c) {
 	echo closure_row_html($c, $recordings, $tts_configured);
 }
@@ -187,6 +187,14 @@ function ivrmgrAddRow(){
 	var tpl = document.getElementById('closure_tpl').innerHTML;
 	var tbody = document.getElementById('closures');
 	tbody.insertAdjacentHTML('beforeend', tpl);
+}
+function ivrmgrRemoveRow(btn){
+	var rows = document.querySelectorAll('#closures tr.list-row');
+	if (rows.length <= 1) { alert('A time condition needs at least one closure. Delete the whole time condition instead.'); return; }
+	if (!confirm('Remove this closure? It will be deleted when you save.')) { return; }
+	var tr = btn;
+	while (tr && tr.tagName !== 'TR') { tr = tr.parentNode; }
+	if (tr) { tr.parentNode.removeChild(tr); }
 }
 </script>
 <?php
@@ -233,6 +241,7 @@ function closure_row_html($c, $recordings, $tts_configured = false) {
 	$rt = strlen($reopen) > 10 ? substr($reopen, 11, 5) : '';
 	$h .= "<td><input class='formfld' type='date' name='c_reopen_date[]' value='" . ivrmgr_esc($rd) . "'></td>";
 	$h .= "<td><input class='formfld' type='time' name='c_reopen_time[]' value='" . ivrmgr_esc($rt) . "'></td>";
+		$h .= "<td class='action-button'><button type='button' class='btn btn-default button' onclick='ivrmgrRemoveRow(this)' title='Remove closure'>Remove</button></td>";
 	$h .= "</tr>";
 	return $h;
 }

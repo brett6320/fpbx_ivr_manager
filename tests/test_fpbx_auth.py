@@ -98,6 +98,23 @@ def test_find_user_prefers_domain_and_requires_enabled():
     assert fpbx_backend._find_user(disabled, "a", "dom-1") is None
 
 
+def test_find_user_accepts_boolean_user_enabled():
+    # FusionPBX 5.x stores user_enabled as a real boolean (psycopg returns
+    # Python bool), not the "true"/"false" string of older schemas.
+    enabled = _Cur([{"user_uuid": "d", "username": "a", "password": "x", "salt": "",
+                     "user_enabled": True, "domain_uuid": "dom-1"}])
+    assert fpbx_backend._find_user(enabled, "a", "dom-1")["user_uuid"] == "d"
+
+    disabled = _Cur([{"user_uuid": "d", "username": "a", "password": "x", "salt": "",
+                      "user_enabled": False, "domain_uuid": "dom-1"}])
+    assert fpbx_backend._find_user(disabled, "a", "dom-1") is None
+
+    # NULL user_enabled is treated as enabled (FusionPBX default).
+    null_enabled = _Cur([{"user_uuid": "d", "username": "a", "password": "x", "salt": "",
+                          "user_enabled": None, "domain_uuid": "dom-1"}])
+    assert fpbx_backend._find_user(null_enabled, "a", "dom-1")["user_uuid"] == "d"
+
+
 def test_find_user_query_does_not_reference_user_email():
     # regression: v_users has no email column on many FusionPBX schemas
     cur = _Cur([])
@@ -105,12 +122,14 @@ def test_find_user_query_does_not_reference_user_email():
     assert "user_email" not in cur.sql
 
 
-def test_user_groups_uses_v_group_users_table():
-    # regression: the mapping table is v_group_users, not v_user_groups
+def test_user_groups_uses_v_user_groups_table():
+    # FusionPBX's user↔group membership table is v_user_groups: its own source
+    # (app/*) queries v_user_groups, and v_group_users does not exist in the
+    # schema, so the group lookup must use v_user_groups.
     cur = _Cur([{"group_name": "ivr-admins"}])
     groups = fpbx_backend._user_groups(cur, "u-1", "dom-1")
     assert groups == ["ivr-admins"]
-    assert "v_group_users" in cur.sql and "v_user_groups" not in cur.sql
+    assert "v_user_groups" in cur.sql and "v_group_users" not in cur.sql
 
 
 def test_list_groups_reads_v_groups(monkeypatch):

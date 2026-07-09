@@ -76,6 +76,14 @@ FusionPBX (its PHP, auth, DB), compatible with **FusionPBX 4.x → 5.x**. It cov
 the core time-condition manager today (IVR/TTS are being ported). See its
 [README](fusionpbx-app/ivr_manager/README.md).
 
+### Not sure which? Let the installer decide
+
+`sudo ./install.sh` **probes the host, checks compatibility, and recommends** a
+variant (Python service vs. FusionPBX PHP app) before doing anything — then
+dispatches to the right sub-installer. `./install.sh --check` just prints the
+report. On an old-Python FusionPBX host it recommends the PHP app; where Python
+3.11+/Docker is available it recommends the full-featured Python service.
+
 ## Authentication & authorization
 
 Sign-in backend is pluggable via `AUTH_BACKEND` = `local` (default), `entra`,

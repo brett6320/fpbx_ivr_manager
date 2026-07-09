@@ -8,6 +8,19 @@ import subprocess
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(REPO, "deploy", "install.sh")
 UNIT = os.path.join(REPO, "deploy", "fpbx-ivr-manager.service")
+TOP = os.path.join(REPO, "install.sh")
+
+
+def test_top_installer_recommends_and_gates_before_acting():
+    assert os.path.exists(TOP) and os.access(TOP, os.X_OK)
+    subprocess.run([shutil.which("bash"), "-n", TOP], check=True)
+    body = open(TOP).read()
+    # probes both variants, recommends, and dispatches to each sub-installer
+    assert "Recommendation:" in body
+    assert "deploy/install.sh" in body and "fusionpbx-app/install.sh" in body
+    # verifies compatibility for the CHOSEN variant BEFORE acting (a gate)
+    assert "Refusing:" in body
+    assert "--check" in body                 # can report without acting
 
 
 def test_install_script_is_executable_and_valid_bash():

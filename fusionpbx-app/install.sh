@@ -2,9 +2,10 @@
 #
 # Install / re-install / verify the IVR Manager PHP app in FusionPBX.
 #
-# Safe to run any number of times: it re-copies the app, re-applies defaults, and
-# then VALIDATES the install (files, php syntax, and — via FusionPBX's own DB
-# config — that the permissions and menu item are registered).
+# Safe to run any number of times: if an install already exists it is VERIFIED
+# and you are asked to confirm BEFORE anything is overwritten. It then re-copies
+# the app, re-applies defaults, and validates the install (files, php syntax, and
+# — via FusionPBX's own DB config — that the permissions and menu item exist).
 #
 # Usage:
 #   sudo ./fusionpbx-app/install.sh            # install/update, then verify
@@ -119,6 +120,18 @@ echo "== IVR Manager (FusionPBX app) installer =="
 echo "  FusionPBX: $FUSIONPBX_DIR"
 echo "  app dir:   $DEST"
 echo "  owner:     $WEB_USER:$WEB_GROUP"
+
+# --- verify any existing install BEFORE overwriting it ---
+if [ -d "$DEST" ]; then
+  echo
+  echo "An existing install was found — checking it before overwriting:"
+  verify || true
+  echo
+  if ! ask_yn "Overwrite the existing install at $DEST (rsync --delete)?" "Y"; then
+    echo "Left the existing install unchanged. Re-run with --verify to re-check."
+    exit 0
+  fi
+fi
 
 # --- copy the app into place (idempotent) ---
 mkdir -p "$FUSIONPBX_DIR/app"

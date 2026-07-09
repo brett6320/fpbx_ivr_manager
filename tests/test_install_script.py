@@ -21,6 +21,8 @@ def test_fusionpbx_installer_is_idempotent_and_verifiable():
     assert "v_permissions" in body and "v_menu_items" in body  # checks registration
     assert "rsync -a --delete" in body               # re-copy is idempotent
     assert "Restore Default Menu" in body            # menu guidance
+    # verifies an existing install and confirms BEFORE overwriting
+    assert "before overwriting" in body and "Overwrite the existing install" in body
 
 
 def test_top_installer_recommends_and_gates_before_acting():

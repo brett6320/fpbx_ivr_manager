@@ -34,6 +34,7 @@ class Closure:
     closed_action: str            # voicemail | hangup
     recording_filename: str       # the greeting recording played when active
     reason: str = ""              # kept only to round-trip the greeting on edit
+    reopen: str = ""              # optional reopen date, "Y-m-d" or "Y-m-d H:M:S"
 
 
 def _duration(c: Closure):
@@ -67,7 +68,8 @@ class NotManaged(Exception):
 _RE_TRANSFER = re.compile(r'transfer" data="([^ ]+) XML')
 # one closure = its metadata comment immediately followed by its date-time condition
 _RE_CLOSURE_META = re.compile(
-    r'<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)" -->'
+    r'<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)"'
+    r'(?: reopen="([^"]*)")? -->'
 )
 _RE_CONDITION = re.compile(r'<condition date-time="([^"~]+)~([^"]+)"[^>]*>(.*?)</condition>', re.S)
 _RE_PLAYBACK = re.compile(r'playback" data="[^"]*?/([^"/]+)"')
@@ -92,7 +94,8 @@ def _closure_block(extension: int, c: Closure, domain: str) -> str:
         closed = f'    <action application="voicemail" data="default {escape(domain)} {extension}"/>'
     meta = (
         f'  <!-- ivrmgr:closure label="{_comment_safe(c.label)}" '
-        f'reason="{_comment_safe(c.reason)}" action="{_comment_safe(c.closed_action)}" -->'
+        f'reason="{_comment_safe(c.reason)}" action="{_comment_safe(c.closed_action)}" '
+        f'reopen="{_comment_safe(c.reopen)}" -->'
     )
     return (
         f'{meta}\n'
@@ -221,7 +224,7 @@ def parse_closures(xml: str) -> dict:
     Handles both the current multi-closure format (metadata comment per closure)
     and the earlier single-closure format (one condition + anti-action)."""
     xml = xml or ""
-    metas = _RE_CLOSURE_META.findall(xml)          # [(label, reason, action), ...]
+    metas = _RE_CLOSURE_META.findall(xml)          # [(label, reason, action, reopen), ...]
     blocks = _RE_CONDITION.findall(xml)            # [(start, end, inner), ...]
     closures: list[dict] = []
     for i, (a, b, inner) in enumerate(blocks):
@@ -233,6 +236,7 @@ def parse_closures(xml: str) -> dict:
             "reason": meta[1] if meta else "",
             "closed_action": (meta[2] if meta else None)
             or ("voicemail" if "voicemail" in inner else "hangup"),
+            "reopen": (meta[3] if meta and len(meta) > 3 else "") or "",
             "start": start,
             "end": end,
             "recording_filename": pm.group(1) if pm else "",

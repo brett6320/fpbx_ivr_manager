@@ -62,6 +62,14 @@ is matched first.</p>
             <option value="hangup" {{ 'selected' if cl and cl.closed_action == 'hangup' }}>Play greeting, then hang up</option>
           </select></div>
       </div>
+      <div class="grid2">
+        <div><label>Reopen date (optional, announced in greeting)</label>
+          <input type="date" name="c_reopen_date_{{ loop.index0 }}"
+                 value="{{ cl.reopen[:10] if cl and cl.reopen }}"></div>
+        <div><label>Reopen time (optional)</label>
+          <input type="time" name="c_reopen_time_{{ loop.index0 }}"
+                 value="{{ cl.reopen[11:16] if cl and cl.reopen and cl.reopen|length > 10 }}"></div>
+      </div>
       <button type="button" onclick="previewRow(this)" style="margin:.4rem 0 0;">Preview greeting</button>
       {% if not adopt_uuid %}<button type="button" onclick="removeRow(this)" style="margin:.4rem 0 0;">Remove closure</button>{% endif %}
       <div class="preview-out"></div>
@@ -88,6 +96,10 @@ is matched first.</p>
           <option value="voicemail">Play greeting, then voicemail</option>
           <option value="hangup">Play greeting, then hang up</option>
         </select></div>
+    </div>
+    <div class="grid2">
+      <div><label>Reopen date (optional, announced in greeting)</label><input type="date" name="c_reopen_date___IDX__"></div>
+      <div><label>Reopen time (optional)</label><input type="time" name="c_reopen_time___IDX__"></div>
     </div>
     <button type="button" onclick="previewRow(this)" style="margin:.4rem 0 0;">Preview greeting</button>
     <button type="button" onclick="removeRow(this)" style="margin:.4rem 0 0;">Remove closure</button>
@@ -125,6 +137,10 @@ async function previewRow(btn){
   fd.append('start', row.querySelector('input[name^=c_start_]').value);
   fd.append('end', row.querySelector('input[name^=c_end_]').value);
   fd.append('reason', row.querySelector('input[name^=c_reason_]').value);
+  const rd = row.querySelector('input[name^=c_reopen_date_]');
+  const rt = row.querySelector('input[name^=c_reopen_time_]');
+  if (rd) fd.append('reopen_date', rd.value);
+  if (rt) fd.append('reopen_time', rt.value);
   const res = await fetch('/preview', { method: 'POST', body: fd });
   row.querySelector('.preview-out').innerHTML = await res.text();
 }

@@ -33,6 +33,17 @@ def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_") or "schedule"
 
 
+def _reopen_str(c) -> str:
+    """Serialize a request's reopen date/time for round-trip in closure metadata.
+    '' when unset, 'YYYY-MM-DD' for date-only, 'YYYY-MM-DD HH:MM:SS' with time."""
+    reopen = getattr(c, "reopen", None)
+    if not reopen:
+        return ""
+    if getattr(c, "reopen_has_time", False):
+        return reopen.strftime("%Y-%m-%d %H:%M:%S")
+    return reopen.strftime("%Y-%m-%d")
+
+
 def _closure_parts() -> tuple[str | None, str | None]:
     """Business-configured opening/closing for the closure greeting, with
     placeholders resolved. None means 'use the builder default'."""
@@ -48,6 +59,7 @@ def preview_phrase(req: ScheduleRequest) -> str:
         org_name=business.business_name(),
         reason=business.render(req.reason),
         opening=opening, closing=closing,
+        reopen=req.reopen, reopen_has_time=req.reopen_has_time,
     ).text
 
 
@@ -59,6 +71,7 @@ def _synthesize_recording(ext: int, req: ScheduleRequest):
         org_name=business.business_name(),
         reason=business.render(req.reason),
         opening=opening, closing=closing,
+        reopen=req.reopen, reopen_has_time=req.reopen_has_time,
     )
     wav = google_tts.synthesize(phrase.text)
     rec_name = f"{GENERATED_PREFIX}schedule_{ext}_{_slug(req.label)}"
@@ -81,6 +94,7 @@ def _build_closure(ext: int, c) -> tuple[str, time_conditions.Closure]:
         label=c.label, start=c.start, end=c.end,
         closed_action=c.closed_action, recording_filename=rec_filename,
         reason=c.reason or "",
+        reopen=_reopen_str(c),
     )
 
 
@@ -123,6 +137,7 @@ def _existing_closures(ext: int) -> list[time_conditions.Closure]:
             closed_action=c.get("closed_action", "voicemail"),
             recording_filename=c.get("recording_filename", ""),
             reason=c.get("reason", ""),
+            reopen=c.get("reopen", ""),
         ))
     return out
 
@@ -139,6 +154,7 @@ def apply_schedule(req: ScheduleRequest, open_destination: str) -> ScheduleResul
         label=req.label, start=req.start, end=req.end,
         closed_action=req.closed_action, recording_filename=rec_filename,
         reason=req.reason or "",
+        reopen=_reopen_str(req),
     )
     closures = [c for c in _existing_closures(ext) if c.label != req.label]
     closures.append(new_closure)
@@ -169,6 +185,7 @@ def adopt_schedule(dialplan_uuid: str, req: ScheduleRequest, open_destination: s
         label=req.label, start=req.start, end=req.end,
         closed_action=req.closed_action, recording_filename=rec_filename,
         reason=req.reason or "",
+        reopen=_reopen_str(req),
     )
     time_conditions.adopt_time_condition(
         dialplan_uuid, req.label, [closure], open_destination=open_destination,

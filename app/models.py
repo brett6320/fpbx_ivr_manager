@@ -15,6 +15,8 @@ class ScheduleRequest(BaseModel):
     reason: str | None = None     # optional, folded into the phrase
     extension: int | None = None  # if None, auto-allocate from the pool
     closed_action: str = "voicemail"  # voicemail | hangup
+    reopen: datetime | None = None     # optional "return to normal operations" date
+    reopen_has_time: bool = False      # whether reopen includes a time-of-day
 
     @field_validator("end")
     @classmethod

@@ -91,7 +91,8 @@ class ivr_schedule {
 		}
 		$meta = '  <!-- ivrmgr:closure label="' . $this->comment_safe($closure['label'])
 			. '" reason="' . $this->comment_safe(isset($closure['reason']) ? $closure['reason'] : '')
-			. '" action="' . $this->comment_safe($closure['closed_action']) . '" -->';
+			. '" action="' . $this->comment_safe($closure['closed_action'])
+			. '" reopen="' . $this->comment_safe(isset($closure['reopen']) ? $closure['reopen'] : '') . '" -->';
 		return $meta . "\n"
 			. '  <condition date-time="' . $dt . '" break="on-true">' . "\n"
 			. '    <action application="answer"/>' . "\n"
@@ -124,7 +125,7 @@ class ivr_schedule {
 	public function parse_closures($xml) {
 		$xml = (string) $xml;
 		$metas = array();
-		preg_match_all('/<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)" -->/', $xml, $metas, PREG_SET_ORDER);
+		preg_match_all('/<!-- ivrmgr:closure label="([^"]*)" reason="([^"]*)" action="([^"]*)"(?: reopen="([^"]*)")? -->/', $xml, $metas, PREG_SET_ORDER);
 		$blocks = array();
 		preg_match_all('/<condition date-time="([^"~]+)~([^"]+)"[^>]*>(.*?)<\/condition>/s', $xml, $blocks, PREG_SET_ORDER);
 		$closures = array();
@@ -140,6 +141,7 @@ class ivr_schedule {
 				'label' => ($meta && $meta[1] !== '') ? $meta[1] : 'closure',
 				'reason' => $meta ? $meta[2] : '',
 				'closed_action' => $action,
+				'reopen' => ($meta && isset($meta[4])) ? $meta[4] : '',
 				'start' => $b[1],
 				'end' => $b[2],
 				'recording_filename' => $rec,

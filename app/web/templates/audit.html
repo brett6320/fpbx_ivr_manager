@@ -3,47 +3,109 @@
 <h1>Audit log</h1>
 
 {% if integrity.ok %}
-  <p class="muted">✓ Chain verified — {{ integrity.count }}
-     entr{{ 'y' if integrity.count == 1 else 'ies' }}, no tampering detected.</p>
+  <div style="display: flex; align-items: center; gap: .55rem; margin: 0 0 1rem;
+              padding: .6rem .9rem; border-radius: 6px; font-weight: 500;
+              color: #2ea043; background: rgba(46,160,67,.10);
+              border: 1px solid rgba(46,160,67,.35);">
+    <span aria-hidden="true" style="font-size: 1.05rem; line-height: 1;">✓</span>
+    <span>Chain verified — {{ integrity.count }}
+      entr{{ 'y' if integrity.count == 1 else 'ies' }}, no tampering detected.</span>
+  </div>
 {% else %}
-  <p style="color: var(--danger, #c0392b); font-weight: 600;">
-    ⚠ Integrity check FAILED at entry #{{ integrity.bad_seq }} —
-    the log has been altered or an entry was removed.
-  </p>
+  <div style="display: flex; align-items: center; gap: .55rem; margin: 0 0 1rem;
+              padding: .6rem .9rem; border-radius: 6px; font-weight: 600;
+              color: #cf222e; background: rgba(207,34,46,.10);
+              border: 1px solid rgba(207,34,46,.40);">
+    <span aria-hidden="true" style="font-size: 1.05rem; line-height: 1;">✗</span>
+    <span>Integrity check FAILED at entry #{{ integrity.bad_seq }} —
+      the log has been altered or an entry was removed.</span>
+  </div>
 {% endif %}
 
-{% if not entries %}
-  <p class="muted">No audit entries yet.</p>
-{% else %}
-<div style="overflow-x: auto;">
-<table style="width: 100%; border-collapse: collapse;">
-  <thead><tr style="text-align: left; border-bottom: 1px solid var(--border);">
-    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Action</th>
-    <th>Target</th><th>Details</th><th>Hash</th></tr></thead>
-  <tbody>
-  {% for e in entries %}
-  <tr style="border-bottom: 1px solid var(--border-light);">
-    <td class="muted">{{ e.seq }}</td>
-    <td style="white-space: nowrap;">{{ e.ts }}</td>
-    <td>{{ e.actor }}</td>
-    <td><code>{{ e.action }}</code></td>
-    <td>{{ e.target or '' }}</td>
-    <td class="muted" style="font-size: .85rem;">{{ e.details or '' }}</td>
-    <td class="muted" style="font-family: monospace; font-size: .8rem;"
-        title="hash {{ e.hash }}&#10;prev {{ e.prev_hash }}">{{ e.hash[:12] }}…</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
+{# per-column (Excel-style) filters: one control per column in a header filter
+   row. Dropdowns auto-apply; text boxes apply on Enter or the Apply button. #}
+{% macro fcol(name) %}
+  <input type="search" name="f_{{ name }}" value="{{ f[name] }}" placeholder="filter…"
+         style="width: 100%; padding: .25rem .4rem; font-weight: normal; font-size: .85rem;">
+{% endmacro %}
+{% macro fsel(name, options) %}
+  <select name="f_{{ name }}" onchange="this.form.submit()"
+          style="width: 100%; padding: .25rem; font-weight: normal; font-size: .85rem;">
+    <option value="">All</option>
+    {% for o in options %}<option value="{{ o }}"{% if o == f[name] %} selected{% endif %}>{{ o }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+{% set qs %}{% for k, v in f.items() %}{% if v %}&amp;f_{{ k }}={{ v | urlencode }}{% endif %}{% endfor %}{% endset %}
 
+<form method="get" action="{{ base_path }}/admin/audit">
+  <input type="hidden" name="limit" value="{{ limit }}">
+  <div style="display: flex; gap: .5rem; align-items: center; margin-bottom: .6rem;">
+    <button type="submit" style="margin: 0;">Apply filters</button>
+    {% if filters %}<a href="{{ base_path }}/admin/audit">Clear all</a>
+    <span class="muted">Filtering: {{ filters.keys() | join(', ') }}</span>{% endif %}
+  </div>
+
+  <div style="overflow-x: auto;">
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="text-align: left; border-bottom: 1px solid var(--border);">
+        <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Source IP</th><th>User Agent</th>
+        <th>Action</th><th>Target</th><th>Details</th><th>Hash</th>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <th></th>
+        <th>{{ fcol('ts') }}</th>
+        <th>{{ fsel('actor', actors) }}</th>
+        <th>{{ fsel('ip', ips) }}</th>
+        <th>{{ fcol('ua') }}</th>
+        <th>{{ fsel('action', actions) }}</th>
+        <th>{{ fcol('target') }}</th>
+        <th>{{ fcol('details') }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in entries %}
+    <tr style="border-bottom: 1px solid var(--border-light);">
+      <td class="muted">{{ e.seq }}</td>
+      <td style="white-space: nowrap;">{{ e.ts }}</td>
+      <td>{{ e.actor }}</td>
+      <td class="muted">{{ e.ip or '' }}</td>
+      <td class="muted" style="max-width: 20ch; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; font-size: .8rem;" title="{{ e.ua or '' }}">{{ e.ua or '' }}</td>
+      <td><code style="color:
+        {%- if 'failure' in e.action %} #cf222e
+        {%- elif '.delete' in e.action %} #bc4c00
+        {%- elif e.action in ('login.success', 'logout') %} #2ea043
+        {%- elif e.action == 'view' %} var(--muted)
+        {%- else %} inherit{% endif %};">{{ e.action }}</code></td>
+      <td>{{ e.target or '' }}</td>
+      <td class="muted" style="font-size: .85rem;">{{ e.details or '' }}</td>
+      <td style="font-family: monospace; font-size: .8rem; white-space: nowrap;"
+          title="hash {{ e.hash }}&#10;prev {{ e.prev_hash }}">
+        <span class="muted">{{ e.hash[:12] }}…</span>
+        {% if e.valid %}<span style="color: #2ea043; font-weight: 700;"
+             title="hash verified">✓</span>
+        {% else %}<span style="color: #cf222e; font-weight: 700;"
+             title="hash mismatch / broken link">✗</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</form>
+
+{% if not entries %}
+  <p class="muted">{% if filters %}No entries match your filters.{% else %}No audit entries yet.{% endif %}</p>
+{% else %}
 <p class="muted" style="margin-top: 1rem;">
-  Showing {{ offset + 1 }}–{{ offset + entries | length }} of {{ total }}.
+  Showing {{ offset + 1 }}–{{ offset + entries | length }} of {{ total }}{% if filters %} (filtered){% endif %}.
   {% if offset > 0 %}
-    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ [offset - limit, 0] | max }}">← Newer</a>
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ [offset - limit, 0] | max }}{{ qs }}">← Newer</a>
   {% endif %}
   {% if offset + entries | length < total %}
-    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ offset + limit }}">Older →</a>
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ offset + limit }}{{ qs }}">Older →</a>
   {% endif %}
 </p>
 {% endif %}

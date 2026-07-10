@@ -49,6 +49,18 @@ def test_verify_detects_modified_entry(audit_db):
     assert v["ok"] is False and v["bad_seq"] == 2
 
 
+def test_hash_status_flags_the_tampered_entry(audit_db):
+    for i in range(4):
+        audit.record("a", f"act{i}")
+    st = audit.hash_status()
+    assert len(st) == 4 and all(st.values())  # clean chain: every entry valid
+    with sqlite3.connect(audit_db) as conn:
+        conn.execute("UPDATE audit SET actor='HACKED' WHERE seq=2")
+        conn.commit()
+    st2 = audit.hash_status()
+    assert st2[2] is False and st2[1] is True  # only the tampered entry is flagged
+
+
 def test_verify_detects_removed_entry(audit_db):
     for i in range(4):
         audit.record("a", f"act{i}")
@@ -56,6 +68,46 @@ def test_verify_detects_removed_entry(audit_db):
         conn.execute("DELETE FROM audit WHERE seq=2")
         conn.commit()
     assert audit.verify()["ok"] is False
+
+
+def test_per_column_filter(audit_db):
+    audit.record("alice", "user.create", target="bob", ip="10.0.0.1")
+    audit.record("carol", "user.delete", target="bob")
+    audit.record("alice", "login.success", ua="Firefox/1")
+    # exact-match columns (actor / action / ip)
+    assert [r["action"] for r in audit.entries(filters={"actor": "alice"})] == ["login.success", "user.create"]
+    assert [r["actor"] for r in audit.entries(filters={"action": "user.delete"})] == ["carol"]
+    assert len(audit.entries(filters={"ip": "10.0.0.1"})) == 1
+    # substring columns (target / ua / details)
+    assert len(audit.entries(filters={"target": "bo"})) == 2
+    assert [r["action"] for r in audit.entries(filters={"ua": "fire"})] == ["login.success"]
+    # multiple columns AND together
+    assert len(audit.entries(filters={"actor": "alice", "action": "user.create"})) == 1
+    # counts + dropdown value lists
+    assert audit.count(filters={"actor": "alice"}) == 2
+    assert set(audit.distinct_values("action")) == {"user.create", "user.delete", "login.success"}
+    assert set(audit.distinct_values("actor")) == {"alice", "carol"}
+    assert audit.distinct_values("details") == []  # not a dropdown column
+
+
+def test_pagination_slices_without_overlap(audit_db):
+    for i in range(10):
+        audit.record("a", f"act{i}")
+    p1 = audit.entries(limit=4, offset=0)
+    p2 = audit.entries(limit=4, offset=4)
+    assert len(p1) == 4 and len(p2) == 4
+    assert {r["seq"] for r in p1}.isdisjoint({r["seq"] for r in p2})
+
+
+def test_audit_page_per_column_filter(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.post("/admin/users", data={"username": "carol", "password": "pw",
+                                     "display_name": "Carol"}, follow_redirects=False)
+        assert "carol" in c.get("/admin/audit?f_action=user.create").text
+        assert "No entries match" in c.get("/admin/audit?f_action=nope.nope").text
 
 
 def test_record_never_raises(monkeypatch):
@@ -145,3 +197,74 @@ def test_login_success_and_failure_are_recorded(client):
         _login(c, "ops")
         page = c.get("/admin/audit").text
         assert "login.failure" in page and "login.success" in page
+
+
+# ---- source IP (proxy-aware) ----
+def _scope(headers: dict, client=("10.0.0.1", 5555)):
+    return {"type": "http",
+            "headers": [(k.encode(), v.encode()) for k, v in headers.items()],
+            "client": client}
+
+
+def test_client_ip_resolves_through_proxy_layers():
+    from app.audit_mw import client_ip_from_scope
+    # Cloudflare header wins over everything
+    assert client_ip_from_scope(_scope(
+        {"cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "1.1.1.1"})) == "203.0.113.9"
+    # left-most X-Forwarded-For is the original client
+    assert client_ip_from_scope(_scope(
+        {"x-forwarded-for": "203.0.113.7, 10.0.0.2, 10.0.0.3"})) == "203.0.113.7"
+    # X-Real-IP next
+    assert client_ip_from_scope(_scope({"x-real-ip": "203.0.113.5"})) == "203.0.113.5"
+    # fall back to the direct peer when no proxy headers
+    assert client_ip_from_scope(_scope({})) == "10.0.0.1"
+
+
+def test_record_stamps_context_ip_and_mixed_chain_verifies(audit_db):
+    audit.set_client_ip("203.0.113.7")
+    try:
+        audit.record("a", "with_ip")
+    finally:
+        audit.set_client_ip(None)
+    audit.record("a", "without_ip")  # no ip in context
+    ips = {r["action"]: r["ip"] for r in audit.entries()}
+    assert ips["with_ip"] == "203.0.113.7" and ips["without_ip"] is None
+    # a chain mixing ip and NULL-ip entries still verifies (NULL-ip entries hash
+    # exactly as pre-ip-column entries did)
+    assert audit.verify()["ok"] is True
+
+
+def test_forwarded_ip_flows_through_middleware_to_the_log(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.get("/account", headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.9"},
+              follow_redirects=False)
+        assert "203.0.113.7" in c.get("/admin/audit").text
+
+
+def test_user_agent_from_scope():
+    from app.audit_mw import user_agent_from_scope
+    assert user_agent_from_scope(_scope({"user-agent": "Foo/1.0"})) == "Foo/1.0"
+    assert user_agent_from_scope(_scope({})) is None
+
+
+def test_record_stamps_context_ua_and_chain_verifies(audit_db):
+    audit.set_user_agent("Mozilla/5.0 Test")
+    try:
+        audit.record("a", "with_ua")
+    finally:
+        audit.set_user_agent(None)
+    assert audit.entries()[0]["ua"] == "Mozilla/5.0 Test"
+    assert audit.verify()["ok"] is True
+
+
+def test_user_agent_flows_through_middleware_to_the_log(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.get("/account", headers={"User-Agent": "MyTestAgent/9.9"},
+              follow_redirects=False)
+        assert "MyTestAgent/9.9" in c.get("/admin/audit").text

@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.audit_mw import ActivityLogMiddleware
+from app.audit_mw import ActivityLogMiddleware, RequestContextMiddleware
 from app.auth import backend
 from app.config import settings
 from app.web.routes import router
@@ -73,6 +73,9 @@ app.add_middleware(
     same_site="lax",
     path=settings.base_path or "/",
 )
+# Outermost: resolve the proxy-aware client IP and User-Agent into ContextVars
+# before anything else runs, so every audit entry can stamp them.
+app.add_middleware(RequestContextMiddleware)
 app.include_router(router, prefix=settings.base_path)
 
 

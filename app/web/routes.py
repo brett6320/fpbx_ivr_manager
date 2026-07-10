@@ -1207,17 +1207,32 @@ async def user_delete(request: Request, username: str, user: dict = Depends(requ
 # ---- audit log (admin-only; hash-chained, tamper-evident) ----
 @router.get("/admin/audit", response_class=HTMLResponse)
 def admin_audit(request: Request, user: dict = Depends(require_audit),
-                limit: int = 200, offset: int = 0):
-    rows = audit.entries(limit=limit, offset=offset)
+                limit: int = 100, offset: int = 0,
+                f_ts: str = "", f_actor: str = "", f_ip: str = "", f_ua: str = "",
+                f_action: str = "", f_target: str = "", f_details: str = ""):
+    # one filter value per column (Excel-style); blanks are ignored
+    fvals = {"ts": f_ts.strip(), "actor": f_actor.strip(), "ip": f_ip.strip(),
+             "ua": f_ua.strip(), "action": f_action.strip(),
+             "target": f_target.strip(), "details": f_details.strip()}
+    filters = {k: v for k, v in fvals.items() if v}
+    rows = audit.entries(limit=limit, offset=offset, filters=filters)
+    status = audit.hash_status()
+    for r in rows:
+        r["valid"] = status.get(r["seq"], False)
     return templates.TemplateResponse(
         request, "audit.html",
         {
             "user": user,
             "entries": rows,
             "integrity": audit.verify(),
-            "total": audit.count(),
+            "total": audit.count(filters=filters),
             "limit": limit,
             "offset": offset,
+            "f": fvals,
+            "filters": filters,
+            "actors": audit.distinct_values("actor"),
+            "ips": audit.distinct_values("ip"),
+            "actions": audit.distinct_values("action"),
         },
     )
 

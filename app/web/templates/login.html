@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="narrow">
-<h1>{{ org }} — IVR Manager</h1>
+<h1>{% if org %}{{ org }} — {% endif %}IVR Manager</h1>
 
 {% if error %}<div class="preview" style="border-color:var(--danger);">{{ error }}</div>{% endif %}
 

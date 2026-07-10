@@ -3,13 +3,23 @@
 <h1>Audit log</h1>
 
 {% if integrity.ok %}
-  <p class="muted">✓ Chain verified — {{ integrity.count }}
-     entr{{ 'y' if integrity.count == 1 else 'ies' }}, no tampering detected.</p>
+  <div style="display: flex; align-items: center; gap: .55rem; margin: 0 0 1rem;
+              padding: .6rem .9rem; border-radius: 6px; font-weight: 500;
+              color: #2ea043; background: rgba(46,160,67,.10);
+              border: 1px solid rgba(46,160,67,.35);">
+    <span aria-hidden="true" style="font-size: 1.05rem; line-height: 1;">✓</span>
+    <span>Chain verified — {{ integrity.count }}
+      entr{{ 'y' if integrity.count == 1 else 'ies' }}, no tampering detected.</span>
+  </div>
 {% else %}
-  <p style="color: var(--danger, #c0392b); font-weight: 600;">
-    ⚠ Integrity check FAILED at entry #{{ integrity.bad_seq }} —
-    the log has been altered or an entry was removed.
-  </p>
+  <div style="display: flex; align-items: center; gap: .55rem; margin: 0 0 1rem;
+              padding: .6rem .9rem; border-radius: 6px; font-weight: 600;
+              color: #cf222e; background: rgba(207,34,46,.10);
+              border: 1px solid rgba(207,34,46,.40);">
+    <span aria-hidden="true" style="font-size: 1.05rem; line-height: 1;">✗</span>
+    <span>Integrity check FAILED at entry #{{ integrity.bad_seq }} —
+      the log has been altered or an entry was removed.</span>
+  </div>
 {% endif %}
 
 {% if not entries %}
@@ -27,11 +37,22 @@
     <td style="white-space: nowrap;">{{ e.ts }}</td>
     <td>{{ e.actor }}</td>
     <td class="muted">{{ e.ip or '' }}</td>
-    <td><code>{{ e.action }}</code></td>
+    <td><code style="color:
+      {%- if 'failure' in e.action %} #cf222e
+      {%- elif '.delete' in e.action %} #bc4c00
+      {%- elif e.action in ('login.success', 'logout') %} #2ea043
+      {%- elif e.action == 'view' %} var(--muted)
+      {%- else %} inherit{% endif %};">{{ e.action }}</code></td>
     <td>{{ e.target or '' }}</td>
     <td class="muted" style="font-size: .85rem;">{{ e.details or '' }}</td>
-    <td class="muted" style="font-family: monospace; font-size: .8rem;"
-        title="hash {{ e.hash }}&#10;prev {{ e.prev_hash }}">{{ e.hash[:12] }}…</td>
+    <td style="font-family: monospace; font-size: .8rem; white-space: nowrap;"
+        title="hash {{ e.hash }}&#10;prev {{ e.prev_hash }}">
+      <span class="muted">{{ e.hash[:12] }}…</span>
+      {% if e.valid %}<span style="color: #2ea043; font-weight: 700;"
+           title="hash verified">✓</span>
+      {% else %}<span style="color: #cf222e; font-weight: 700;"
+           title="hash mismatch / broken link">✗</span>{% endif %}
+    </td>
   </tr>
   {% endfor %}
   </tbody>

@@ -178,6 +178,26 @@ def entries(limit: int = 200, offset: int = 0) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def hash_status() -> dict[int, bool]:
+    """Per-entry validity map (seq -> bool): an entry is valid when its stored
+    hash matches the hash recomputed from its fields AND its prev_hash links to
+    the previous entry's hash. We keep walking from each entry's *stored* hash so
+    a single tampered entry is flagged on itself rather than cascading."""
+    status: dict[int, bool] = {}
+    prev = GENESIS
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT seq, ts, actor, action, target, details, ip, prev_hash, hash "
+            "FROM audit ORDER BY seq ASC"
+        ).fetchall()
+    for r in rows:
+        expected = _entry_hash(r["prev_hash"], r["ts"], r["actor"], r["action"],
+                               r["target"], r["details"], r["ip"])
+        status[r["seq"]] = (r["prev_hash"] == prev) and (r["hash"] == expected)
+        prev = r["hash"]
+    return status
+
+
 def verify() -> dict:
     """Recompute the chain from the beginning. Returns
     ``{"ok": bool, "count": int, "bad_seq": int | None}`` where ``bad_seq`` is

@@ -1209,6 +1209,9 @@ async def user_delete(request: Request, username: str, user: dict = Depends(requ
 def admin_audit(request: Request, user: dict = Depends(require_audit),
                 limit: int = 200, offset: int = 0):
     rows = audit.entries(limit=limit, offset=offset)
+    status = audit.hash_status()
+    for r in rows:
+        r["valid"] = status.get(r["seq"], False)
     return templates.TemplateResponse(
         request, "audit.html",
         {

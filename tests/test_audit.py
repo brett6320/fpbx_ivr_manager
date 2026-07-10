@@ -49,6 +49,18 @@ def test_verify_detects_modified_entry(audit_db):
     assert v["ok"] is False and v["bad_seq"] == 2
 
 
+def test_hash_status_flags_the_tampered_entry(audit_db):
+    for i in range(4):
+        audit.record("a", f"act{i}")
+    st = audit.hash_status()
+    assert len(st) == 4 and all(st.values())  # clean chain: every entry valid
+    with sqlite3.connect(audit_db) as conn:
+        conn.execute("UPDATE audit SET actor='HACKED' WHERE seq=2")
+        conn.commit()
+    st2 = audit.hash_status()
+    assert st2[2] is False and st2[1] is True  # only the tampered entry is flagged
+
+
 def test_verify_detects_removed_entry(audit_db):
     for i in range(4):
         audit.record("a", f"act{i}")

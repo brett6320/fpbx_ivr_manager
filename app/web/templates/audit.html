@@ -22,14 +22,32 @@
   </div>
 {% endif %}
 
+<form method="get" action="{{ base_path }}/admin/audit"
+      style="display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+  <input type="search" name="q" value="{{ q }}"
+         placeholder="Search actor, action, target, IP, user agent…"
+         style="flex: 1; min-width: 16rem; padding: .38rem .55rem;">
+  <select name="action" style="padding: .38rem .55rem;">
+    <option value="">All actions</option>
+    {% for a in actions %}
+    <option value="{{ a }}"{% if a == action %} selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="limit" value="{{ limit }}">
+  <button type="submit">Filter</button>
+  {% if q or action %}
+  <a href="{{ base_path }}/admin/audit" style="margin-left: .25rem;">Clear</a>
+  {% endif %}
+</form>
+
 {% if not entries %}
-  <p class="muted">No audit entries yet.</p>
+  <p class="muted">{% if q or action %}No entries match your filter.{% else %}No audit entries yet.{% endif %}</p>
 {% else %}
 <div style="overflow-x: auto;">
 <table style="width: 100%; border-collapse: collapse;">
   <thead><tr style="text-align: left; border-bottom: 1px solid var(--border);">
-    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Source IP</th><th>Action</th>
-    <th>Target</th><th>Details</th><th>Hash</th></tr></thead>
+    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Source IP</th><th>User Agent</th>
+    <th>Action</th><th>Target</th><th>Details</th><th>Hash</th></tr></thead>
   <tbody>
   {% for e in entries %}
   <tr style="border-bottom: 1px solid var(--border-light);">
@@ -37,6 +55,8 @@
     <td style="white-space: nowrap;">{{ e.ts }}</td>
     <td>{{ e.actor }}</td>
     <td class="muted">{{ e.ip or '' }}</td>
+    <td class="muted" style="max-width: 20ch; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; font-size: .8rem;" title="{{ e.ua or '' }}">{{ e.ua or '' }}</td>
     <td><code style="color:
       {%- if 'failure' in e.action %} #cf222e
       {%- elif '.delete' in e.action %} #bc4c00
@@ -60,12 +80,13 @@
 </div>
 
 <p class="muted" style="margin-top: 1rem;">
-  Showing {{ offset + 1 }}–{{ offset + entries | length }} of {{ total }}.
+  {% set qs = '&amp;q=' ~ (q | urlencode) ~ '&amp;action=' ~ (action | urlencode) %}
+  Showing {{ offset + 1 }}–{{ offset + entries | length }} of {{ total }}{% if q or action %} (filtered){% endif %}.
   {% if offset > 0 %}
-    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ [offset - limit, 0] | max }}">← Newer</a>
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ [offset - limit, 0] | max }}{{ qs }}">← Newer</a>
   {% endif %}
   {% if offset + entries | length < total %}
-    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ offset + limit }}">Older →</a>
+    <a href="{{ base_path }}/admin/audit?limit={{ limit }}&amp;offset={{ offset + limit }}{{ qs }}">Older →</a>
   {% endif %}
 </p>
 {% endif %}

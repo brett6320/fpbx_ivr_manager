@@ -80,12 +80,21 @@ def client_ip_from_scope(scope) -> str | None:
     return client[0] if client else None
 
 
-class ClientIPMiddleware:
-    """Pure-ASGI middleware that stashes the proxy-resolved client IP in a
-    ContextVar (app.audit) so every audit entry records it — both the activity
-    middleware and the route-level hooks. Registered outermost so the value is
-    set before any handler runs; pure-ASGI (not BaseHTTPMiddleware) so the
-    ContextVar propagates cleanly into the downstream request context."""
+def user_agent_from_scope(scope) -> str | None:
+    """The request's User-Agent header, or None."""
+    for k, v in scope.get("headers", []):
+        if k.decode("latin-1").lower() == "user-agent":
+            return v.decode("latin-1").strip() or None
+    return None
+
+
+class RequestContextMiddleware:
+    """Pure-ASGI middleware that stashes per-request context — the proxy-resolved
+    client IP and the User-Agent — in ContextVars (app.audit) so every audit
+    entry records them, both from the activity middleware and the route-level
+    hooks. Registered outermost so the values are set before any handler runs;
+    pure-ASGI (not BaseHTTPMiddleware) so the ContextVars propagate cleanly into
+    the downstream request context."""
 
     def __init__(self, app):
         self.app = app
@@ -93,4 +102,5 @@ class ClientIPMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             audit.set_client_ip(client_ip_from_scope(scope))
+            audit.set_user_agent(user_agent_from_scope(scope))
         await self.app(scope, receive, send)

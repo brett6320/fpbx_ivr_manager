@@ -70,6 +70,42 @@ def test_verify_detects_removed_entry(audit_db):
     assert audit.verify()["ok"] is False
 
 
+def test_search_action_filter_and_pagination(audit_db):
+    audit.record("alice", "user.create", target="bob", ip="10.0.0.1")
+    audit.record("carol", "user.delete", target="bob")
+    audit.record("alice", "login.success", ua="Firefox/1")
+    # free-text search spans actor/action/target/details/ip/ua
+    assert {r["action"] for r in audit.entries(search="alice")} == {"user.create", "login.success"}
+    assert {r["action"] for r in audit.entries(search="Firefox")} == {"login.success"}
+    assert len(audit.entries(search="bob")) == 2
+    assert len(audit.entries(search="10.0.0.1")) == 1
+    # exact action filter + filtered counts
+    assert [r["actor"] for r in audit.entries(action="user.delete")] == ["carol"]
+    assert audit.count(search="alice") == 2
+    assert audit.count(action="user.create") == 1
+    assert set(audit.distinct_actions()) == {"user.create", "user.delete", "login.success"}
+
+
+def test_pagination_slices_without_overlap(audit_db):
+    for i in range(10):
+        audit.record("a", f"act{i}")
+    p1 = audit.entries(limit=4, offset=0)
+    p2 = audit.entries(limit=4, offset=4)
+    assert len(p1) == 4 and len(p2) == 4
+    assert {r["seq"] for r in p1}.isdisjoint({r["seq"] for r in p2})
+
+
+def test_audit_page_search_and_empty_filter(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.post("/admin/users", data={"username": "carol", "password": "pw",
+                                     "display_name": "Carol"}, follow_redirects=False)
+        assert "user.create" in c.get("/admin/audit?q=carol").text
+        assert "No entries match" in c.get("/admin/audit?action=nope.nope").text
+
+
 def test_record_never_raises(monkeypatch):
     # unwritable location: the audit write must fail silently, not break callers
     monkeypatch.setattr(settings, "audit_db", "/proc/nonexistent/audit.db")
@@ -202,3 +238,29 @@ def test_forwarded_ip_flows_through_middleware_to_the_log(client):
         c.get("/account", headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.9"},
               follow_redirects=False)
         assert "203.0.113.7" in c.get("/admin/audit").text
+
+
+def test_user_agent_from_scope():
+    from app.audit_mw import user_agent_from_scope
+    assert user_agent_from_scope(_scope({"user-agent": "Foo/1.0"})) == "Foo/1.0"
+    assert user_agent_from_scope(_scope({})) is None
+
+
+def test_record_stamps_context_ua_and_chain_verifies(audit_db):
+    audit.set_user_agent("Mozilla/5.0 Test")
+    try:
+        audit.record("a", "with_ua")
+    finally:
+        audit.set_user_agent(None)
+    assert audit.entries()[0]["ua"] == "Mozilla/5.0 Test"
+    assert audit.verify()["ok"] is True
+
+
+def test_user_agent_flows_through_middleware_to_the_log(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.get("/account", headers={"User-Agent": "MyTestAgent/9.9"},
+              follow_redirects=False)
+        assert "MyTestAgent/9.9" in c.get("/admin/audit").text

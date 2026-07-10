@@ -1207,8 +1207,10 @@ async def user_delete(request: Request, username: str, user: dict = Depends(requ
 # ---- audit log (admin-only; hash-chained, tamper-evident) ----
 @router.get("/admin/audit", response_class=HTMLResponse)
 def admin_audit(request: Request, user: dict = Depends(require_audit),
-                limit: int = 200, offset: int = 0):
-    rows = audit.entries(limit=limit, offset=offset)
+                limit: int = 100, offset: int = 0, q: str = "", action: str = ""):
+    q = (q or "").strip()
+    action = (action or "").strip()
+    rows = audit.entries(limit=limit, offset=offset, search=q or None, action=action or None)
     status = audit.hash_status()
     for r in rows:
         r["valid"] = status.get(r["seq"], False)
@@ -1218,9 +1220,12 @@ def admin_audit(request: Request, user: dict = Depends(require_audit),
             "user": user,
             "entries": rows,
             "integrity": audit.verify(),
-            "total": audit.count(),
+            "total": audit.count(search=q or None, action=action or None),
             "limit": limit,
             "offset": offset,
+            "q": q,
+            "action": action,
+            "actions": audit.distinct_actions(),
         },
     )
 

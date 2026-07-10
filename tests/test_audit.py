@@ -145,3 +145,48 @@ def test_login_success_and_failure_are_recorded(client):
         _login(c, "ops")
         page = c.get("/admin/audit").text
         assert "login.failure" in page and "login.success" in page
+
+
+# ---- source IP (proxy-aware) ----
+def _scope(headers: dict, client=("10.0.0.1", 5555)):
+    return {"type": "http",
+            "headers": [(k.encode(), v.encode()) for k, v in headers.items()],
+            "client": client}
+
+
+def test_client_ip_resolves_through_proxy_layers():
+    from app.audit_mw import client_ip_from_scope
+    # Cloudflare header wins over everything
+    assert client_ip_from_scope(_scope(
+        {"cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "1.1.1.1"})) == "203.0.113.9"
+    # left-most X-Forwarded-For is the original client
+    assert client_ip_from_scope(_scope(
+        {"x-forwarded-for": "203.0.113.7, 10.0.0.2, 10.0.0.3"})) == "203.0.113.7"
+    # X-Real-IP next
+    assert client_ip_from_scope(_scope({"x-real-ip": "203.0.113.5"})) == "203.0.113.5"
+    # fall back to the direct peer when no proxy headers
+    assert client_ip_from_scope(_scope({})) == "10.0.0.1"
+
+
+def test_record_stamps_context_ip_and_mixed_chain_verifies(audit_db):
+    audit.set_client_ip("203.0.113.7")
+    try:
+        audit.record("a", "with_ip")
+    finally:
+        audit.set_client_ip(None)
+    audit.record("a", "without_ip")  # no ip in context
+    ips = {r["action"]: r["ip"] for r in audit.entries()}
+    assert ips["with_ip"] == "203.0.113.7" and ips["without_ip"] is None
+    # a chain mixing ip and NULL-ip entries still verifies (NULL-ip entries hash
+    # exactly as pre-ip-column entries did)
+    assert audit.verify()["ok"] is True
+
+
+def test_forwarded_ip_flows_through_middleware_to_the_log(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.get("/account", headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.9"},
+              follow_redirects=False)
+        assert "203.0.113.7" in c.get("/admin/audit").text

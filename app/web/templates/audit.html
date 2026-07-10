@@ -18,7 +18,7 @@
 <div style="overflow-x: auto;">
 <table style="width: 100%; border-collapse: collapse;">
   <thead><tr style="text-align: left; border-bottom: 1px solid var(--border);">
-    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Action</th>
+    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Source IP</th><th>Action</th>
     <th>Target</th><th>Details</th><th>Hash</th></tr></thead>
   <tbody>
   {% for e in entries %}
@@ -26,6 +26,7 @@
     <td class="muted">{{ e.seq }}</td>
     <td style="white-space: nowrap;">{{ e.ts }}</td>
     <td>{{ e.actor }}</td>
+    <td class="muted">{{ e.ip or '' }}</td>
     <td><code>{{ e.action }}</code></td>
     <td>{{ e.target or '' }}</td>
     <td class="muted" style="font-size: .85rem;">{{ e.details or '' }}</td>

@@ -57,3 +57,40 @@ class ActivityLogMiddleware(BaseHTTPMiddleware):
         except Exception:  # pragma: no cover - logging must never break a request
             pass
         return response
+
+
+def client_ip_from_scope(scope) -> str | None:
+    """Resolve the real client IP from a request scope, accounting for proxy
+    layers. Trust order: Cloudflare (CF-Connecting-IP / True-Client-IP), then the
+    left-most X-Forwarded-For (original client through nginx/Traefik hops), then
+    X-Real-IP, then the direct peer. The app listens only on loopback behind our
+    own reverse proxy, so these headers are set by us and can be trusted."""
+    headers: dict[str, str] = {}
+    for k, v in scope.get("headers", []):
+        headers[k.decode("latin-1").lower()] = v.decode("latin-1")
+    for h in ("cf-connecting-ip", "true-client-ip"):
+        if headers.get(h):
+            return headers[h].strip()
+    xff = headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    if headers.get("x-real-ip"):
+        return headers["x-real-ip"].strip()
+    client = scope.get("client")
+    return client[0] if client else None
+
+
+class ClientIPMiddleware:
+    """Pure-ASGI middleware that stashes the proxy-resolved client IP in a
+    ContextVar (app.audit) so every audit entry records it — both the activity
+    middleware and the route-level hooks. Registered outermost so the value is
+    set before any handler runs; pure-ASGI (not BaseHTTPMiddleware) so the
+    ContextVar propagates cleanly into the downstream request context."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            audit.set_client_ip(client_ip_from_scope(scope))
+        await self.app(scope, receive, send)

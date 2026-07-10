@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
+<div class="narrow">
 <h1>{{ org }} — Local administrator sign-in</h1>
 <p class="muted">Break-glass access for local administrators. Requires MFA.</p>
 
@@ -13,4 +14,11 @@
   <button type="submit">Sign in</button>
 </form>
 <p class="muted"><a href="{{ base_path }}/auth/login">← Back to primary sign-in</a></p>
+
+{% if login_notice is defined and login_notice() %}
+<div role="note" style="margin-top: 1.5rem; padding: .75rem .9rem; border: 1px solid var(--warn);
+     border-radius: 6px; background: rgba(217,119,6,.08); font-size: .85rem;
+     white-space: pre-line;">{{ login_notice() }}</div>
+{% endif %}
+</div>
 {% endblock %}

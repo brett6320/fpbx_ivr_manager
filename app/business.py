@@ -47,6 +47,8 @@ def save(
     closure_opening: str = "",
     closure_closing: str = "",
     destinations: dict[str, str] | None = None,
+    footer_text: str = "",
+    login_notice: str = "",
 ) -> None:
     path = _path()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -57,6 +59,9 @@ def save(
         "closure_opening": (closure_opening or "").strip(),
         "closure_closing": (closure_closing or "").strip(),
         "destinations": {k: (dests.get(k) or "").strip() for k in DESTINATION_KEYS},
+        # shown site-wide (footer) and on the login page (security notice)
+        "footer_text": (footer_text or "").strip(),
+        "login_notice": (login_notice or "").strip(),
     }
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
@@ -68,6 +73,16 @@ def default_destinations() -> dict[str, str]:
     d = load().get("destinations")
     d = d if isinstance(d, dict) else {}
     return {k: (d.get(k) or "") for k in DESTINATION_KEYS}
+
+
+def footer_text() -> str:
+    """Optional footer text shown on every page (admin-configurable)."""
+    return load().get("footer_text") or ""
+
+
+def login_notice() -> str:
+    """Optional security notice shown on the login page (admin-configurable)."""
+    return load().get("login_notice") or ""
 
 
 def default_destination(name: str) -> str:

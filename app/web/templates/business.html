@@ -31,6 +31,15 @@
   <label>Closing line</label>
   <textarea name="closure_closing" rows="2" placeholder="{{ default_closing }}">{{ closure_closing }}</textarea>
 
+  <h2 style="margin-top:1.5rem;">Footer &amp; login notice</h2>
+  <p class="muted">Optional. The footer shows at the bottom of every page; the
+  login notice shows on the sign-in page (e.g. an authorized-use / security
+  warning). Leave blank to hide.</p>
+  <label>Footer text (every page)</label>
+  <textarea name="footer_text" rows="2" placeholder="© {{ org_fallback }} — internal use only">{{ footer_text_value }}</textarea>
+  <label>Login security notice</label>
+  <textarea name="login_notice" rows="3" placeholder="Authorized access only. Activity is logged and monitored.">{{ login_notice_value }}</textarea>
+
   <h2 style="margin-top:1.5rem;">Templates</h2>
   <p class="muted">Reusable named snippets — a generic greeting, a closing line, hours,
   anything. Reference one in a prompt (or in another template) as <code>{name}</code>.

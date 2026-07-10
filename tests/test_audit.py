@@ -64,6 +64,23 @@ def test_record_never_raises(monkeypatch):
     audit.record("a", "boom")  # must not raise
 
 
+def test_concurrent_records_keep_the_chain_intact(audit_db):
+    # contention: many threads appending at once must not fork the hash chain
+    import threading
+
+    def worker():
+        for i in range(25):
+            audit.record("t", "concurrent", details={"i": i})
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert audit.count() == 8 * 25
+    assert audit.verify()["ok"] is True  # chain still valid despite contention
+
+
 # ---- route: admin-only visibility + action recording ----
 @pytest.fixture
 def client(tmp_path, monkeypatch):
@@ -106,3 +123,25 @@ def test_audit_view_visible_to_admin_and_records_actions(client):
         page = c.get("/admin/audit").text
         assert "user.create" in page and "carol" in page
         assert "Chain verified" in page  # integrity banner
+
+
+def test_activity_middleware_logs_page_views(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        c.get("/account", follow_redirects=False)  # a read/navigation
+        page = c.get("/admin/audit").text
+        # the middleware recorded the page view; /admin/audit itself is excluded
+        assert "view" in page and "/account" in page
+
+
+def test_login_success_and_failure_are_recorded(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        c.post("/auth/login", data={"username": "ops", "password": "wrong"},
+               follow_redirects=False)
+        _login(c, "ops")
+        page = c.get("/admin/audit").text
+        assert "login.failure" in page and "login.success" in page

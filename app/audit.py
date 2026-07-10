@@ -19,6 +19,8 @@ import json
 import logging
 import os
 import sqlite3
+import threading
+import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
@@ -28,6 +30,13 @@ log = logging.getLogger("fpbx_ivr_manager")
 
 # The prev_hash of the very first entry. 64 hex zeros == "no previous entry".
 GENESIS = "0" * 64
+
+# Serialize appends *within this process* so two concurrent events can never
+# read the same chain tail and fork the hash chain. Across processes (e.g. a
+# multi-worker deployment) SQLite's write lock + busy_timeout + the retry loop
+# in record() serialize the append instead — BEGIN IMMEDIATE means the second
+# writer only reads the tail after the first has committed.
+_write_lock = threading.Lock()
 
 
 @contextmanager
@@ -40,6 +49,8 @@ def _conn():
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("PRAGMA journal_mode=WAL")
+        # wait (don't fail) if another writer/process holds the write lock
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.execute(
             "CREATE TABLE IF NOT EXISTS audit ("
             "  seq       INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -76,29 +87,49 @@ def _details_json(details: dict | None) -> str | None:
 
 def record(actor: str, action: str, target: str | None = None,
            details: dict | None = None) -> None:
-    """Append one entry, chained to the current tail. Never raises."""
+    """Append one entry, chained to the current tail. Concurrency-safe and never
+    raises to the caller (a broken audit backend must not break the action)."""
+    ts = datetime.now(UTC).isoformat()
+    dj = _details_json(details)
     try:
-        ts = datetime.now(UTC).isoformat()
-        dj = _details_json(details)
-        with _conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                row = conn.execute(
-                    "SELECT hash FROM audit ORDER BY seq DESC LIMIT 1"
-                ).fetchone()
-                prev = row["hash"] if row else GENESIS
-                h = _entry_hash(prev, ts, actor or "?", action, target, dj)
-                conn.execute(
-                    "INSERT INTO audit (ts, actor, action, target, details, prev_hash, hash)"
-                    " VALUES (?,?,?,?,?,?,?)",
-                    (ts, actor or "?", action, target, dj, prev, h),
-                )
-                conn.execute("COMMIT")
-            except Exception:
-                conn.execute("ROLLBACK")
-                raise
+        # In-process lock: two concurrent events serialize here, so neither can
+        # read a stale chain tail and fork the hash chain.
+        with _write_lock:
+            _append(ts, actor or "?", action, target, dj)
     except Exception:  # pragma: no cover - audit must never break the request
         log.exception("audit record failed for action=%s", action)
+
+
+def _append(ts: str, actor: str, action: str, target: str | None,
+            dj: str | None, retries: int = 5) -> None:
+    """Read the tail and insert the chained entry atomically. BEGIN IMMEDIATE
+    takes the write lock up front, so across processes a second writer only sees
+    the tail after the first commits; on a transient lock we back off and retry."""
+    for attempt in range(retries):
+        try:
+            with _conn() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    row = conn.execute(
+                        "SELECT hash FROM audit ORDER BY seq DESC LIMIT 1"
+                    ).fetchone()
+                    prev = row["hash"] if row else GENESIS
+                    h = _entry_hash(prev, ts, actor, action, target, dj)
+                    conn.execute(
+                        "INSERT INTO audit (ts, actor, action, target, details, prev_hash, hash)"
+                        " VALUES (?,?,?,?,?,?,?)",
+                        (ts, actor, action, target, dj, prev, h),
+                    )
+                    conn.execute("COMMIT")
+                    return
+                except Exception:
+                    conn.execute("ROLLBACK")
+                    raise
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < retries - 1:
+                time.sleep(0.05 * (attempt + 1))
+                continue
+            raise
 
 
 def count() -> int:

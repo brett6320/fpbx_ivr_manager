@@ -11,19 +11,20 @@ AUTH_BACKEND=fpbx
 AUTHZ_GROUP_PERMISSIONS={"superadmin":["manage_schedules","manage_users"],"agents":["manage_schedules"]}
 ```
 
-The keys are FusionPBX **group names** (`v_group_users.group_name`, e.g.
-`superadmin`, `agents`). A FusionPBX user with no mapped group can sign in but has
-no permissions until a group they belong to appears in the map.
+The keys are FusionPBX **group names** (`v_groups.group_name`, e.g. `superadmin`,
+`agents`, resolved via the user's `v_user_groups` rows). A FusionPBX user with no
+mapped group can sign in but has no permissions until a group they belong to
+appears in the map.
 
 **Default mapping.** When `AUTH_BACKEND=fpbx` and `AUTHZ_GROUP_PERMISSIONS` is not
 set, a sensible default keyed by FusionPBX's common group names applies:
 
 | Group | Permissions |
 |---|---|
-| `ivr-admins` | `manage_schedules`, `manage_users` |
-| `superadmin` | `manage_schedules`, `manage_users` |
+| `ivr-admins` | `manage_schedules`, `manage_users`, `view_audit` |
+| `superadmin` | `manage_schedules`, `manage_users`, `view_audit` |
+| `admin` | `manage_schedules`, `view_audit` |
 | `ivr-editors` | `manage_schedules` |
-| `admin` | `manage_schedules` |
 | `user` | `manage_schedules` |
 
 Setting `AUTHZ_GROUP_PERMISSIONS` (or using the mapping builder below and saving)
@@ -31,9 +32,11 @@ replaces the default entirely — it is not merged.
 
 ## How a login is verified
 
-1. Look up the enabled user (`user_enabled = 'true'`) by `username` in the
-   configured domain — falling back to a **global** (domain-less) FusionPBX
-   account if there's no domain-specific match.
+1. Look up the enabled user by `username` in the configured domain — falling back
+   to a **global** (domain-less) FusionPBX account if there's no domain-specific
+   match. `v_users.user_enabled` counts as enabled when it is **NULL** (FusionPBX
+   default), boolean **True** (FusionPBX 5.x), or a truthy **string**
+   (`true`/`t`/`1`/`yes`/`y`, older schemas); any other value disables the account.
 2. Verify the password against FusionPBX's own hashing, covering 4.5.x → 5.5:
    - **bcrypt** — stored `$2y$…` (also `$2a$`/`$2b$`). The PHP `$2y$` prefix is
      rewritten to `$2b$` for verification. Needs the `bcrypt` package
@@ -41,7 +44,8 @@ replaces the default entirely — it is not merged.
    - **legacy MD5** — `md5(salt + password)`, then `md5(password)`. Weak, but
      matches FusionPBX's own legacy fallback so older accounts still work.
    Other crypt schemes (`$6$` sha512, argon2, …) are **not** accepted.
-3. Resolve the user's groups from `v_group_users` and map them to permissions.
+3. Resolve the user's groups by joining `v_user_groups` (the user→group rows) to
+   `v_groups` on `group_uuid`, then map the resulting group names to permissions.
 
 The session identity's email is the FusionPBX **username** — FusionPBX stores a
 user's email in `v_contacts` (via `contact_uuid`), not `v_users`, and some schema
@@ -57,7 +61,7 @@ The app must be able to read three tables. With the scoped role
 
 ```sql
 GRANT SELECT ON v_users       TO ivr_manager;
-GRANT SELECT ON v_group_users TO ivr_manager;
+GRANT SELECT ON v_user_groups TO ivr_manager;
 GRANT SELECT ON v_groups      TO ivr_manager;
 ```
 
@@ -77,7 +81,7 @@ So switching to the fpbx backend never locks you out of the app's own admin.
 
 On **`/admin/auth`**, expand **Map FusionPBX groups → permissions (builder)** and
 click **Load FusionPBX groups**: it lists the domain's `v_groups` and gives each a
-checkbox per app permission (`manage_schedules`, `manage_users`). Tick what each
+checkbox per app permission (`manage_schedules`, `manage_users`, `view_audit`). Tick what each
 group should grant and **Apply to JSON** — it writes the mapping into
 `AUTHZ_GROUP_PERMISSIONS` for you (groups you don't touch are left as-is). **Save**
 and restart to apply.

@@ -35,6 +35,7 @@ The app separates **authentication** (who are you?) from **authorization**
 |-------------------|---------------------------------------------------------|
 | `manage_schedules` | Viewing/creating/editing/deleting schedules; viewing and **creating** IVRs; viewing/creating phrases |
 | `manage_users`    | Admin: local user administration, the call-flow wizard (`/flow`), **deleting/recycling IVRs**, deleting phrases, plus all admin pages |
+| `view_audit`      | Reading the tamper-evident **audit log** at `/admin/audit` (admin-only by default) — see [audit.md](audit.md) |
 
 The **call-flow wizard** (`/flow`) wires an inbound route → time condition → IVR
 in one step; because it can repoint inbound routes, it is **admin-only**

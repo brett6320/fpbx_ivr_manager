@@ -70,20 +70,24 @@ def test_verify_detects_removed_entry(audit_db):
     assert audit.verify()["ok"] is False
 
 
-def test_search_action_filter_and_pagination(audit_db):
+def test_per_column_filter(audit_db):
     audit.record("alice", "user.create", target="bob", ip="10.0.0.1")
     audit.record("carol", "user.delete", target="bob")
     audit.record("alice", "login.success", ua="Firefox/1")
-    # free-text search spans actor/action/target/details/ip/ua
-    assert {r["action"] for r in audit.entries(search="alice")} == {"user.create", "login.success"}
-    assert {r["action"] for r in audit.entries(search="Firefox")} == {"login.success"}
-    assert len(audit.entries(search="bob")) == 2
-    assert len(audit.entries(search="10.0.0.1")) == 1
-    # exact action filter + filtered counts
-    assert [r["actor"] for r in audit.entries(action="user.delete")] == ["carol"]
-    assert audit.count(search="alice") == 2
-    assert audit.count(action="user.create") == 1
-    assert set(audit.distinct_actions()) == {"user.create", "user.delete", "login.success"}
+    # exact-match columns (actor / action / ip)
+    assert [r["action"] for r in audit.entries(filters={"actor": "alice"})] == ["login.success", "user.create"]
+    assert [r["actor"] for r in audit.entries(filters={"action": "user.delete"})] == ["carol"]
+    assert len(audit.entries(filters={"ip": "10.0.0.1"})) == 1
+    # substring columns (target / ua / details)
+    assert len(audit.entries(filters={"target": "bo"})) == 2
+    assert [r["action"] for r in audit.entries(filters={"ua": "fire"})] == ["login.success"]
+    # multiple columns AND together
+    assert len(audit.entries(filters={"actor": "alice", "action": "user.create"})) == 1
+    # counts + dropdown value lists
+    assert audit.count(filters={"actor": "alice"}) == 2
+    assert set(audit.distinct_values("action")) == {"user.create", "user.delete", "login.success"}
+    assert set(audit.distinct_values("actor")) == {"alice", "carol"}
+    assert audit.distinct_values("details") == []  # not a dropdown column
 
 
 def test_pagination_slices_without_overlap(audit_db):
@@ -95,15 +99,15 @@ def test_pagination_slices_without_overlap(audit_db):
     assert {r["seq"] for r in p1}.isdisjoint({r["seq"] for r in p2})
 
 
-def test_audit_page_search_and_empty_filter(client):
+def test_audit_page_per_column_filter(client):
     local.create_user("ops", "pw")
     local.add_to_group("ops", "ops")
     with client as c:
         _login(c, "ops")
         c.post("/admin/users", data={"username": "carol", "password": "pw",
                                      "display_name": "Carol"}, follow_redirects=False)
-        assert "user.create" in c.get("/admin/audit?q=carol").text
-        assert "No entries match" in c.get("/admin/audit?action=nope.nope").text
+        assert "carol" in c.get("/admin/audit?f_action=user.create").text
+        assert "No entries match" in c.get("/admin/audit?f_action=nope.nope").text
 
 
 def test_record_never_raises(monkeypatch):

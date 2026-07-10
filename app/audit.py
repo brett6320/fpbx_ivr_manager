@@ -179,46 +179,60 @@ def _append(ts: str, actor: str, action: str, target: str | None,
             raise
 
 
-def _filter(search: str | None, action: str | None) -> tuple[str, list]:
-    """Build a parameterized WHERE clause for search + action filtering."""
+# Per-column filtering (Excel-style): each column matches either exactly (for
+# the dropdown columns) or by substring. Keys are the ONLY accepted filter
+# columns, so a column name is never taken from user input.
+_FILTER_COLS = {
+    "ts": "like", "actor": "exact", "ip": "exact", "ua": "like",
+    "action": "exact", "target": "like", "details": "like",
+}
+# Columns that offer a distinct-value dropdown (low/medium cardinality).
+DROPDOWN_COLS = ("actor", "ip", "action")
+
+
+def _filter(filters: dict | None) -> tuple[str, list]:
+    """Build a parameterized WHERE from a {column: value} map, ANDing the
+    per-column conditions. Columns are keyed against _FILTER_COLS (a whitelist),
+    so the column names are never user input."""
     clauses: list[str] = []
     params: list = []
-    if action:
-        clauses.append("action = ?")
-        params.append(action)
-    if search:
-        like = f"%{search}%"
-        clauses.append(
-            "(actor LIKE ? OR action LIKE ? OR COALESCE(target,'') LIKE ? "
-            "OR COALESCE(details,'') LIKE ? OR COALESCE(ip,'') LIKE ? "
-            "OR COALESCE(ua,'') LIKE ?)"
-        )
-        params += [like] * 6
+    for col, val in (filters or {}).items():
+        mode = _FILTER_COLS.get(col)
+        if not mode or not val:
+            continue
+        if mode == "exact":
+            clauses.append(f"{col} = ?")
+            params.append(val)
+        else:
+            clauses.append(f"COALESCE({col},'') LIKE ?")
+            params.append(f"%{val}%")
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where, params
 
 
-def count(search: str | None = None, action: str | None = None) -> int:
-    where, params = _filter(search, action)
+def count(filters: dict | None = None) -> int:
+    where, params = _filter(filters)
     with _conn() as conn:
         return int(conn.execute(
             "SELECT count(*) AS n FROM audit" + where, params).fetchone()["n"])
 
 
-def distinct_actions() -> list[str]:
-    """All distinct action names, for the filter dropdown."""
+def distinct_values(column: str) -> list[str]:
+    """Distinct non-empty values for a whitelisted column, for its dropdown."""
+    if column not in DROPDOWN_COLS:
+        return []
     with _conn() as conn:
-        return [r["action"] for r in conn.execute(
-            "SELECT DISTINCT action FROM audit ORDER BY action")]
+        return [r[0] for r in conn.execute(
+            f"SELECT DISTINCT {column} FROM audit "
+            f"WHERE {column} IS NOT NULL AND {column} <> '' ORDER BY {column}")]
 
 
 def entries(limit: int = 100, offset: int = 0,
-            search: str | None = None, action: str | None = None) -> list[dict]:
-    """Most recent matching entries first (optionally filtered by free-text
-    search across fields and/or an exact action)."""
+            filters: dict | None = None) -> list[dict]:
+    """Most recent matching entries first, filtered per column."""
     limit = max(1, min(int(limit), 1000))
     offset = max(0, int(offset))
-    where, params = _filter(search, action)
+    where, params = _filter(filters)
     with _conn() as conn:
         rows = conn.execute(
             "SELECT seq, ts, actor, action, target, details, ip, ua, prev_hash, hash "

@@ -18,6 +18,15 @@ def test_save_load_roundtrip(store):
     assert business.templates() == {"greeting": "Hi"}
 
 
+def test_footer_and_login_notice_roundtrip(store):
+    business.save("Acme", {}, footer_text="  Acme footer ", login_notice=" Authorized only ")
+    assert business.footer_text() == "Acme footer"
+    assert business.login_notice() == "Authorized only"
+    # default: blank
+    business.save("Acme", {})
+    assert business.footer_text() == "" and business.login_notice() == ""
+
+
 def test_business_name_falls_back(store):
     assert business.business_name() == "Fallback Org"
 
@@ -121,3 +130,17 @@ def test_admin_business_requires_manage_users_and_saves_dynamic_rows(client):
         assert r3.status_code == 303
         assert business.closure_opening() == "Hola {business_name}."
         assert business.closure_closing() == "Adios."
+
+
+def test_footer_and_login_notice_render(client):
+    business.save("Acme", {}, footer_text="(c) Acme internal",
+                  login_notice="Authorized use only. Activity is monitored.")
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        # login page shows the security notice (no auth required)
+        assert "Authorized use only. Activity is monitored." in c.get("/auth/login").text
+        # a signed-in page shows the footer
+        c.post("/auth/login", data={"username": "ops", "password": "pw"}, follow_redirects=False)
+        html = c.get("/schedules/new", follow_redirects=False).text
+        assert "(c) Acme internal" in html and 'footer class="site"' in html

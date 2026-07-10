@@ -29,6 +29,11 @@
     body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--fg); }
     /* full-width: fill the window, with breathing room at the edges */
     .content { max-width: none; margin: 1.5rem 0; padding: 0 1.5rem; box-sizing: border-box; }
+    /* constrained column for small forms (e.g. the login page) */
+    .narrow { max-width: 420px; margin: 2.5rem auto; }
+    /* site-wide footer */
+    footer.site { border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem;
+                  padding: .9rem 1.5rem; margin-top: 2rem; text-align: center; }
     a { color: var(--accent); }
     /* top nav */
     .nav { border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 10; }
@@ -148,6 +153,9 @@
 <main class="content">
 {% block body %}{% endblock %}
 </main>
+{% if footer_text is defined and footer_text() %}
+<footer class="site">{{ footer_text() }}</footer>
+{% endif %}
 <div id="confirmModal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
   <div class="modal">
     <h2 id="confirmTitle">Please confirm</h2>

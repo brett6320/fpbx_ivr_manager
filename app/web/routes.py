@@ -91,6 +91,9 @@ templates.env.globals["nav_can_audit"] = (
 templates.env.globals["nav_local_backend"] = lambda: backend.kind() == "local"
 # so templates can prefix every internal link/fetch with the mount sub-path
 templates.env.globals["base_path"] = settings.base_path
+# admin-configurable footer (every page) and login-page security notice
+templates.env.globals["footer_text"] = business.footer_text
+templates.env.globals["login_notice"] = business.login_notice
 
 
 def app_url(path: str) -> str:
@@ -1059,6 +1062,8 @@ def admin_business(request: Request, user: dict = Depends(require_users), saved:
             "placeholders": business.placeholder_keys(),
             "destinations": list_destinations(),
             "dests": business.default_destinations(),
+            "footer_text_value": business.footer_text(),
+            "login_notice_value": business.login_notice(),
             "saved": bool(saved),
         },
     )
@@ -1084,6 +1089,8 @@ async def admin_business_save(request: Request, user: dict = Depends(require_use
         closure_opening=(form.get("closure_opening") or "").strip(),
         closure_closing=(form.get("closure_closing") or "").strip(),
         destinations=destinations,
+        footer_text=(form.get("footer_text") or "").strip(),
+        login_notice=(form.get("login_notice") or "").strip(),
     )
     audit.record(_actor(user), "business.save", target=name or None)
     return redirect("/admin/business?saved=1", status_code=303)

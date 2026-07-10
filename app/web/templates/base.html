@@ -93,9 +93,9 @@
     {# ---- Scheduling: schedule management, from a non-admin perspective.
            A dropdown when there's more than one item, otherwise a plain link. #}
     {% set sched = [
-        ('/', 'Schedules', path == '/'),
         ('/ivrs', 'IVRs', path.startswith('/ivrs')),
         ('/phrases', 'Phrases', path.startswith('/phrases')),
+        ('/', 'Schedules', path == '/'),
     ] %}
     {% if sched | length == 1 %}
     <a href="{{ base_path }}{{ sched[0][0] }}"{% if sched[0][2] %} class="active"{% endif %}>{{ sched[0][1] }}</a>
@@ -122,18 +122,20 @@
       <span class="dd-toggle{% if path.startswith('/flow') or path.startswith('/admin') %} active{% endif %}"
             tabindex="0" role="button" aria-haspopup="true">Administration</span>
       <div class="dropdown-menu">
-        {% if is_admin %}
-        <a href="{{ base_path }}/flow/new"{% if path.startswith('/flow') %} class="active"{% endif %}>Call&nbsp;flow</a>
-        <a href="{{ base_path }}/admin/adopt"{% if path.startswith('/admin/adopt') %} class="active"{% endif %}>Adopt</a>
-        <a href="{{ base_path }}/admin/auth"{% if path.startswith('/admin/auth') %} class="active"{% endif %}>Auth</a>
-        <a href="{{ base_path }}/admin/business"{% if path.startswith('/admin/business') %} class="active"{% endif %}>Business</a>
-        <a href="{{ base_path }}/admin/import"{% if path.startswith('/admin/import') or path.startswith('/admin/export') %} class="active"{% endif %}>Backup</a>
-        {% if is_local %}<a href="{{ base_path }}/admin/users"{% if path.startswith('/admin/users') %} class="active"{% endif %}>Users</a>{% endif %}
-        <a href="{{ base_path }}/admin/compat"{% if path.startswith('/admin/compat') %} class="active"{% endif %}>Compatibility</a>
-        {% endif %}
-        {% if is_audit %}
-        <a href="{{ base_path }}/admin/audit"{% if path.startswith('/admin/audit') %} class="active"{% endif %}>Audit&nbsp;log</a>
-        {% endif %}
+        {# items listed alphabetically by label; each carries its own gate #}
+        {% set admin_items = [
+            ('/admin/adopt', 'Adopt', path.startswith('/admin/adopt'), is_admin),
+            ('/admin/audit', 'Audit log', path.startswith('/admin/audit'), is_audit),
+            ('/admin/auth', 'Auth', path.startswith('/admin/auth'), is_admin),
+            ('/admin/import', 'Backup', path.startswith('/admin/import') or path.startswith('/admin/export'), is_admin),
+            ('/admin/business', 'Business', path.startswith('/admin/business'), is_admin),
+            ('/flow/new', 'Call flow', path.startswith('/flow'), is_admin),
+            ('/admin/compat', 'Compatibility', path.startswith('/admin/compat'), is_admin),
+            ('/admin/users', 'Users', path.startswith('/admin/users'), is_admin and is_local),
+        ] %}
+        {% for href, label, active, vis in admin_items %}{% if vis %}
+        <a href="{{ base_path }}{{ href }}"{% if active %} class="active"{% endif %}>{{ label }}</a>
+        {% endif %}{% endfor %}
       </div>
     </div>
     {% endif %}

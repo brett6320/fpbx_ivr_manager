@@ -54,3 +54,26 @@ def test_nav_shows_admin_links_for_manage_users(client):
         html = c.get("/schedules/new", follow_redirects=False).text
         for link in ("/admin/adopt", "/admin/auth", "/admin/compat", "/flow/new"):
             assert f'href="{link}"' in html
+
+
+def test_nav_groups_into_scheduling_and_administration_dropdowns(client):
+    local.create_user("ops", "pw")
+    local.add_to_group("ops", "ops")
+    with client as c:
+        _login(c, "ops")
+        html = c.get("/schedules/new", follow_redirects=False).text
+        # both groups render as dropdowns
+        assert "Scheduling" in html and "Administration" in html
+        assert 'class="dropdown-menu"' in html
+        # the scheduling items live inside the menu
+        assert 'href="/ivrs"' in html and 'href="/phrases"' in html
+
+
+def test_editor_sees_scheduling_dropdown_but_no_administration(client):
+    local.create_user("ed", "pw")
+    local.add_to_group("ed", "editors")
+    with client as c:
+        _login(c, "ed")
+        html = c.get("/schedules/new", follow_redirects=False).text
+        assert "Scheduling" in html          # schedule management still grouped
+        assert "Administration" not in html  # no admin group for a non-admin
